@@ -10,6 +10,7 @@
 import { is } from "../lib";
 import { Container } from "./Container.js";
 import { Control } from "./Control";
+import { ctl } from "./ctl";
 
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -114,12 +115,23 @@ export class Panel extends Container {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doOwnerResize [override].
+	  TASK: Flags the panel that its owner is resized.
+	——————————————————————————————————————————————————————————————————————————*/
+	doOwnerResize() {
+		super.doOwnerResize();
+		this.calculateLayout();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: adjustSize [override]
 	  TASK: Changes the size of panel according to content.
 	——————————————————————————————————————————————————————————————————————————*/
 	adjustSize() {
 		if (!this._autosize)
 			return;
+		if (this._width != this._oldWidth || this._height != t._old.height)
+			t.calculateLayout();
 		super.adjustSize();
 	}
 
@@ -127,20 +139,14 @@ export class Panel extends Container {
 	  FUNC: calculateLayout
 	  TASK: Sets the dimensions of the panel and coordinates of sub control(s).
 	  INFO: 
-	  	Sub control layout is interdependant on	layout, sequence, rtl, 
-		autosize and alignments.
+	  	Sub control layout is interdependant on	layout, sequence, rightToLeft, 
+		and autosize.
 		1) Only members in sequence array are effected.
-		2) When layout is "none":
-			a)	splitX, splitY and rightToLeft are ineffective.
-			b)	if autosize is true, the sub control bounds will be 
-				calculated and size will be set.
-			c) if autosize is false nothing will be done.
+		2) When layout is "none" nothing is done.
 		3) When there is layout:
 			a)	splitX, splitY and rightToLeft are effective.
 			b)	if autosize is false, panel width and height is effective.
-			c)	if autosize is true, the area given by the owner to the
-				panel is effective.
-			d)	Sub controls will be fitted into panel via wrapping if 
+				Sub controls will be fitted into panel via wrapping if 
 				their coordinates overflow.
 	——————————————————————————————————————————————————————————————————————————*/
 	calculateLayout() {
@@ -148,9 +154,7 @@ export class Panel extends Container {
 			s,
 			r;
 
-		if (t._calculating || !t._ctlState || t._sequence == null)
-			return;
-		if (t._layout == "none" && !t._autosize)
+		if (t._layout == "none" || t._calculating || !t._ctlState || t._sequence == null)
 			return;
 		t._calculating = true;			// block recursions.
 		s = fetchSequenced(t);
@@ -178,65 +182,242 @@ export class Panel extends Container {
 				tar[key] = upd[key];
 		}
 	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+		Panel get sets
+	——————————————————————————————————————————————————————————————————————————*/
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	layout : String.
+	  GET : Gets layout of sequenced members.
+	  SET : Sets layout of sequenced members.
+	——————————————————————————————————————————————————————————————————————————*/
+	get layout() {
+		return this._layout;
+	}
+
+	set layout(value = null) {
+		if (ctl.LAYOUT.indexOf(value) == -1)
+			return;
+		if (value == this._layout)
+			return;
+		this._layout = value;
+		this.calculateLayout();
+	}
+
+	/*————————————————————————————————————————————————————————————————————————————
+	  PROP:	rightToLeft : Boolean;
+	  GET : Returns the layout right to left state.
+	  SET : Sets    the layout right to left state.
+	————————————————————————————————————————————————————————————————————————————*/
+	get rightToLeft() {
+		return this._rightToLeft;
+	}
+
+	set rightToLeft(value = false) {
+		value = !!value;
+
+		if (value == this._rightToLeft)
+			return;
+		this._rightToLeft = value;
+		this.calculateLayout();
+	}
+					 
+	/*————————————————————————————————————————————————————————————————————————————
+	  PROP:	sequence : Array;
+	  GET : Gets layout sequence of panel.
+	  SET : Sets layoutsequence of panel.
+	——————————————————————————————————————————————————————————————————————————*/
+	get sequence() {
+		return (this._sequence) ? this._sequence.concat() : null;
+	}
+
+	set sequence(value = null) {
+	var t = this,
+		n = [],							// new sequence
+		c;
+	
+		if (t._sta === Sys.LOAD){		// Sequence at load
+			if (value)
+				t._sequence = value.concat(); 
+			return;
+		}
+		if (!value) {
+			this._sequence = null;
+			this.invalidate();
+			return;
+		}
+		for(c in value){
+			if (!is.control(t._mem[value[c]]))
+				continue;
+			n.push(value[c]);
+		}
+		if (n.length == 0)
+			n = null;
+		t._sequence = n;
+		if (this._sequence == null)
+			this.invalidate();
+		t.calculateLayout();
 }
 
-function calcHorizontal(t, seq) {
-	var wid = t._width - t.dimensionsX().total,
+	/*———————————————————————————————————————————————————————————————————————————
+	  PROP:	splitX : uint;
+	  GET : Gets horizontal splitting distance for subcontrols.
+	  SET : Sets horizontal splitting distance for subcontrols.
+	  INFO: Ineffective if layout is 'none'		
+	——————————————————————————————————————————————————————————————————————————*/
+	get splitX() {
+		return this._splitX;
+	}
+
+	set splitX(value = 0) {
+		if (!is.num(value) || value < 0)
+			value = 0;
+		if (this._splitX == value) 
+			return;
+		this._splitX = value;
+		this.calculateLayout();
+	}
+
+	/*———————————————————————————————————————————————————————————————————————————
+	  PROP:	splitY : uint;
+	  GET : Gets vertical splitting distance for subcontrols.
+	  SET : Sets vertical splitting distance for subcontrols.
+	  INFO: Ineffective if layout is 'none'		
+	——————————————————————————————————————————————————————————————————————————*/
+	get splitY() {
+		return this._splitY;
+	}
+
+	set splitY(value = 0) {
+		if (!is.num(value) || value < 0)
+			value = 0;
+		if (this._splitY == value) 
+			return;
+		this._splitY = value;
+		this.calculateLayout();
+	}
+
+}
+
+// Private methods.
+
+function calcHorizontal(pnl, seq) {
+	var wid,
 		top = 0,
 		lft = 0,
 		hei = 0,
-		rtl = t._rightToLeft,
-		c,
-		u,
-		r = {};
-
-	for(c of seq) {
-		if (lft + c._width > wid){
+		rtl = pnl._rightToLeft,
+		ctl,
+		upd,
+		res = {},
+		totWid = 0,
+		totHei = 0;
+	
+	wid = (pnl._autosize) ? 
+			Number.MAX_SAFE_INTEGER:
+			pnl._width - pnl.dimensionsX().total;
+	for(ctl of seq) {
+		if (lft + ctl._width > wid){
 			if (lft !== 0){
-				top += hei + t._splitY;
+				top += hei + pnl._splitY;
 				hei = 0;
 			}
 			lft = 0; 
 		}
-		u = {x: (rtl) ? (wid - (lft + c._width)) : lft, y: top};
-		disableAligns(c, u);
-		r[c.name] = u;
-		if (hei < c._height)
-			hei = c._height;
-		lft += c._width + t._splitX;
+		upd = buildUpdate(ctl, res, (rtl) ? (wid - (lft + ctl._width)) : lft, top);
+		if (hei < ctl._height)
+			hei = ctl._height;
+		lft += ctl._width + pnl._splitX;
+		if (!pnl._autosize)
+			continue;
+		if (totWid < upd.x + ctl._width)
+			totWid = upd.x + ctl._width;
+		if (totHei < upd.y + ctl._height)
+			totHei = upd.y + ctl._height;
 	}
-	return r;
+	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): r );
 }
 
-function calcVertical(t, seq) {
-	var hei = t._height - t.dimensionsY().total,
+function calcVertical(pnl, seq) {
+	var hei,
 		top = 0,
 		lft = 0,
 		wid = 0,
-		rtl = t._rightToLeft,
-		c,
-		u,
-		r = {};
-	
-	for(c of seq) {
-		if (top + c._height > hei) {
+		rtl = pnl._rightToLeft,
+		ctl,
+		upd,
+		res = {},
+		totWid = 0,
+		totHei = 0;
+
+	hei = (pnl._autosize) ?
+			Number.MAX_SAFE_INTEGER :
+			pnl._height - pnl.dimensionsY().total;
+	for(ctl of seq) {
+		if (top + ctl._height > hei) {
 			if (top !== 0) {
-				lft += wid + t._splitX;
+				lft += wid + pnl._splitX;
 				wid = 0;
 			}
 			top = 0;
 		}
-		u = {x: (rtl) ? (wid - (lft + c._width)) : lft, y: top};
-		disableAligns(c, u);
-		r[c.name] = u;
-		if (wid < c._width)
-			wid = c._width;
-		top += c._height + t._splitY;
+		upd = buildUpdate(ctl, res, (rtl) ? (wid - (lft + ctl._width)) : lft, top);
+		if (wid < ctl._width)
+			wid = ctl._width;
+		top += ctl._height + pnl._splitY;
+		if (!pnl._autosize)
+			continue;
+		if (totWid < upd.x + ctl._width)
+			totWid = upd.x + ctl._width;
+		if (totHei < upd.y + ctl._height)
+			totHei = upd.y + ctl._height;
 	}
-	
-
+	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): r );
 }
 
+// Calculates size according to boundaries of controls in panel.
+// Adds a _t_ entry to result set if panel width or height changes.
+function finalizeSize(pnl, seq, res, totWid, totHei){
+	var mem,
+		ctl,
+		upd = {};
+
+	for(mem in pnl._mem){
+		ctl = pnl._mem[mem];
+		if (!is.control(ctl) || !ctl._visible || seq.indexOf(ctl) > -1)
+			continue;
+		d = ctl._x + ctl._width;
+		if (totWid < d)
+			totWid = d;
+		d = ctl._y + ctl._height;
+		if (totHei < d)
+			totHei = d;
+	}
+	totWid += pnl.dimensionsX().total;
+	totHei += pnl.dimensionsY().total;
+	if (pnl._width != totWid)
+		upd.width = totWid;
+	if (pnl._height != totHei) 
+		upd.height = totHei;
+	if (upd.width || upd.height)
+		res._t_ = upd;
+	return res;
+}
+
+// Disables alignments in a controls update set.
+// Adds x, y values to update set.
+// Adds update set to result set.
+function buildUpdate(ctl, res, xPos, yPos){
+	var upd = {x: xPos,	y: yPos};
+	
+	if (ctl._alignX != "none")
+		upd.alignX = "none";
+	if (ctl._alignY != "none")
+		upd.alignY = "none";
+	res[ctl._nam] = upd;
+	return upd;
+}
 
 // Builds an array of sequenced controls.
 function fetchSequenced(t) {
@@ -255,158 +436,3 @@ function fetchSequenced(t) {
 	}
 	return (r.length) ? r : null;
 }
-
-// Adds a _t_ entry to result set if panel width or height changes.
-function finalizeSize(t, seq, r, w, h){
-	var b = calcOffSeqBounds(t, seq),
-		u = {};
-	
-	if (w < b.w)
-		w = b.w;
-	if (h < b.h)
-		h = b.h;
-	w += t.dimensionsX().total;
-	h += t.dimensionsY().total;
-	if (t._width != w)
-		u.width = w;
-	if (t._height != h) 
-		u.height = h;
-	if (t._width != w || t._height != h)
-		r._t_ = u;
-	return r;
-}
-
-// Calculates boundaries of controls that are not in sequence.
-function calcOffSeqBounds(t, seq){
-	var m,
-		c,
-		d,
-		w = 0,
-		h = 0;
-
-	if (!seq)
-		seq = [];
-	for(m in t._mem){
-		c = t._mem[m];
-		if (!c._visible || seq.includes(c))
-			continue;
-		d = c._x + c._width;
-		if (w < d)
-			w = d;
-		d = c._y + c._height;
-		if (h < d)
-			h = d;
-	}
-	return {w: w, h: h};
-}
-
-// Disables alignments in a controls update set.
-function disableAligns(c, u){
-	if (c._alignX != "none")
-		u.alignX = "none";
-	if (c._alignY != "none")
-		u.alignY = "none";
-}
-
-/*
-// Calculates maximum width of sequenced controls.
-function calcMaxSeqWidth(t, seq) {
-	var c,
-		w = 0;
-		
-	for(c of seq){
-		if (w < c._width)
-			w = c._width;
-	}
-	return w;
-}
-
-// Calculates maximum height of sequenced controls.
-function calcMaxSeqHeight(t, seq) {
-	var c,
-		h = 0;
-		
-	for(c of seq){
-		if (h < c._height)
-			h = c._height;
-	}
-	return h;
-}
-
-// Autosize: Calculate Panel size according to subcontrols.
-function calculateSize(t, ignoreSequence = true) {
-	var i,
-		c,
-		w = 0,
-		h = 0;
-
-	for(i in t._mem) {
-		c = t._mem[i];
-		if (!c._visible)
-			continue;
-		if (ignoreSequence && (t._sequence != null && t._sequence.indexOf(c.name) > -1))
-			continue;
-		if (w < c._x + c._width)
-			w = c._x + c._width;
-		if (h < c._y + c._height)
-			w = c._y + c._height;
-	}
-	
-	w += t.dimensionsX().total;
-	h += t.dimensionsY().total;
-	return  {width: w, height: h};
-}
-
-// Autosize, set dimensions of the Panel according to layout.
-function calcLinear(t, seq) {
-	if (seq == null)
-		return {_t_: calculateSize(t, true)};
-	if (t._rightToLeft)
-		seq.reverse();
-	return (t._layout == 'horizontal') ?
-			calcLinearHorizontal(t, seq) :
-			calcLinearVertical(t, seq);
-}
-
-// Autosize, horizontal linear.
-function calcLinearHorizontal(t, seq) {
-	var c,
-		s = t._splitX,
-		w = 0,
-		r = {},
-		u,
-		h = calcMaxSeqHeight(t, seq);
-
-	for(c of seq){
-		if (w > 0)
-			w += s;
-		u = {x: w, y: (h - c._height) / 2}; 
-		disableAligns(c, u);
-		w += c._width;
-		r[c._nam] = u;
-	}
-	return finalizeSize(t, seq, r, w, h);
-}
-
-// Autosize, vertical linear.
-function calcLinearVertical(t, seq) {
-	var c,
-		s = t._splitY,
-		h = 0,
-		r = {},
-		u,
-		w = calcMaxSeqWidth(t, seq);
-
-	for(c of seq){
-		if (h > 0)
-			h += s;
-		u = {x: (w - c._width) / 2, y: h};
-		disableAligns(c, u);
-		h += c._height;
-		r[c._nam] = u;
-	}
-	return finalizeSize(t, seq, r, w, h);
-}
-
-
-*/

@@ -7,10 +7,9 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is } from "../lib";
+import { is, sys } from "../lib";
 import { Container } from "./Container.js";
-import { Control } from "./Control";
-import { ctl } from "./ctl";
+import { ctl } from "./ctl.js";
 
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -436,3 +435,5 @@ function fetchSequenced(t) {
 	}
 	return (r.length) ? r : null;
 }
+
+sys.registerClass(Panel);

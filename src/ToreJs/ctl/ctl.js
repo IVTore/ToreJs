@@ -25,23 +25,6 @@ export const ctl = {
 		'Sleep'
 	],
 
-	// Properties not allowed in control styles
-	INV_STYLE: {	
-		'length'	:1,	// rule.style internal
-		'cssText'	:1,
-		'parentRule':1,
-		'top'		:1, // Control managed
-		'left'		:1, 
-		'bottom'	:1,
-		'right'		:1,
-		'width'		:1,
-		'height'	:1,
-		'zIndex'	:1,
-		'display'	:1,
-		'visibility':1,
-		'clip'		:1
-	},
-
 	// Control 2D X alignment
 	ALIGN_X: [
 		'none',
@@ -62,5 +45,26 @@ export const ctl = {
 		'none',
 		'horizontal',
 		'vertical'
-	]
+	],
+
+	SIZES: {
+		Tiny: 1,
+		Small: 1,
+		Medium: 1,
+		Big: 1,
+		Large: 1,
+		Huge: 1
+	},
+
+	COLORS: {
+		First: 1,
+		Second: 1,
+		Done: 1,
+		Fail: 1, 
+		Warn: 1, 
+		Info: 1, 
+		Light: 1,
+		Dark: 1, 
+		Link: 1
+	}
 }

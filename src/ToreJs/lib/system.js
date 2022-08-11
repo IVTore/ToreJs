@@ -262,10 +262,9 @@ var	ptor,		// parent constructor.
 	i;
 
 	function initialize() {
-		if(!ctor.info.initialized && is.fun(ctor.classInit)){
+		if (!ctor.info.initialized && is.fun(ctor.classInit))
 			ctor.classInit();
-			ctor.info.initialized = true;
-		}
+		ctor.info.initialized = true;
 	}
 
 	ptor = Object.getPrototypeOf(ctor.prototype).constructor;

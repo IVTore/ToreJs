@@ -3,7 +3,7 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	TComponent.js: Tore Js base component class.
+  About		: 	Component.js: Tore Js base component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
@@ -23,7 +23,7 @@ export class Component extends TObject {
 	/*——————————————————————————————————————————————————————————————————————————
 		static allowMemberClass		: (used in attach method).
 			The allowed anchestor class of member.
-			When null component is not allowed have members.
+			When null component is not allowed to have members.
 	——————————————————————————————————————————————————————————————————————————*/
 	static allowMemberClass = Component;
 	/*——————————————————————————————————————————————————————————————————————————

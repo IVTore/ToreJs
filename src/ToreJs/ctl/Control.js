@@ -10,7 +10,7 @@
 import { TObject, Component, sys, is, exc } from "../lib/index.js";
 import { ctl } from "./ctl.js";
 import { Container } from "./Container.js";
-import { Display, display } from "./Display.js";
+import { display } from "./Display.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: cControl
@@ -19,15 +19,7 @@ import { Display, display } from "./Display.js";
 	*	Parent - Child control hierarchy is mapped to standard owner-member
 		system.
 	*	Control defines an interactivity scheme. 
-	*	Control defines an style name scheme which has:
-		*	The class name of the control, like Label or Button etc.
-		*	A suffix coming from controlState like, Alive or Sleep etc.
-		*	A styleName if defined.
-		*	A styleExtra if defined.
-		Example: 
-		An active Label instance with styleName Super and styleExtra Fancy
-		will have a className :
-		"Label LabelAlive Super SuperAlive SuperFancy SuperFancyAlive"
+	*	Control defines a style name scheme, look Styler.js.
 ————————————————————————————————————————————————————————————————————————————*/
 
 export class Control extends Component {
@@ -55,7 +47,8 @@ export class Control extends Component {
 		alignX			: {value: 'none'},
 		alignY			: {value: 'none'},
 		styleName		: {value: null},
-		styleExtra		: {value: null},	
+		styleColor		: {value: null},
+		styleSize		: {value: null},	
 		controlState	: {value: ctl.ALIVE},
 		
 		visible			: {value: true},
@@ -100,7 +93,8 @@ export class Control extends Component {
 	_alignX = 'none';			// X axis alignment.
 	_alignY = 'none';			// Y axis alignment.
 	_styleName = null;			// Style root name.
-	_styleExtra = null;			// Extra style name.
+	_styleColor = null;			// Color style name.
+	_styleSize = null;			// Size style name.
 	_ctlState = 0;				// control state.
 	_element = null;			// Dom element.
 	_visible = true;			// Visibility setting.
@@ -120,6 +114,11 @@ export class Control extends Component {
 	anchorRight = false;
 	anchorBottom = false;
 	dragEnabled = false;
+
+	_sBase = null;				// For style class settings.
+	_sSize = null;
+	_sColor = null;
+	_sName = null;
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
@@ -225,33 +224,17 @@ export class Control extends Component {
 	render() {
 		var t = this,
 			i,
-			cls,
-			stn,
-			ext,
-			sfx,
-			cnm,
-			sha = t.shade;
+			s = t.shade;
 			
 		t._shade = {};
 		if (!t._ctlState)
 			return;
 		if (t._changeClass){
 			t._changeClass = false;	
-			cls = t.class.name;
-			sfx = ctl.SUFFIX[t._ctlState];
-			stn = t._styleName;
-			ext = t._styleExtra;
-			cnm = cls + ' ' + cls + sfx;
-			if (stn)
-				cnm += ' ' + stn + ' ' + stn + sfx;
-			if (ext) 
-				cnm += ' ' + cls + ext + ' ' + cls + ext + sfx; 
-			if (stn && ext)
-				cnm += ' ' + stn + ext + ' ' + stn + ext + sfx;
-			t._element.className = cnm;
+			t._element.className = t._sBase + t._sSize + t._sColor + t._sName;
 		}
-		for(i in sha)
-			sty[i] = sha[i];
+		for(i in s)
+			sty[i] = s[i];
 		if (t._autosize)
 			t.adjustSize();
 		t.reAlign();
@@ -406,9 +389,7 @@ export class Control extends Component {
 	  TASK: Sets focus to control.
 	——————————————————————————————————————————————————————————————————————————*/
 	setFocus() {
-		var d = this.display;
-		if (d)
-			display.currentControl = this;
+		display.currentControl = this;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -804,25 +785,44 @@ export class Control extends Component {
 		if (value != null || !is.str(value) || this._styleName == value)
 			return;
 		this._styleName = value;		// set style name
-		this._changeClass = true;		// update element class names.
+		calcNamedClassNames(this);
+		this._changeClass = true;		// flag update element class names.
 		this.invalidate();				// redraw control with new style
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	styleExtra : String;
-	  GET : Returns  control style extra name if exists.
-	  SET : Sets the control style extra name.
-	  INFO: styleExtra is the extra name for the style classes of control.
+	  PROP:	styleColor : String;
+	  GET : Returns  control color style name if exists.
+	  SET : Sets the control color style name.
 	——————————————————————————————————————————————————————————————————————————*/
-	get styleExtra() {
-		return this._styleExtra;
+	get styleColor() {
+		return this._styleColor;
 	}
 
-	set styleExtra(value = null) {
-		if (value != null || !is.str(value) || this._styleExtra == value)
+	set styleColor(value = null) {
+		if (value != null || !is.str(value) || this._styleColor == value)
 			return;
-		this._styleExtra = value;		// set style extra name
-		this._changeClass = true;		// update element class names.
+		this._styleColor = value;		// set style color name
+		calcColorClassNames(this);
+		this._changeClass = true;		// flag element class names updated.
+		this.invalidate();				// redraw control with new style
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	styleSize : String;
+	  GET : Returns  control size style name if exists.
+	  SET : Sets the control color style name.
+	——————————————————————————————————————————————————————————————————————————*/
+	get styleSize() {
+		return this._styleSize;
+	}
+
+	set styleSize(value = null) {
+		if (value != null || !is.str(value) || this._styleSize == value)
+			return;
+		this._styleSize = value;		// set style size name
+		calcSizeClassNames(this);
+		this._changeClass = true;		// flag element class names updated.
 		this.invalidate();				// redraw control with new style
 	}
 
@@ -842,7 +842,8 @@ export class Control extends Component {
 		if (!is.num(value) || value < ctl.DYING || value > ctl.SLEEP || value == this._ctlState)
 			return
 		this._ctlState = value;
-		this._changeClass = true;		// update element class names.
+		calcAllClassNames(this);
+		this._changeClass = true;		// flag element class names updated.
 		this.checkEvents();
 		this.invalidate();
 	}
@@ -913,9 +914,10 @@ export class Control extends Component {
 	set enabled(value = true) {
 		var m;
 
+		value = !!value;
 		if (value == (this._ctlState != ctl.SLEEP))
 			return;
-		this.controlState = (value) ? Ctl.ALIVE : Ctl.SLEEP;
+		this.controlState = (value) ? ctl.ALIVE : ctl.SLEEP;
 		for(m in this._mem){
 			if (is.control(this._mem[m]))
 				this._mem[m].enabled = value;
@@ -1044,6 +1046,68 @@ function cascadeShowing(control, showing = false) {
 			continue;
 		cascadeShowing(c, (showing) ? c._visible : false);		
 	}
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcAllClassNames [private].
+  TASK: Calculates all control element class names.
+  ARGS:
+	t	: Control	: Control to calculate element class names.
+——————————————————————————————————————————————————————————————————————————*/
+function calcAllClassNames(t) {
+	var c = t.class.name,
+		s = ctl.SUFFIX[t._ctlState];
+		
+	function calcSub(n){
+		return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
+	}
+
+	t._sBase = c + ' ' + c + s;
+	t._sSize = calcSub(t._styleSize);
+	t._sColor = calcSub(t._styleColor);
+	t._sName = calcSub(t._styleName);
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcSizeClassNames [private].
+  TASK: Calculates control element size class names.
+  ARGS:
+	t	: Control	: Control to calculate element class names.
+——————————————————————————————————————————————————————————————————————————*/
+function calcSizeClassNames(t) {
+	var c = t.class.name,
+		s = ctl.SUFFIX[t._ctlState],
+		n = t._styleSize;
+		
+	t._sSize = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcColorClassNames [private].
+  TASK: Calculates control element color class names.
+  ARGS:
+	t	: Control	: Control to calculate element class names.
+——————————————————————————————————————————————————————————————————————————*/
+function calcColorClassNames(t) {
+	var c = t.class.name,
+		s = ctl.SUFFIX[t._ctlState],
+		n = t._styleColor;
+		
+	t._sColor = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcNamedClassNames [private].
+  TASK: Calculates control element named class names.
+  ARGS:
+	t	: Control	: Control to calculate element class names.
+——————————————————————————————————————————————————————————————————————————*/
+function calcNamedClassNames(t) {
+	var c = t.class.name,
+		s = ctl.SUFFIX[t._ctlState],
+		n = t._styleName;
+		
+	t._sName = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
 }
 
 sys.registerClass(Control);

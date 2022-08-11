@@ -29,6 +29,7 @@ export class Language extends Component {
   NOTES: It only accepts Language components as members.
 ———————————————————————————————————————————————————————————————————————————*/
 export class I18n extends Component {
+
 	static cdta = {
 		sequence: {value: null}
 	}
@@ -37,12 +38,20 @@ export class I18n extends Component {
 	
 	_seq = [];
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  CTOR: constructor.
+	  TASK: Constructs i18n singleton component, attaches it to core.
+	——————————————————————————————————————————————————————————————————————————*/
 	constructor(){
 		if (core["i18n"])
 			exc("E_SINGLETON", "core.i18n");
 		super("i18n", core);
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  DTOR: destructor.
+	  TASK: Destroys i18n singleton component.
+	——————————————————————————————————————————————————————————————————————————*/
 	destroy(){
 		this._seq = null;
 		super.destroy();
@@ -50,7 +59,7 @@ export class I18n extends Component {
 
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override]
-	  TASK:	Modifies member attachment logic to control language sequence..
+	  TASK:	Modifies member attachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	attach(component = null){
 	var t = this,
@@ -68,7 +77,7 @@ export class I18n extends Component {
 	
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	detach [override]
-	  TASK:	Modifies member detachment logic to control language sequence.
+	  TASK:	Modifies member detachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
 	var t = this,
@@ -92,12 +101,12 @@ export class I18n extends Component {
 	  TASK: Tries to find a specific data by data selector and language.
 	  ARGS:
 		selector	: String : The data identifier name.
-		language	: String : The language name 		[d = null].
+		language	: String : The language name 		:DEF:null.
 	  RETV:			: * 	 : data or selector if not found.
 	  INFO:
 		* If language is specified :
-			If language is invalid selector is returned.
-			If data not found selector is returned.
+			If language is invalid it is set to default.
+			If data not found in language, behaves as if language is null.
 		* If language is null (default):
 			All languages are scanned for selector with respect to sequence 
 			until data is found. 
@@ -107,14 +116,15 @@ export class I18n extends Component {
 	var t = this,
 		r,
 		i,
-		s = (is.str(language)) ? [language] : t._seq;
+		s = (is.str(language)) ? language : t._seq[0];
 		
 		if (!is.str(selector))
 			exc("E_INV_ARG", "selector");
-		if (!s[0])
-			return selector;
-		for(i in s){
-			r = t._mem[s[i]][selector];
+		r = t._mem[s][selector];
+		if (r)
+			return(r);
+		for(i in t._seq){
+			r = t._mem[t._seq[i]][selector];
 			if (r)
 				return(r);
 		}
@@ -156,7 +166,7 @@ export class I18n extends Component {
 		* Set routine is intelligent enough to filter invalid languages etc.
 		  It prioritizes the languages with names given in the array.
 		  Omitted languages are moved to the back of sequence.
-		* Sequence serves as language fallback order when a symbol is not found.
+		* Sequence serves as language fallback order when a selector is not found.
 	————————————————————————————————————————————————————————————————————————————*/
 	get sequence() {
 		var t = this;
@@ -197,3 +207,5 @@ export class I18n extends Component {
 
 sys.registerClass(Language);
 sys.registerClass(I18n);
+
+export const i18n = new I18n();

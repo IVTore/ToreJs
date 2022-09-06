@@ -7,8 +7,8 @@
   License 	:	MIT.
 ——————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys } from "../lib";
-import { Control } from "./Control.js";
+import { is, sys, core } from "../lib/system.js";
+import { Control } from "../ctl/Control.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Container
@@ -20,7 +20,7 @@ import { Control } from "./Control.js";
 export class Container extends Control {
 
 	static canFocusWhenEmpty = false;
-	static defCanFocus = true;
+	static canFocusDefault = true;
 
 	static cdta = {
 		tabsLoop		: {value: false},
@@ -44,7 +44,10 @@ export class Container extends Control {
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
-		super(name, owner, data);
+		super(name)
+		if (name == sys.LOAD)
+			return;
+		this._initControl(owner, data);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -116,7 +119,7 @@ export class Container extends Control {
 			a = [];
 
 		for(m in t._mem){
-			c = t._mem[i];
+			c = t._mem[m];
 			if (!is.control(c) || !c._interact || (c._tabIndex < 0 && tabonly))
 				continue;
 			if (c instanceof Container && !c.class.canFocusWhenEmpty && c.fetchFocusChildren() == null) 
@@ -173,10 +176,10 @@ export class Container extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: invalidateTabsCache
+	  PROC: invalidateContainerTabs
 	  TASK: Invalidates current tabs cache.
 	——————————————————————————————————————————————————————————————————————————*/
-	invalidateTabsCache() {
+	invalidateContainerTabs() {
 		this._calcTabs = true;
 	}
 
@@ -187,7 +190,7 @@ export class Container extends Control {
 	  RETV:		Boolean	: true if control is focusable.
 	——————————————————————————————————————————————————————————————————————————*/
 	canFocusOn(control = null) {
-		return (is.control(control) && control.interactive && control.container === this);
+		return (is.control(control) && control._interact && control.container === this);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -223,7 +226,7 @@ export class Container extends Control {
 		return(this._curFocus);
 	}
 
-	set focus(control){
+	set focus(c){
 		var t = this,
 			d = core.display;
 
@@ -252,4 +255,3 @@ export class Container extends Control {
 	}
 }
 
-sys.registerClass(Container);

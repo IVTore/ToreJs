@@ -17,7 +17,6 @@ import { EventHandler } from "./EventHandler.js";
 		1)	Component hierachy with ownership / membership relations.
 		2)	Easy to use event notification mechanism.
 ——————————————————————————————————————————————————————————————————————————*/
-
 export class Component extends TObject {
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -194,7 +193,7 @@ export class Component extends TObject {
 				configurable: true			// deletable.
 			}
 		);
-		c.attached();						// Inform component.
+		c.doAttached();						// Inform component.
 		if (event)
 			event.dispatch([t, c]);
 		return(true);
@@ -224,7 +223,7 @@ export class Component extends TObject {
 		c._own = null;						// detach
 		delete t[c._nam];					// delete getter.
 		delete t._mem[c._nam];				// remove.
-		c.detached(this);					// Inform component.
+		c.doDetached(this);					// Inform component.
 		if (kill)
 			c.destroy();
 		return true;
@@ -390,7 +389,7 @@ export class Component extends TObject {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC:	doLanguageChange
+	  FUNC:	doLanguageChange
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange(){

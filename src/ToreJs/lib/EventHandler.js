@@ -9,7 +9,6 @@
 import { sys, is, exc } from "./system.js";
 import { TObject } from "./TObject.js";
 
-
 /*——————————————————————————————————————————————————————————————————————————— 
   CLASS: EventHandler
   TASKS:

@@ -7,25 +7,25 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { TObject, Component, sys, is, exc } from "../lib/index.js";
-import { ctl } from "./ctl.js";
-import { Container } from "./Container.js";
-import { display } from "./Display.js";
+import { sys, is, core, Component } from "../lib/index.js";
+import { ctl } from "../ctl/ctl.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: cControl
+  CLASS: Control
   TASKS: Defines basic behaviours of Tore JS visual controls.
   NOTES:
-	*	Parent - Child control hierarchy is mapped to standard owner-member
-		system.
+	*	Parent - Child hierarchy is mapped to standard owner-member system.
 	*	Control defines an interactivity scheme. 
 	*	Control defines a style name scheme, look Styler.js.
 ————————————————————————————————————————————————————————————————————————————*/
-
 export class Control extends Component {
 
-	static elementTag = 'div';	// Control dom tag.
-	static defCanFocus = true;	// Control focusability default.
+	// Control dom tag. If null, element is not built in Control constructor.
+	static elementTag = 'div';	
+	// Control focusability default.
+	static canFocusDefault = true;	
+
+	// Initial values of control.
 	static initialStyle = {
 		top: "0px",
 		left: "0px",
@@ -46,7 +46,7 @@ export class Control extends Component {
 		tabIndex		: {value: 0},
 		alignX			: {value: 'none'},
 		alignY			: {value: 'none'},
-		styleName		: {value: null},
+		styleExtra		: {value: null},
 		styleColor		: {value: null},
 		styleSize		: {value: null},	
 		controlState	: {value: ctl.ALIVE},
@@ -55,29 +55,31 @@ export class Control extends Component {
 		enabled			: {value: true},
 		autosize		: {value: false},
 		canFocus		: {value: false},
+		yieldFocus		: {value: false},
 		
 		// publish these normal variables
-		anchorLeft		: {value: false, store: true},
-		anchorTop		: {value: false, store: true},
+		anchorLeft		: {value: true, store: true},
+		anchorTop		: {value: true, store: true},
 		anchorRight		: {value: false, store: true},
 		anchorBottom	: {value: false, store: true},
 		dragEnabled		: {value: false, store: true},
 		// Events
 		onFocusIn		: {event: true},
 		onFocusOut		: {event: true},
+		onViewportResize: {event: true},
 		onMemberResize	: {event: true},
 		onOwnerResize	: {event: true},
 		onLanguageChange: {event: true},
 		onStartDrag		: {event: true},
 		onDrag			: {event: true},
 		onEndDrag		: {event: true},
-		onClick			: {event: true},
-		onDoubleClick	: {event: true},
-		onMouseDown		: {event: true},
-		onMouseUp		: {event: true},
-		onMouseOut		: {event: true},
-		onMouseOver		: {event: true},
-		onMouseMove		: {event: true},
+		onHit			: {event: true},
+		onDoubleHit		: {event: true},
+		onPointerDown	: {event: true},
+		onPointerUp		: {event: true},
+		onPointerOut	: {event: true},
+		onPointerOver	: {event: true},
+		onPointerMove	: {event: true},
 		// Native events that can be listened
 		onKeyDown		: {event: true, typ:'keydown',		obj:'_element'},
 		onKeyUp			: {event: true, typ:'keyup',		obj:'_element'},
@@ -92,7 +94,7 @@ export class Control extends Component {
 	_tabIndex = 0;				// Tab index.
 	_alignX = 'none';			// X axis alignment.
 	_alignY = 'none';			// Y axis alignment.
-	_styleName = null;			// Style root name.
+	_styleExtra = null;			// Extra style name. 
 	_styleColor = null;			// Color style name.
 	_styleSize = null;			// Size style name.
 	_ctlState = 0;				// control state.
@@ -101,24 +103,33 @@ export class Control extends Component {
 	_enable = true;				// Enable flag.
 	_autosize = false;			// Autosize flag.
 	_canFocus = true;			// Control can focus or not.
-	
 	_interact = false;			// Interactibility state.
-	_mouseOvr = false;			// Pointer over.
-	_oldWidth = 0;				// Previous width of control.
-	_oldHeight = 0;				// Previous height of control.
-	_changeClass = true;		// Rewrite element class names.
-	
-	_shade = initStyle;			// shadow style.
-	anchorLeft = true;
+	_yieldFocus = false;		// If control can yield focus
+								// to the other controls under it 
+								// when it can not get focus.
+
+	anchorLeft = true;			// Anchors.
 	anchorTop = true;
 	anchorRight = false;
 	anchorBottom = false;
 	dragEnabled = false;
-
-	_sBase = null;				// For style class settings.
+	
+	// Internal properties.
+	
+	_ptrOver = false;			// Pointer over.
+	_oldWidth = 0;				// Previous width of control.
+	_oldHeight = 0;				// Previous height of control.
+	_vpResize = false;			// Viewport resizing.
+	
+	// styling.
+	_shade = {};				// shadow style.
+	_contentChanged = false;	// Content change flag.
+	_classesChanged = true;		// Rewrite element class names.
+	_styleRoot = null;			// Style root extension name.
+	_sBase = null;				// Calculated element class names.
 	_sSize = null;
 	_sColor = null;
-	_sName = null;
+	_sExtra = null;
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
@@ -132,14 +143,26 @@ export class Control extends Component {
 	constructor(name = null, owner = null, data = null) {
 		super(name);
 		makeElement(this);
-		this.canFocus = this.class.defCanFocus;
+		this.canFocus = this.class.canFocusDefault;
+		sys.propSet(this._shade, this.class.initialStyle);
 		if (name == sys.LOAD)
 			return;
-		this.controlState = ctl.ALIVE;
+		this._initControl(owner, data);
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _initControl [protected].
+	  TASK: Initializes control.
+	  ARGS:
+		owner 	: Control	: owner if any.
+		data	: Object	: data if any.
+	——————————————————————————————————————————————————————————————————————————*/
+	_initControl(owner = null, data = null) {
 		if (data)
 			sys.propSet(this, data);
 		if (owner)
 			owner.attach(this);
+		this.controlState = ctl.ALIVE;
 		this.invalidate();
 	}
 
@@ -168,18 +191,17 @@ export class Control extends Component {
 		* ... and this (owner) is size adjusted if auto sizing.
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
-		var t = this,
-			c = component;
+		var	c = component;
 
 		if (!super.attach(c))
 			return false;
 		if (!is.control(c))
 			return true;
-		t._element.appendChild(c._element);
-		c.refresh();
+		this._element.appendChild(c._element);
+		c.reAlign();
 		c.checkEvents();
-		if (t._autosize)
-			t.adjustSize();
+		if (this._autosize)
+			this.adjustSize();
 		return true;
 	}
 
@@ -191,18 +213,15 @@ export class Control extends Component {
 	  RETV: Boolean	: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null){
-		var t = this,
-			c = component;
-
-		if (!super.detach(c))
+		if (!super.detach(component))
 			return false;
-		if (!is.control(c))
+		if (!is.control(component))
 			return true;
-		if (c._element.parentNode === t._element)
-			t._element.removeChild(c._element);	
-		c.checkEvents();
-		if (t._autosize)
-			t.adjustSize();
+		if (component._element.parentNode === this._element)
+			this._element.removeChild(component._element);	
+		component.checkEvents();
+		if (this._autosize)
+			this.adjustSize();
 		return true;
 	}
 
@@ -214,31 +233,66 @@ export class Control extends Component {
 		if (this._invalid)
 			return;
 		this._invalid = true;
-		display.addRenderQueue(this);
+		core.display.addRenderQueue(this);
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: contentChanged.
+	  TASK: Invalidates control flagging with content change. 
+	——————————————————————————————————————————————————————————————————————————*/
+	contentChanged() {
+		if (this._autosize)
+			this.adjustSize();
+		if (this._contentChanged)
+			return;
+		this._contentChanged = true;
+		this.invalidate();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: classesChanged.
+	  TASK: Invalidates control flagging with element classes change. 
+	——————————————————————————————————————————————————————————————————————————*/
+	classesChanged() {
+		if (this._classesChanged)
+			return;
+		this._classesChanged = true;
+		this.invalidate();
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: render
 	  TASK: This draws the control. Called by display before new frame.
 	——————————————————————————————————————————————————————————————————————————*/
 	render() {
-		var t = this,
-			i,
-			s = t.shade;
+		var i,
+			g = this._shade,
+			s = this._element.style,
+			cla = this._classesChanged,
+			con = this._contentChanged;
 			
-		t._shade = {};
-		if (!t._ctlState)
+		this._invalid = false;
+		this._classesChanged = false;
+		this._contentChanged = false;
+		this._shade = {};
+		if (!this._ctlState)
 			return;
-		if (t._changeClass){
-			t._changeClass = false;	
-			t._element.className = t._sBase + t._sSize + t._sColor + t._sName;
-		}
-		for(i in s)
-			sty[i] = s[i];
-		if (t._autosize)
-			t.adjustSize();
-		t.reAlign();
+		if (cla)
+			this._element.className = this._sBase + this._sSize + this._sColor + this._sExtra;
+		for(i in g)
+			s[i] = g[i];
+		if (con)
+			this.renderContent();
+		if (this._autosize)
+			this.adjustSize();
+		this.reAlign();
 	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: renderContent
+	  TASK: This draws the control content. Called by render before new frame.
+	  INFO: This is a placeholder method to override.
+	——————————————————————————————————————————————————————————————————————————*/
+	renderContent() { }
 
 	/*———————————————————————————————————————————————————————————————————————————
 	  SUBSYS: Interactivity	
@@ -254,97 +308,100 @@ export class Control extends Component {
 	  TASK: Checks state of control & then decides to make control interactive.
 	——————————————————————————————————————————————————————————————————————————*/
 	checkEvents() {
-	var t = this,
-		b;
+		var b;
 	
-		if (!t._sta)						// if dead...
+		if (!this._sta)						// if dead...
 			return;
-		b =(t._visible && t._ctlState && t._ctlState !== ctl.SLEEP && t._canFocus);
-		t._element.style.pointerEvents = (b) ? 'auto': 'none';
-		if(b == t._interact)				// if no change in interactivity
+		b =(this._visible && 
+			this._ctlState && 
+			this._ctlState !== ctl.SLEEP &&
+			this._canFocus);
+		this._element.style.pointerEvents = (b) ? 'auto': 'none';
+		if (b == this._interact)			// if no change in interactivity
 			return;
-		t._interact = b;
-		t.invalidateContainerTabs();		// container tab order is invalid
+		this._interact = b;
+		if (this._tabIndex)
+			this.invalidateContainerTabs();	// container tab order is invalid
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doClick
-	  TASK: Flags the control that mouse is clicked on it.
+	  FUNC: doHit
+	  TASK: Flags the control that mouse is clicking or touch tapping on it.
 	——————————————————————————————————————————————————————————————————————————*/
-	doClick(x, y) {
-		var e = this._eve.onClick;						// fetch event to relay
+	doHit(x, y, e) {
+		var eve = this._eve.onHit;
 		
 		if (this._ctlState != ctl.FOCUS)
 			return null;
-		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
+		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doDoubleClick
 	  TASK: Flags the control that mouse is double clicked on it.
 	——————————————————————————————————————————————————————————————————————————*/
-	doDoubleClick(x, y) {
-		var e = this._eve.onDoubleClick;				// fetch event to relay
+	doDoubleHit(x, y, e) {
+		var eve = this._eve.onDoubleHit;
 		
 		if (this._ctlState != ctl.FOCUS)
 			return null;
-		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
+		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMouseDown
+	  FUNC: doPointerDown
 	  TASK:	Flags the control that it has mouse pressed over.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMouseDown(x, y) {
-		var e = this._eve.onMouseDown;					// fetch  event to relay
+	doPointerDown(x, y, e) {
+		var eve = this._eve.onPointerDown;
 		
-		this.setFocus();								// Draws the control too
-		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
+		this.setFocus();
+		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMouseUp
+	  FUNC: doPointerUp
 	  TASK: Flags the control that it has mouse released over.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMouseUp(x, y) {
-	var e = this._eve.onMouseUp;						// fetch event to relay
+	doPointerUp(x, y, e) {
+		var eve = this._eve.onPointerUp;
 		
 		this.invalidate();
-		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
+		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMouseMove
+	  FUNC: doPointerMove
 	  TASK: Flags the control that it has mouse moving over.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMouseMove(x, y) {
-	var e = this._eve.onMouseMove;	
+	doPointerMove(x, y) {
+		var eve = this._eve.onPointerMove;	
 		
-		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
+		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMouseOver
+	  FUNC: doPointerOver
 	  TASK: Flags the control that it has mouse over.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMouseOver(x, y) {
-	var e = this._eve.onMouseOver;						// fetch event to relay
+	doPointerOver(x, y) {
+	var e = this._eve.onPointerOver;					// fetch event to relay
 	
 		this._mouseOvr = true;							// flag mouse over
-		if(this._ctlState < ctl.FOCUS)					// if state is ALIVE 
+		if (this._ctlState === ctl.ALIVE)				// if state is ALIVE 
 			this.controlState = ctl.HOVER;				// set it to HOVER
 		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMouseOut
+	  FUNC: doPointerOut
 	  TASK: Flags the control that mouse leaves.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMouseOut() {
-	var e = this._eve.onMouseOut;					// fetch event to relay
+	doPointerOut() {
+	var e = this._eve.onPointerOut;					// fetch event to relay
 	
 		this._mouseOvr = false;						// not any more.
-		if(this._ctlState < ctl.FOCUS)
+		if (this._ctlState === ctl.HOVER)
 			this.controlState = ctl.ALIVE;
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
 	}
@@ -368,9 +425,9 @@ export class Control extends Component {
 		var e = this._eve.onFocusOut;				// fetch event
 	
 		if (this._ctlState == ctl.SLEEP)
-			return null;""
+			return null;
 		if (this._ctlState == ctl.FOCUS)
-			this.controlState = (this._mouseOvr ? ctl.HOVER : ctl.ALIVE);
+			this.controlState = (this._ptrOver ? ctl.HOVER : ctl.ALIVE);
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
 	}
 	
@@ -379,9 +436,9 @@ export class Control extends Component {
 	  TASK: Finds container of control and forces recalculation of tab sequence.
 	——————————————————————————————————————————————————————————————————————————*/
 	invalidateContainerTabs(){
-		var c = this.fetchContainer();
+		var c = this.container;
 		if (c)
-			c.invalidateTabsCache();
+			c.invalidateContainerTabs();
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -389,21 +446,42 @@ export class Control extends Component {
 	  TASK: Sets focus to control.
 	——————————————————————————————————————————————————————————————————————————*/
 	setFocus() {
-		display.currentControl = this;
+		core.display.currentControl = this;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 		SUBSYS: Size control
 	——————————————————————————————————————————————————————————————————————————*/
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doViewportResize
+	  TASK: Flags the control that viewport is resized.
+	——————————————————————————————————————————————————————————————————————————*/
+	doViewportResize() {
+		var s,
+			e = this._eve.onViewportResize;
+		this._vpResize = true;
+		for(s in this._mem){
+			if (is.control(this._mem[s]))
+				this._mem[s].doViewportResize();
+		}
+		this._vpResize = false;
+		if (this._autosize)
+			this.adjustSize();
+		return ((e) ? e.dispatch([this, member]) : null);
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doMemberResize
 	  TASK: Flags the control that its member is resized or repositioned.
 	——————————————————————————————————————————————————————————————————————————*/
 	doMemberResize(member = null) {
-	var e = this._eve.onMemberResize;						// fetch event
-		
+	var e;
+
+		if (this._vpResize)
+			return;
 		if (this._autosize)
 			this.adjustSize();
+		e = this._eve.onMemberResize;
 		return ((e) ? e.dispatch([this, member]) : null);	// dispatch it
 	}
 	
@@ -449,21 +527,20 @@ export class Control extends Component {
 			from alignX or alignY when set to false.
 	—————————————————————————————————————————————————————————————————————————*/
 	resizing(align) {
-		var t = this,
-			s;
+		var	s;
 		
 		if (align)
-			t.reAlign();
-		if (is.control(t._own))
-			t._own.doMemberResize(t);
-		if (t._oldWidth == t._width && t._oldHeight == t._height)
+			this.reAlign();
+		if (is.control(this._own))
+			this._own.doMemberResize(this);
+		if (this._oldWidth == this._width && this._oldHeight == this._height)
 			return;
-		for(s in t._mem){
-			if (is.control(t._mem[s]))
-				t._mem[s].doOwnerResize();
+		for(s in this._mem){
+			if (is.control(this._mem[s]))
+				this._mem[s].doOwnerResize();
 		}
-		t._oldWidth = t._width;
-		t._oldHeight = t._height;
+		this._oldWidth = this._width;
+		this._oldHeight = this._height;
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -482,30 +559,29 @@ export class Control extends Component {
 	  TASK: Calculates horizontal alignment. 
 	——————————————————————————————————————————————————————————————————————————*/
 	calcAlignX() {
-		var t = this,
-			i,
+		var i,
 			w,
 			x;
 		
-		if(!is.control(t._own))
+		if(!is.control(this._own))
 			return;
-		i = ctl.ALIGN_X.indexOf(t._alignX);
+		i = ctl.ALIGN_X.indexOf(this._alignX);
 		if(i < 1)							// align = none
 			return;
-		w = t._own.width - t._own.dimensionsX().total;
+		w = this._own.width - this._own.dimensionsX().total;
 		switch(i){
-		case 1: x = 0; 						// left
+		case 1: x = 0; 							// left
 				break;
-		case 2: x = (w - t._width) / 2;		// center
+		case 2: x = (w - this._width) / 2;		// center
 				break;
-		case 3: x = w - t._width;			// right
+		case 3: x = w - this._width;			// right
 		}
 		x = (x < 0)? 0 : x;
-		if (x != t._x){
-			t._x = x;
-			t._shade.left = '' + t._x + 'px';
-			t.resizing(false);
-			t.invalidate();
+		if (x != this._x){
+			this._x = x;
+			this._shade.left = '' + this._x + 'px';
+			this.resizing(false);
+			this.invalidate();
 		}
 	}
 
@@ -514,31 +590,29 @@ export class Control extends Component {
 	  TASK: Calculates vertical alignment. 
 	——————————————————————————————————————————————————————————————————————————*/
 	calcAlignY() {
-		var t = this,
-			i,
+		var i,
 			h,
 			y;
 		
-		if(!is.control(t._own))
+		if(!is.control(this._own))
 			return;
-		i = ctl.ALIGN_Y.indexOf(t._alignY);
+		i = ctl.ALIGN_Y.indexOf(this._alignY);
 		if(i < 1)							// align = none
 			return;
-		d = t._own.dimensionsY();
-		h = t._own.height - (d.total);
+		h = this._own.height - (this._own.dimensionsY().total);
 		switch(i) {
 		case 1: y = 0;						// top
 				break;
-		case 2: y = (h - t._height) / 2;	// center
+		case 2: y = (h - this._height) / 2;	// center
 				break;
-		case 3: y =  h - t._height;			// bottom
+		case 3: y =  h - this._height;		// bottom
 		}
 		y = (y < 0)? 0 : y;
-		if (y != t._y){
-			t._y = y;
-			t._shade.top = '' + t._y + 'px';
-			t.resizing(false);
-			t.invalidate();
+		if (y != this._y){
+			this._y = y;
+			this._shade.top = '' + this._y + 'px';
+			this.resizing(false);
+			this.invalidate();
 		}
 	}
 
@@ -549,12 +623,12 @@ export class Control extends Component {
 	dimensionsX() {
 		var s = window.getComputedStyle(this._element),
 			r = {
-				left: parseInt(s.paddingLeft, 10),
-				right: parseInt(s.paddingRight, 10),
-				borderLeft:	parseInt(s.borderLeftWidth, 10),
-				borderRight: parseInt(s.borderRightWidth, 10) 
+				pLeft: parseInt(s.paddingLeft, 10),
+				pRight: parseInt(s.paddingRight, 10),
+				bLeft:	parseInt(s.borderLeftWidth, 10),
+				bRight: parseInt(s.borderRightWidth, 10) 
 			};
-		r.total = r.left + r.right + r.borderLeft + r.borderRight;
+		r.total = r.pLeft + r.pRight + r.bLeft + r.bRight;
 		return r;
 	}
 
@@ -565,36 +639,47 @@ export class Control extends Component {
 	dimensionsY() {
 		var s = window.getComputedStyle(this._element),
 			r = {
-				top: parseInt(s.paddingTop, 10),
-				bottom: parseInt(s.paddingBottom, 10),	// padding	bottom
-				borderTop: parseInt(s.borderTopWidth, 10),
-				borderBottom: parseInt(s.borderBottomWidth, 10)
+				pTop: parseInt(s.paddingTop, 10),
+				pBottom: parseInt(s.paddingBottom, 10),	// padding	bottom
+				bTop: parseInt(s.borderTopWidth, 10),
+				bBottom: parseInt(s.borderBottomWidth, 10)
 			};
-		r.total = r.top + r.bottom + r.borderTop + r.borderBottom;
+		r.total = r.pTop + r.pBottom + r.bTop + r.bBottom;
 		return r;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: adjustSize
 	  TASK: Changes the size of control according to content.
+	  INFO: +1's are for potential losses of subpixel accuracies.
 	——————————————————————————————————————————————————————————————————————————*/
 	adjustSize() {
-		var t = this,
-			w,
-			h,
-			dx,
-			dy;
+		var st, sc,
+			cw, ch,
+			sw, sh;
 		
-		if (!t._autosize)
+		if (!this._autosize)
 			return;
-		dx = t.dimensionsX();
-		dy = t.dimensionsY();
-		w = dx.total + t._element.scrollWidth;
-		h = dy.total + t._element.scrollHeight; 
-		if (w != t._width)
-			t.width = w;
-		if (h != t._height)
-			t.height = h;
+		sc = window.getComputedStyle(this._element);
+		st = this._element.style;
+		sw = sc.width;
+		sh = sc.height;
+		st.width = "auto";
+		st.height = "auto";
+		cw = this._element.scrollWidth + 1 + 
+			 parseInt(sc.borderLeftWidth, 10) + 
+			 parseInt(sc.borderRightWidth, 10);
+		ch = this._element.scrollHeight + 1 + 
+			 parseInt(sc.borderTopWidth, 10) +
+			 parseInt(sc.borderBottomWidth, 10); 
+		if (cw != this._width)
+			this.width = cw;
+		else 
+			st.width = sw;
+		if (ch != this._height)
+			this.height = ch;
+		else
+			st.height = sh;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -737,7 +822,6 @@ export class Control extends Component {
 	  SET : Sets the control x alignment.
 	  INFO:
 		Alignment values are 'none', 'left', 'center', 'right'.
-		If owner is cPanel descendant, margins are taken into account.
 	——————————————————————————————————————————————————————————————————————————*/
 	get alignX() {
 		return(this._alignX);
@@ -757,7 +841,6 @@ export class Control extends Component {
 	  SET : Sets the control y alignment.
 	  INFO:
 		Alignment values are 'none', 'top', 'center', 'bottom'.
-		If owner is cPanel descendant, margins are taken into account.
 	——————————————————————————————————————————————————————————————————————————*/
 	get alignY() {
 		return(this._alignY);
@@ -772,22 +855,20 @@ export class Control extends Component {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	styleName : String;
-	  GET : Returns  control style name if exists.
-	  SET : Sets the control style name.
-	  INFO: styleName is the name root for the style classes of control.
+	  PROP:	styleExtra : String;
+	  GET : Returns  control extra style name if exists.
+	  SET : Sets the control extra style name.
 	——————————————————————————————————————————————————————————————————————————*/
-	get styleName() {
-		return this._styleName;
+	get styleExtra() {
+		return this._styleExtra;
 	}
 
-	set styleName(value = null) {
-		if (value != null || !is.str(value) || this._styleName == value)
+	set styleExtra(v = null) {
+		if ((!is.str(v) && v !== null) || this._styleExtra == v)
 			return;
-		this._styleName = value;		// set style name
-		calcNamedClassNames(this);
-		this._changeClass = true;		// flag update element class names.
-		this.invalidate();				// redraw control with new style
+		this._styleExtra = v;
+		this._sExtra = calcClassNameSub(this, this._styleExtra);
+		this.classesChanged();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -799,13 +880,14 @@ export class Control extends Component {
 		return this._styleColor;
 	}
 
-	set styleColor(value = null) {
-		if (value != null || !is.str(value) || this._styleColor == value)
+	set styleColor(v) {
+		if ((v !== null && !is.str(v)) || this._styleColor == v)
 			return;
-		this._styleColor = value;		// set style color name
-		calcColorClassNames(this);
-		this._changeClass = true;		// flag element class names updated.
-		this.invalidate();				// redraw control with new style
+		if (v && !ctl.COLORS[v])
+			return;
+		this._styleColor = v;
+		this._sColor = calcClassNameSub(this, this._styleColor);
+		this.classesChanged();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -817,13 +899,34 @@ export class Control extends Component {
 		return this._styleSize;
 	}
 
-	set styleSize(value = null) {
-		if (value != null || !is.str(value) || this._styleSize == value)
+	set styleSize(v = null) {
+		if ((!is.str(v) && v !== null) || this._styleSize == v)
 			return;
-		this._styleSize = value;		// set style size name
-		calcSizeClassNames(this);
-		this._changeClass = true;		// flag element class names updated.
-		this.invalidate();				// redraw control with new style
+		if (v && !ctl.SIZES[v])
+			return;
+		this._styleSize = v;		// set style size name
+		this._sSize = calcClassNameSub(this, this._styleSize);
+		this.classesChanged();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: calcAllClassNames.
+	  TASK: Calculates all control element class names.
+	  INFO: Invalidates the control.
+	——————————————————————————————————————————————————————————————————————————*/
+	calcAllClassNames() {
+		var c = this.class.name + ((this._styleRoot !== null) ? this._styleRoot : ''),
+			s = ctl.SUFFIX[this._ctlState];
+		
+		function calcSub(n){
+			return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : '';
+		}
+
+		this._sBase = c + ' ' + c + s;
+		this._sSize = calcSub(this._styleSize);
+		this._sColor = calcSub(this._styleColor);
+		this._sExtra = calcSub(this._styleExtra);
+		this.classesChanged();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -839,13 +942,14 @@ export class Control extends Component {
 	}
 		
 	set controlState(value = 0){
-		if (!is.num(value) || value < ctl.DYING || value > ctl.SLEEP || value == this._ctlState)
-			return
+		if (!is.num(value) || 
+			value < ctl.DYING ||
+			value > ctl.SLEEP || 
+			value == this._ctlState)
+			return;
 		this._ctlState = value;
-		calcAllClassNames(this);
-		this._changeClass = true;		// flag element class names updated.
+		this.calcAllClassNames();
 		this.checkEvents();
-		this.invalidate();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -886,7 +990,7 @@ export class Control extends Component {
 		while(c instanceof Control){
 			if(!c._visible)					// if invisible
 				return(false);
-			if (c instanceof Display)		// if display
+			if (c === core.display)				// if display
 				return(true);
 			c = c._own;
 		}
@@ -900,7 +1004,6 @@ export class Control extends Component {
 	get displaying() {
 		
 	}
-
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	enabled : Boolean;
@@ -955,14 +1058,30 @@ export class Control extends Component {
 	}
 
 	set canFocus(value){
-		var v = (value == true);
+		var v = !!value;
 
 		if (this._canFocus == v)
 			return;
 		this._canFocus = v;
-		t.checkEvents();
+		this.checkEvents();
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	yieldFocus : Boolean ;
+	  GET : Returns true if control can yield focus.
+	  SET : if true flags that control can yield focus.
+	  INFO:
+		This is valid only when control canFocus = false.
+		Determines if control can yield focus to the other controls under it 
+		when it can not get focus.
+	——————————————————————————————————————————————————————————————————————————*/
+	get yieldFocus() {
+		return(this._yieldFocus);
+	}
+
+	set yieldFocus(value){
+		this._yieldFocus = !!value;
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: container
 	  GET : Returns the container of the control or null.
@@ -971,7 +1090,7 @@ export class Control extends Component {
 		var o = this._own; 
 	
 		while(is.control(o)){
-			if (o instanceof Container)
+			if (is.container(o))
 				return(o);
 			o = o._own;
 		}
@@ -989,18 +1108,17 @@ export class Control extends Component {
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: makeElement [private].
-  TASK: Builds a document object model element if not given, for control.
-		then binds element and its style to control.
+  TASK: Builds and binds a document object model element to control.
   ARGS:
 	control 	: Control	: Control to bind to element.
-	element		: Element	: Element to bind to control :DEF: null.
 ——————————————————————————————————————————————————————————————————————————*/
-function makeElement(control, element = null) {
-	var t = control;
-	
-	if (t._element)
+function makeElement(control) {
+	var t = control,
+		e = t.class.elementTag;
+
+	if (e == null || t._element)
 		return;
-	t._element = (!element) ? document.createElement(t.class.elementTag) : element;
+	t._element = document.createElement(e);
 	t._element.ToreJS_Control = t;
 }
 
@@ -1018,8 +1136,10 @@ function killElement(control) {
 		return;
 	if (is.asg(e.ToreJS_Control))
 		delete(e.ToreJS_Control);	
-	if (e.tagName !== 'BODY' && e.parentNode)
-		e.parentNode.removeChild(e);
+	if (e !== document.body){ 
+		if (e.parentNode)
+			e.parentNode.removeChild(e);
+	}
 	t._element = null;
 }
 
@@ -1027,12 +1147,11 @@ function killElement(control) {
   FUNC: cascadeShowing [private].
   TASK: Sets control and sub control style visibilities.
   ARGS:
-	control 	: Control	: Control to set visibility.
+	t 			: Control	: Control to set visibility.
 	showing		: bool		: Visibility state.
 ——————————————————————————————————————————————————————————————————————————*/
-function cascadeShowing(control, showing = false) {
-	var t = control,
-		m,
+function cascadeShowing(t, showing = false) {
+	var m,
 		c,
 		v = (showing) ? 'visible': 'hidden';
 
@@ -1049,65 +1168,17 @@ function cascadeShowing(control, showing = false) {
 }
 
 /*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAllClassNames [private].
-  TASK: Calculates all control element class names.
-  ARGS:
-	t	: Control	: Control to calculate element class names.
+  FUNC: calcClassNameSub [private].
+  TASK: Calculates control element class name.
+  ARGS: 
+  	t : Control : (this) ;)
+	n : String  : Style class name or null.
+  RETV:
+	  : String  : Something wicked.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcAllClassNames(t) {
-	var c = t.class.name,
+function calcClassNameSub(t, n){
+	var c = t.class.name+ ((t._styleRoot !== null) ? t._styleRoot : ''),
 		s = ctl.SUFFIX[t._ctlState];
-		
-	function calcSub(n){
-		return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
-	}
 
-	t._sBase = c + ' ' + c + s;
-	t._sSize = calcSub(t._styleSize);
-	t._sColor = calcSub(t._styleColor);
-	t._sName = calcSub(t._styleName);
+	return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : '';
 }
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcSizeClassNames [private].
-  TASK: Calculates control element size class names.
-  ARGS:
-	t	: Control	: Control to calculate element class names.
-——————————————————————————————————————————————————————————————————————————*/
-function calcSizeClassNames(t) {
-	var c = t.class.name,
-		s = ctl.SUFFIX[t._ctlState],
-		n = t._styleSize;
-		
-	t._sSize = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcColorClassNames [private].
-  TASK: Calculates control element color class names.
-  ARGS:
-	t	: Control	: Control to calculate element class names.
-——————————————————————————————————————————————————————————————————————————*/
-function calcColorClassNames(t) {
-	var c = t.class.name,
-		s = ctl.SUFFIX[t._ctlState],
-		n = t._styleColor;
-		
-	t._sColor = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcNamedClassNames [private].
-  TASK: Calculates control element named class names.
-  ARGS:
-	t	: Control	: Control to calculate element class names.
-——————————————————————————————————————————————————————————————————————————*/
-function calcNamedClassNames(t) {
-	var c = t.class.name,
-		s = ctl.SUFFIX[t._ctlState],
-		n = t._styleName;
-		
-	t._sName = (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : null;
-}
-
-sys.registerClass(Control);

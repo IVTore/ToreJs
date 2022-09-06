@@ -12,7 +12,7 @@ export const ctl = {
 	// Control States
 	DYING: 0,	// exiting or dead	
 	ALIVE: 1,	// normal, idle
-	HOVER: 2,	// mouse over 
+	HOVER: 2,	// pointer over 
 	FOCUS: 3,	// selected, focused 
 	SLEEP: 4,	// disabled
 
@@ -41,11 +41,11 @@ export const ctl = {
 	],
 
 	// Panel Container 2D layout
-	LAYOUT: [
-		'none',
-		'horizontal',
-		'vertical'
-	],
+	LAYOUT: {
+		none: 1,
+		horizontal: 1,
+		vertical: 1
+	},
 
 	SIZES: {
 		Tiny: 1,
@@ -66,5 +66,6 @@ export const ctl = {
 		Light: 1,
 		Dark: 1, 
 		Link: 1
-	}
+	},
+
 }

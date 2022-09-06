@@ -6,7 +6,7 @@
   About		: 	TObject.js: Tore Js base object class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc } from "./system.js"
+import { sys, is, exc} from "./system.js"
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CLASS: TObject
@@ -16,8 +16,6 @@ export class TObject {
 
 	static get class() { return this;}
 
-	_sta = sys.LIVE;
-	
 	/*———————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
 	  TASK: Constructs a TObject instance.
@@ -25,7 +23,10 @@ export class TObject {
 	  	data : Object: An object containing instance property data[d=null].
 					   if == Sys.LOAD construction is by deserialization.
 	———————————————————————————————————————————————————————————————————————————*/
-	constructor(data = null){
+	constructor(data = null) {
+		//—————————————————————————————————————————————————————————————————————
+		this._sta = sys.LIVE;
+		//—————————————————————————————————————————————————————————————————————
 		if (!data)
 			return;
 		if (data == sys.LOAD)

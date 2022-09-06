@@ -6,11 +6,11 @@
   About		: 	system.js: Tore Js platform adapter & common system library.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { TObject } from "./TObject.js";
-import { EventHandler } from "./EventHandler.js";
-import { Component } from "./Component.js";
-import { Control } from "../ctl/index.js";
-
+import { TObject } from "../lib/TObject.js";
+import { Component } from "../lib/Component.js";
+import { EventHandler } from "../lib/EventHandler.js";
+import { Control } from "../ctl/Control.js";
+import { Container } from "../ctl/Container.js";
 
 /*———————————————————————————————————————————————————————————————————————————
   PROC: exc 
@@ -20,7 +20,7 @@ import { Control } from "../ctl/index.js";
 		err : Error  : Error to process if any.
   INFO: If err is an Error exception is not raised but just processed.
 ———————————————————————————————————————————————————————————————————————————*/
-export function exc(tag = "E_NO_TAG", inf = "", err = null) {
+function exc(tag = "E_NO_TAG", inf = "", err = null) {
 var asg = (is.asg(err) && err instanceof Error),
 	cex = asg ? err : new Error(tag),
 	dta = {
@@ -44,12 +44,7 @@ var asg = (is.asg(err) && err instanceof Error),
 		throw new Error(tag);
 }
 
-const classes = {
-	Object: Object,
-	Array: Array,
-};
-
-export const sys = {
+const sys = {
 	
 	// Object states
 	DEAD: 0,			// logically dead
@@ -61,17 +56,8 @@ export const sys = {
 	excConsoleLog: true,		// Log exception to console if true.
 	excInterceptor: false,		// Assign to a function (dta, err) to intercept exception.
 
-	registerClass: function(ctor = null) {
-		if (!is.class(ctor))
-			return;
-		if (!is.super(TObject, ctor)) {
-			classes[ctor.name] = ctor;
-			return;
-		}
-		if (!ctor.info || !ctor.info.ready)
-			prepareClassData(ctor);
-	},
-
+	registerClass: registerClass,
+	
 	classByName: function(name = null) {
 	var ctor;
 		
@@ -113,6 +99,8 @@ export const sys = {
 	  ARGS:	target	: TComponent	: Target component to link the event.
 			handler	: String		: Handler name to link the event.
 	  RETV:			: Function		: Bound anonymous function.
+	  INFO: The returned bound function then should be assigned with 
+	  		addEventListener() method to the source.
 	———————————————————————————————————————————————————————————————————————————*/
 	bindHandler: function(target = null, handler = null) {
 		if(!is.component(target))
@@ -202,22 +190,41 @@ export const sys = {
 
 };
 
-
 // Precompiled identifier regexp.
 const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
 
-export const is = {
-	def: x => x !== undefined,								// Checks if argument is defined.
-	asg: x => x !== undefined && x !== null,				// Checks if argument is assigned.
-	str: x => typeof(x) === "string",						// Checks if argument is a string.
-	num: x => typeof(x) === "number",						// Checks if argument is a number.
-	arr: x => Array.isArray(x),								// Checks if argument is an array.
-	fun: x => typeof(x) === "function",						// Checks if argument is a function.
-	ident: x => is.str(x) && IDENTIFIER_REGEXP.test(x),		// Checks if argument is identifier.
-	class: x =>	isClass(x),									// Checks if argument is a class.
-	super: (sup, des) => isSuper(sup, des),
+const is = {
+	def: x => x !== undefined,										// Checks if argument is defined.
+	asg: x => x !== undefined && x !== null,						// Checks if argument is assigned.
+	str: x => typeof(x) === "string",								// Checks if argument is a string.
+	num: x => typeof(x) === "number",								// Checks if argument is a number.
+	arr: x => Array.isArray(x),										// Checks if argument is an array.
+	fun: x => typeof(x) === "function",								// Checks if argument is a function.
+	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype),				// Checks if argument is a plain object: {}.
+	ident: x => is.str(x) && IDENTIFIER_REGEXP.test(x),				// Checks if argument is identifier.
+	class: x =>	isClass(x),											// Checks if argument is a class.
+	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
 	component: x => (x !== undefined && x instanceof Component),
-	control: x => (x !== undefined && x instanceof Control)
+	control: x => (x !== undefined && x instanceof Control),
+	container: x => (x !== undefined && x instanceof Container)
+}
+
+
+var classes = {
+	Object: Object,
+	Array: Array
+};
+
+function registerClass(ctor = null) {
+	if (!isClass(ctor))
+		return;
+	console.log("Registering "+ctor.name+".");
+	if (!isSuper(TObject, ctor)) {
+		classes[ctor.name] = ctor;
+		return;
+	}
+	if (!ctor.info || !ctor.info.ready)
+		prepareClassData(ctor);
 }
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -333,9 +340,11 @@ var	ptor,		// parent constructor.
 	initialize();
 }
 
-sys.registerClass(TObject);
-sys.registerClass(Component);
-sys.registerClass(EventHandler);
+registerClass(TObject);
+registerClass(Component);
+registerClass(EventHandler);
+registerClass(Control);
+registerClass(Container);
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CONST: core
@@ -343,4 +352,7 @@ sys.registerClass(EventHandler);
   		 It constructs a component framework connecting various subsystems 
 		 to each other. It integrates the system into one access point.
 ———————————————————————————————————————————————————————————————————————————*/
-export const core = new Component('core');
+const core = new Component('core');
+window.core = core;
+
+export {sys, is, exc, core};

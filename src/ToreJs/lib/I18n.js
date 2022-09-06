@@ -28,16 +28,16 @@ export class Language extends Component {
   		 I18n instance is core.i18n singleton.
   NOTES: It only accepts Language components as members.
 ———————————————————————————————————————————————————————————————————————————*/
-export class I18n extends Component {
+class I18n extends Component {
+
+	static allowMemberClass = Language;
 
 	static cdta = {
 		sequence: {value: null}
 	}
 	
-	static allowMemberClass = Language;
+	_seq = []; 			// language sequence
 	
-	_seq = [];
-
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
 	  TASK: Constructs i18n singleton component, attaches it to core.
@@ -206,6 +206,5 @@ export class I18n extends Component {
 }
 
 sys.registerClass(Language);
-sys.registerClass(I18n);
 
 export const i18n = new I18n();

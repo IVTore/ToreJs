@@ -7,16 +7,17 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys } from "../lib";
-import { Container } from "./Container.js";
-import { ctl } from "./ctl.js";
-
+import { is, sys } from "../lib/index.js";
+import { ctl } from "../ctl/index.js";
+import { Container } from "../ctl/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Panel
   TASKS: Panel is a container supporting automatic layout of sub controls.
 ——————————————————————————————————————————————————————————————————————————*/
 export class Panel extends Container {
+
+	static canFocusWhenEmpty = false;
 
 	// Property publishing map.
 	static cdta = {
@@ -44,7 +45,10 @@ export class Panel extends Container {
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
-		super(name, owner, data);
+		super(name);
+		if (name == sys.LOAD)
+			return;
+		this._initControl(owner, data);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -75,9 +79,10 @@ export class Panel extends Container {
 			return false;
 		if (!is.control(component))
 			return true;
+		this._sequence = this._sequence || [];
 		if (this._sequence.indexOf(component.name) == -1)
-			t._sequence.push(component.name);
-		t.calculateLayout();
+			this._sequence.push(component.name);
+		this.calculateLayout();
 		return true;
 	}
 	
@@ -105,12 +110,22 @@ export class Panel extends Container {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doViewportResize [override].
+	  TASK: Flags the panel that viewport is resized.
+	——————————————————————————————————————————————————————————————————————————*/
+	doViewportResize() {
+		var ret = super.doViewportResize();
+		this.calculateLayout();
+		return ret;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doMemberResize [override].
 	  TASK: Flags the panel that one of its members is resized.
 	——————————————————————————————————————————————————————————————————————————*/
 	doMemberResize(member = null) {
 		this.calculateLayout();
-		super.doMemberResize(member);
+		return super.doMemberResize(member);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -118,8 +133,8 @@ export class Panel extends Container {
 	  TASK: Flags the panel that its owner is resized.
 	——————————————————————————————————————————————————————————————————————————*/
 	doOwnerResize() {
-		super.doOwnerResize();
 		this.calculateLayout();
+		return super.doOwnerResize();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -129,8 +144,8 @@ export class Panel extends Container {
 	adjustSize() {
 		if (!this._autosize)
 			return;
-		if (this._width != this._oldWidth || this._height != t._old.height)
-			t.calculateLayout();
+		if (this._width != this._oldWidth || this._height != this._oldHeight)
+			this.calculateLayout();
 		super.adjustSize();
 	}
 
@@ -160,9 +175,9 @@ export class Panel extends Container {
 		if (s == null)
 			return;
 		r = (t._layout == 'horizontal') ?
-				calcHorizontal(t, seq) :
-				calcVertical(t, seq);
-		executeLayout(r);
+				calcHorizontal(t, s) :
+				calcVertical(t, s);
+		t.executeLayout(r);
 		t._calculating = false;			// release recursion block.
 	}
 
@@ -176,7 +191,7 @@ export class Panel extends Container {
 			return;
 		for(nam in delta){
 			upd = delta[nam];
-			tar = (nam == '_t_') ? this : this.mem[nam];
+			tar = (nam == '_t_') ? this : this._mem[nam];
 			for(key in upd)
 				tar[key] = upd[key];
 		}
@@ -196,7 +211,7 @@ export class Panel extends Container {
 	}
 
 	set layout(value = null) {
-		if (ctl.LAYOUT.indexOf(value) == -1)
+		if (!ctl.LAYOUT[value])
 			return;
 		if (value == this._layout)
 			return;
@@ -225,7 +240,7 @@ export class Panel extends Container {
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	sequence : Array;
 	  GET : Gets layout sequence of panel.
-	  SET : Sets layoutsequence of panel.
+	  SET : Sets layout sequence of panel.
 	——————————————————————————————————————————————————————————————————————————*/
 	get sequence() {
 		return (this._sequence) ? this._sequence.concat() : null;
@@ -236,7 +251,7 @@ export class Panel extends Container {
 		n = [],							// new sequence
 		c;
 	
-		if (t._sta === Sys.LOAD){		// Sequence at load
+		if (t._sta === sys.LOAD){		// Sequence at load
 			if (value)
 				t._sequence = value.concat(); 
 			return;
@@ -372,7 +387,7 @@ function calcVertical(pnl, seq) {
 		if (totHei < upd.y + ctl._height)
 			totHei = upd.y + ctl._height;
 	}
-	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): r );
+	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): res );
 }
 
 // Calculates size according to boundaries of controls in panel.
@@ -380,11 +395,12 @@ function calcVertical(pnl, seq) {
 function finalizeSize(pnl, seq, res, totWid, totHei){
 	var mem,
 		ctl,
-		upd = {};
+		upd = {},
+		d;
 
 	for(mem in pnl._mem){
 		ctl = pnl._mem[mem];
-		if (!is.control(ctl) || !ctl._visible || seq.indexOf(ctl) > -1)
+		if (!is.control(ctl) || !ctl._visible || seq.indexOf(ctl) == -1)
 			continue;
 		d = ctl._x + ctl._width;
 		if (totWid < d)
@@ -409,11 +425,12 @@ function finalizeSize(pnl, seq, res, totWid, totHei){
 // Adds update set to result set.
 function buildUpdate(ctl, res, xPos, yPos){
 	var upd = {x: xPos,	y: yPos};
-	
+	/*
 	if (ctl._alignX != "none")
 		upd.alignX = "none";
 	if (ctl._alignY != "none")
 		upd.alignY = "none";
+	*/
 	res[ctl._nam] = upd;
 	return upd;
 }

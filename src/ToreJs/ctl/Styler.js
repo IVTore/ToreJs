@@ -72,12 +72,12 @@ class Styler extends Component {
 	static cdta = {};
 	
 	// Less than 576 is xs, 768 is sm, 992 is md etc.
-	_mediaSizes = [ 576, 768, 992, 1200, 1400];
-	_mediaNames = ['xs','sm','md','lg','xl','xxl'];
+	_vpSizes = [ 576, 768, 992, 1200, 1400];
+	_vpNames = ['xs','sm','md','lg','xl','xxl'];
 	_css = null;			// document.styleSheets[0].
 	_rls = null;			// Rules list.
 	_pxr = 0;				// Pixels in 1rem.
-	_med = 'md';			// Media sizename of viewport.
+	_vnm = 'md';			// Viewport size name.
 	_dyn = {};				// Dynamic values bank.
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -92,7 +92,7 @@ class Styler extends Component {
 		super("styler", core);
 		s = window.getComputedStyle(document.documentElement);
 		this._pxr = parseInt(s.fontSize, 10);
-		this._med = this.calculateMediaSizeName(document.documentElement.clientWidth);
+		this._vnm = this.calculateViewportName(document.documentElement.clientWidth);
 		setupStyleSheet(this);
 		captureCssRules(this);
 	}
@@ -107,34 +107,38 @@ class Styler extends Component {
 		super.destroy();
 	}
 
+	get viewportName() {
+		return this._vnm;
+	}
+
 	/*—————————————————————————————————————————————————————————————————————————
 	  FUNC: calculateMediaSizeName
-	  TASK: Returns the media size name.
-	  ARGS: width 	: number	: Width.
-	  RETV:			: String	: Size name.
+	  TASK: Returns the viewport size name.
+	  RETV:		: String	: viewport size name.
 	—————————————————————————————————————————————————————————————————————————*/
-	calculateMediaSizeName(width = 1920) {
-		var s = this._mediaSizes,
+	calculateViewportName() {
+		var s = this._vpSizes,
+			w = document.documentElement.clientWidth,
 			i,
 			l = s.length;
 	
 		for(i = 0; i < l; i++) {
-			if (width < s[i])
-				return this._mediaNames[i];
+			if (w < s[i])
+				return this._vpNames[i];
 		}
-		return this._mediaNames[l];
+		return this._vpNames[l];
 	}
 
 	/*—————————————————————————————————————————————————————————————————————————
-	  FUNC: mediaChange
+	  FUNC: doViewportChange
 	  TASK: Applies a media change to css.
 	—————————————————————————————————————————————————————————————————————————*/
-	mediaChange() {
-		var mv = this.calculateMediaSizeName(document.documentElement.clientWidth);
+	doViewportChange() {
+		var n = this.calculateViewportName();
 
-		if (mv == this._med)
+		if (n == this._vnm)
 			return;
-		this._med = mv;
+		this._vnm = n;
 		applyDynamicRules(this);
 	}
 
@@ -162,7 +166,7 @@ class Styler extends Component {
 		if (i > -1)
 			t.delRule(name, false); // we allready added '.' if asClass.		
 		i = t._css.insertRule(name + " {}", t._css.cssRules.length);
-		t._rls.push(name);
+		t._rls.splice(i, 0, name);
 		s = t._css.cssRules[i].style;
 		for(i in rule){
 			r = rule[i];
@@ -174,11 +178,11 @@ class Styler extends Component {
 			}
 			if (!is.plain(r))
 				continue;
-			if (!t_dyn[name])
+			if (!t._dyn[name])
 				t._dyn[name] = {};
 			t._dyn[name][i] = r;
-			if (r[t._med]){
-				s[i] = r[t._med];
+			if (r[t._vnm]){
+				s[i] = r[t._vnm];
 				continue;
 			}
 			if (is.str(r.df)){
@@ -221,7 +225,7 @@ function captureCssRules(t) {
 		i,
 		l = lst.length;
 
-	t._rls = t._rls || [];
+	t._rls = [];
 	for(i = 0; i < l; i++)
 		t._rls.push(lst[i].selectorText);
 }
@@ -236,15 +240,20 @@ function applyDynamicRules(t) {
 	
 	for(sName in t._dyn){
 		sItem = t._dyn[sName];
-		style = t._css.cssRules[t._rls.indexOf(sName)].style;
+		style = t._css.cssRules[t._rls.indexOf(sName)];
+		if (!style) {
+			console.log("Dynamic Rule:", sName, "not found.")
+			continue;
+		}
+		style = style.style;
 		for(n in sItem) {
 			r = sItem[n];
-			if (r[t._med]){
-				style[i] = r[t._med];
+			if (r[t._vnm]){
+				style[n] = r[t._vnm];
 				continue;
 			}
 			if (is.str(r.df)){
-				style[i] = r.df;
+				style[n] = r.df;
 				continue;
 			}
 		}
@@ -276,8 +285,10 @@ function setupStyleSheet(t) {
 		display: 'block',
 		backgroundColor: '#EEEEEE',
 		color:'#000000',
-		fontFamily: 'Verdana, Arial, sans-serif',
+
+		fontFamily: "'system-ui', sans-serif",	/* Text defaults */
 		fontSize: '1rem',
+		lineHeight: '1.4',
 		textDecoration: 'none',
 										/* 3d defaults */
 		transformStyle: 'preserve-3d',

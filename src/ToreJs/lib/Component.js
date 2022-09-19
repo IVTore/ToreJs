@@ -349,9 +349,10 @@ export class Component extends TObject {
 	  TASK:	Returns the event handler assigned to an event if any.
 	  ARGS:	
 		name	: String		: name of the event.
-	  RETV: 	: TEventHandler : event handler object or null.
+	  RETV: 	: EventHandler	: event handler object or null.
 	——————————————————————————————————————————————————————————————————————————*/
 	getEvent(name = null) {
+		var r;
 		if (!is.str(name))
 			return null;
 		r = this._eve[name];

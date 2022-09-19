@@ -95,7 +95,8 @@ export class EventHandler extends TObject {
 	}
 
 	assign(source = null, eventName = null){
-	var t = this;
+	var t = this,
+		d;
 
 		if (t._rdy)
 			return;		
@@ -103,13 +104,13 @@ export class EventHandler extends TObject {
 			exc('E_INV_ARG',"source");
 		if (!is.str(eventName))
 			exc('E_INV_ARG', 'eventName');
-		def = source.class.cdta[eventName];
-		if (!def || !def.event)
+		d = source.class.cdta[eventName];
+		if (!d || !d.event)
 			exc('E_INV_ARG', 'eventName');
 		t._rdy = true;
 		t._src = source;
 		t._nam = eventName;
-		t._def = def;
+		t._def = d;
 		t._src._eve[t._nam] = t;
 		t._tar._hdt.push(t);
 		if (!t._def.src)

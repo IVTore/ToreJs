@@ -153,6 +153,7 @@ class Display extends Panel {
 	doViewportResize() {
 		this.width = 1;
 		this.height = 1;
+		styler.mediaChange();
 		return super.doViewportResize();
 	}
 

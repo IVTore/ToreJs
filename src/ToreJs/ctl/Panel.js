@@ -324,9 +324,7 @@ function calcHorizontal(pnl, seq) {
 		rtl = pnl._rightToLeft,
 		ctl,
 		upd,
-		res = {},
-		totWid = 0,
-		totHei = 0;
+		res = {};
 	
 	wid = (pnl._autosize) ? 
 			Number.MAX_SAFE_INTEGER:
@@ -345,12 +343,8 @@ function calcHorizontal(pnl, seq) {
 		lft += ctl._width + pnl._splitX;
 		if (!pnl._autosize)
 			continue;
-		if (totWid < upd.x + ctl._width)
-			totWid = upd.x + ctl._width;
-		if (totHei < upd.y + ctl._height)
-			totHei = upd.y + ctl._height;
 	}
-	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): r );
+	return ((pnl._autosize) ? finalizeSize(pnl, res): res );
 }
 
 function calcVertical(pnl, seq) {
@@ -361,9 +355,7 @@ function calcVertical(pnl, seq) {
 		rtl = pnl._rightToLeft,
 		ctl,
 		upd,
-		res = {},
-		totWid = 0,
-		totHei = 0;
+		res = {};
 
 	hei = (pnl._autosize) ?
 			Number.MAX_SAFE_INTEGER :
@@ -382,39 +374,27 @@ function calcVertical(pnl, seq) {
 		top += ctl._height + pnl._splitY;
 		if (!pnl._autosize)
 			continue;
-		if (totWid < upd.x + ctl._width)
-			totWid = upd.x + ctl._width;
-		if (totHei < upd.y + ctl._height)
-			totHei = upd.y + ctl._height;
 	}
-	return ((pnl._autosize) ? finalizeSize(pnl, seq, res, totWid, totHei): res );
+	return ((pnl._autosize) ? finalizeSize(pnl, res): res );
 }
 
-// Calculates size according to boundaries of controls in panel.
+// Calculates size according to boundaries of content in panel.
 // Adds a _t_ entry to result set if panel width or height changes.
-function finalizeSize(pnl, seq, res, totWid, totHei){
-	var mem,
-		ctl,
-		upd = {},
-		d;
+function finalizeSize(pnl, res){
+	var st, sc,
+		sw, sh,
+		upd = {};
 
-	for(mem in pnl._mem){
-		ctl = pnl._mem[mem];
-		if (!is.control(ctl) || !ctl._visible || seq.indexOf(ctl) == -1)
-			continue;
-		d = ctl._x + ctl._width;
-		if (totWid < d)
-			totWid = d;
-		d = ctl._y + ctl._height;
-		if (totHei < d)
-			totHei = d;
-	}
-	totWid += pnl.dimensionsX().total;
-	totHei += pnl.dimensionsY().total;
-	if (pnl._width != totWid)
-		upd.width = totWid;
-	if (pnl._height != totHei) 
-		upd.height = totHei;
+	st = pnl._element.style;
+	sw = pnl._own.innerWidth;
+	if (sw && sw != pnl._width)
+		upd.width = sw;
+	st.height = "min-content";
+	sc = window.getComputedStyle(pnl._element);
+	sh = parseInt(sc.height, 10);
+	st.height = pnl._height+"px";
+	if (pnl._height != sh) 
+		upd.height = sh;
 	if (upd.width || upd.height)
 		res._t_ = upd;
 	return res;
@@ -425,12 +405,12 @@ function finalizeSize(pnl, seq, res, totWid, totHei){
 // Adds update set to result set.
 function buildUpdate(ctl, res, xPos, yPos){
 	var upd = {x: xPos,	y: yPos};
-	/*
+	
 	if (ctl._alignX != "none")
 		upd.alignX = "none";
 	if (ctl._alignY != "none")
 		upd.alignY = "none";
-	*/
+	
 	res[ctl._nam] = upd;
 	return upd;
 }

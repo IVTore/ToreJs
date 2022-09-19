@@ -200,7 +200,7 @@ const is = {
 	num: x => typeof(x) === "number",								// Checks if argument is a number.
 	arr: x => Array.isArray(x),										// Checks if argument is an array.
 	fun: x => typeof(x) === "function",								// Checks if argument is a function.
-	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype),				// Checks if argument is a plain object: {}.
+	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype), // Checks if argument is a plain object: {}.
 	ident: x => is.str(x) && IDENTIFIER_REGEXP.test(x),				// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
@@ -216,6 +216,8 @@ var classes = {
 };
 
 function registerClass(ctor = null) {
+	var info;
+
 	if (!isClass(ctor))
 		return;
 	console.log("Registering "+ctor.name+".");
@@ -223,7 +225,8 @@ function registerClass(ctor = null) {
 		classes[ctor.name] = ctor;
 		return;
 	}
-	if (!ctor.info || !ctor.info.ready)
+	info = 'info' + ctor.name;
+	if (!ctor[info] || !ctor[info].ready)
 		prepareClassData(ctor);
 }
 
@@ -264,28 +267,33 @@ function prepareClassData(ctor = null) {
 var	ptor,		// parent constructor.
 	cdta,		// current prop data.
 	pdta,		// parent prop data.
+	info,		// class info name.
 	cp,			// current prop.
 	pp,			// parent prop.
 	i;
 
 	function initialize() {
-		if (!ctor.info.initialized && is.fun(ctor.classInit))
+		if (!ctor[info].initialized && is.fun(ctor.classInit))
 			ctor.classInit();
-		ctor.info.initialized = true;
+		ctor[info].initialized = true;
 	}
 
 	ptor = Object.getPrototypeOf(ctor.prototype).constructor;
 	ptor = (ptor !== Object) ? ptor : null;
-	if (ptor && (!ptor.info || !ptor.info.ready))
-		prepareClassData(ptor);	
+	if (ptor) {
+		info = 'info' + ptor.name;
+		if (!ptor[info] || !ptor[info].ready)
+			prepareClassData(ptor);
+	}	
 	cdta = (ctor.cdta) ? ctor.cdta: {};
 	pdta = (ptor) ? ptor.cdta: {};
-	if (ctor.info && ctor.info.ready) {
+	info = 'info' + ctor.name;
+	if (ctor[info] && ctor[info].ready) {
 		initialize();
 		return;
 	}
 	// Add class info.
-	ctor.info = {ready: false, initialized: false};
+	ctor[info] = {ready: false, initialized: false};
 	// Inherit properties of parent.
 	for(i in pdta) {
 		if (!cdta[i]) 						// if not defined.
@@ -297,8 +305,10 @@ var	ptor,		// parent constructor.
 		if (cp.value === undefined)			// inherit default value
 			cp.value = pp.value;
 		if (pp.event) {						// if old property is an event.
-			if (cp.type === undefined)		// inherit event type.
-				cp.type = pp.type;
+			if (cp.event === undefined)		// inherit event.
+				cp.event = true;
+			if (cp.typ === undefined)		// inherit event type.
+				cp.typ = pp.typ;
 			if (cp.src === undefined)		// inherit event source.
 				cp.src = pp.src;
 		}
@@ -321,24 +331,30 @@ var	ptor,		// parent constructor.
 					exc("E_EVENT_DEF", ptor.name + "." + i +" <-> "+ ctor.name +"."+ i);
 				continue;
 			}
-			Object.defineProperty(			// define event property.
-				ctor.prototype,	i,	{
-					get: function(){return(this.getEvent(i));},
-					set: function(v = null){this.setEvent(i, v);},
-					enumerable  : false,	// do not iterate
-					configurable: false		// variable persists
-				}
-			);
+			defineEventProperty(ctor, i);
 			continue;
 		}
 		if (cp.store && (cp.value === undefined))
 			exc('E_NO_DEFAULT', ctor.name + "." + i);
 	}
 	ctor.cdta = cdta;
-	ctor.info.ready = true;
+	ctor[info].ready = true;
 	classes[ctor.name] = ctor;
 	initialize();
 }
+
+// this is here because it needs a seperate closure. 
+function defineEventProperty(ctor, propName) {
+	Object.defineProperty(
+		ctor.prototype,	propName,	{
+			get: function(){return(this.getEvent(propName));},
+			set: function(v = null){this.setEvent(propName, v);},
+			enumerable  : false,	// do not iterate
+			configurable: false		// variable persists
+		}
+	);
+}
+
 
 registerClass(TObject);
 registerClass(Component);

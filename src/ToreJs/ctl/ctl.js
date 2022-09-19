@@ -26,19 +26,17 @@ export const ctl = {
 	],
 
 	// Control 2D X alignment
-	ALIGN_X: [
-		'none',
-		'left',
-		'center',
-		'right'
-	],
+	ALIGN_X: {
+		none: 0,
+		center: 1,
+		right: 2
+	},
 	// Control 2D Y alignment	
-	ALIGN_Y: [
-		'none',
-		'top',
-		'center',
-		'bottom'
-	],
+	ALIGN_Y: {
+		none: 0,
+		center: 1,
+		bottom: 2
+	},
 
 	// Panel Container 2D layout
 	LAYOUT: {

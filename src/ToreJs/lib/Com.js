@@ -18,8 +18,16 @@ import { EventHandler } from "./EventHandler.js";
   INFO: On completion of communication, com component is auto destroyed.
 ————————————————————————————————————————————————————————————————————————————*/
 
-export function send(owner=null, method='POST', url='', content=null,
-	responseType='blob', query=null, headers=null, user=null, pass=null) {
+export function send(
+		owner = null,
+		method = 'POST',
+		url = '',
+		content = null,
+		responseType = 'blob',
+		query = null,
+		headers = null,
+		user = null,
+		pass = null) {
 
 	var o = {method: method, url: url, content: content, 
 		responseType: responseType,	query: query,

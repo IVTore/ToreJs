@@ -46,8 +46,6 @@ export class Control extends Component {
 		autoY			: {value: null},
 		autoWidth		: {value: null},
 		autoHeight		: {value: null},
-		alignX			: {value: 'none'},
-		alignY			: {value: 'none'},
 		anchorLeft		: {value: true, store: true},
 		anchorTop		: {value: true, store: true},
 		anchorRight		: {value: false, store: true},
@@ -71,7 +69,7 @@ export class Control extends Component {
 		onFocusIn		: {event: true},
 		onFocusOut		: {event: true},
 		onViewportResize: {event: true},
-		onMemberResize	: {event: true},
+		onMemberRelocate: {event: true},
 		onOwnerResize	: {event: true},
 		onLanguageChange: {event: true},
 		onStartDrag		: {event: true},
@@ -97,8 +95,6 @@ export class Control extends Component {
 	_autoY = null;				// Automatic Y.
 	_autoWidth = null;			// Automatic Width.
 	_autoHeight = null;			// Automatic Height.
-	_alignX = 'none';			// X axis alignment.
-	_alignY = 'none';			// Y axis alignment.
 	anchorLeft = true;			// Anchors.
 	anchorTop = true;
 	anchorRight = false;
@@ -114,22 +110,26 @@ export class Control extends Component {
 
 	_ctlState = 0;				// control state.
 	_element = null;			// Dom element.
+	_wrapper = null;			// Wrapper element.
 	_visible = true;			// Visibility setting.
 	_canFocus = true;			// Control can focus or not.
 	_interact = false;			// Interactibility state.
-	_yieldFocus = false;		// If control can yield focus
-								// to the other controls under it 
-								// when it can not get focus.
+	_yieldFocus = false;		// If control must yield focus
+								// to the other controls under it.
+
 	dragEnabled = false;		// If true control is draggable.
 	dropEnabled = false;		// If true control is a dropzone.
 	
+
+	// Readonly.
+	_shellW = 0;
+	_shellH = 0;
+
 	// Internal properties.
-	
+	_ctl = [];					// Sub controls array.
 	_ptrOver = false;			// Pointer over.
-	_oldX = 0;					// Previous x of control.
-	_oldY = 0;					// Previous y of control.
-	_oldWidth = 0;				// Previous width of control.
-	_oldHeight = 0;				// Previous height of control.
+	_oldW = 0;					// Previous width of control.
+	_oldH = 0;					// Previous height of control.
 	_vpResize = false;			// Viewport resizing flag.
 	_invalid = false;			// If true rendering is required.
 	_blockValidate = false;		// If true block invalidation and therefore render.
@@ -154,15 +154,16 @@ export class Control extends Component {
 		owner	: Component	: Owner of the new control if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
-	constructor(name = null, owner = null, data = null) {
+	constructor(name = null, owner = null, data = null, init = true) {
 		super(name);
-		makeElement(this);
+		this.makeElement();
 		this._computed = getComputedStyle(this._element);
 		this.canFocus = this.class.canFocusDefault;
 		sys.propSet(this._shade, this.class.initialStyle);
-		if (name == sys.LOAD)
+		if (name === sys.LOAD)
 			return;
-		this._initControl(owner, data);
+		if (init || owner || data)
+			this._initControl(owner, data);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -180,8 +181,8 @@ export class Control extends Component {
 		if (data)
 			sys.propSet(this, data);
 		this._blockValidate = false;
-		if (!this.autoAdjust())
-			this.invalidate();
+		this.autoAdjust();
+		this.invalidate();
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -193,9 +194,42 @@ export class Control extends Component {
 			return;
 		this.controlState = ctl.DYING;
 		super.destroy();		// inherited destroy
-		killElement(this);
+		_ctl = null;
+		this.killElement();
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: makeElement.
+	  TASK: Builds and binds a document object model element to control.
+	——————————————————————————————————————————————————————————————————————————*/
+	makeElement() {
+		var e = this.class.elementTag;
+
+		if (this._element)
+			return;
+		this._element = (e !== 'body') ? document.createElement(e) : document.body;
+		this._element.ToreJS_Control = this;
+		this._wrapper = this._element;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: killElement.
+	  TASK: Frees control from its document object model element.
+	——————————————————————————————————————————————————————————————————————————*/
+	killElement() {
+		var e = this._element;
+
+		if (!e)
+			return;
+		if (is.asg(e.ToreJS_Control))
+			delete(e.ToreJS_Control);	
+		if (e !== document.body){ 
+			if (e.parentNode)
+				e.parentNode.removeChild(e);
+		}
+		this._wrapper = null;
+		this._element = null;
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
 	  TASK:	Attaches a member component to the Control.
@@ -204,21 +238,20 @@ export class Control extends Component {
 	  RETV: 		: Boolean	: True on success
 	  INFO:	
 		If member component is a Control;
-		* It is refreshed.
-		* Interactivity checked.
-		* ... and this (owner) is size adjusted if auto sizing.
+		* Member is refreshed and interactivity checked.
+		* this (owner) is size adjusted if auto sizing.
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
 		var	c = component;
 
 		if (!super.attach(c))
 			return false;
-		if (!is.control(c))
-			return true;
-		this._element.appendChild(c._element);
-		c.reAlign();
-		c.checkEvents();
-		this.autoAdjust();
+		if (c instanceof Control) {
+			this._ctl.push(c);
+			this._wrapper.appendChild(c._element);
+			c.checkEvents();
+			this.contentChanged();
+		}
 		return true;
 	}
 
@@ -230,14 +263,19 @@ export class Control extends Component {
 	  RETV: Boolean	: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null){
+		var i;
+
 		if (!super.detach(component))
 			return false;
-		if (!is.control(component))
+		if (!(component instanceof Control))
 			return true;
-		if (component._element.parentNode === this._element)
-			this._element.removeChild(component._element);	
+		i = this._ctl.indexOf(component);
+		if (i !== -1)
+			this._ctl.splice(i, 1);
+		if (component._element.parentNode === this._wrapper)
+			this._wrapper.removeChild(component._element);
 		component.checkEvents();
-		this.autoAdjust();
+		this.contentChanged();
 		return true;
 	}
 
@@ -273,31 +311,41 @@ export class Control extends Component {
 		this._classesChanged = true;
 		this.invalidate();
 	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: coordsChanged.
+	  TASK: Coordinate change dispatcher.
+	——————————————————————————————————————————————————————————————————————————*/
+	coordsChanged(){
+		if (this._blockValidate || this._invalid)
+			return;
+		this.relocate();	
+		this.invalidate();
+	}
+
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: render
 	  TASK: This draws the control. Called by display before new frame.
 	——————————————————————————————————————————————————————————————————————————*/
 	render() {
 		var i,
-			g = this._shade,
-			s = this._element.style,
-			cla = this._classesChanged,
-			con = this._contentChanged;
+			shade = this._shade,
+			style = this._element.style,
+			clChg = this._classesChanged,
+			coChg = this._contentChanged;
 			
 		this._invalid = false;
 		this._classesChanged = false;
 		this._contentChanged = false;
 		this._shade = {};
+		for(i in shade)
+			style[i] = shade[i];
 		if (!this._ctlState)
 			return;
-		if (cla)
+		if (clChg)
 			this._element.className = this._sBase + this._sSize + this._sColor + this._sExtra;
-		for(i in g)
-			s[i] = g[i];
-		if (con)
+		if (coChg)
 			this.renderContent();
-		this.autoAdjust();
-		this.reAlign();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -309,6 +357,27 @@ export class Control extends Component {
 
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: recalculate
+	  TASK: Called by display, this calculates the necessary values for
+			the control after rendering.
+	——————————————————————————————————————————————————————————————————————————*/
+	recalculate() {
+		var s = this._computed;
+
+		this._shellW = 
+			parseFloat(s.paddingLeft || '0') +
+			parseFloat(s.paddingRight || '0') +
+			parseFloat(s.borderLeftWidth || '0') +
+			parseFloat(s.borderRightWidth || '0');
+		this._shellH = 
+			parseFloat(s.paddingTop || '0') +
+			parseFloat(s.paddingBottom || '0') +
+			parseFloat(s.borderTopWidth || '0') + 
+			parseFloat(s.borderBottomWidth || '0');
+		this.autoAdjust();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
 		SUBSYS: Dimension management.
 	——————————————————————————————————————————————————————————————————————————*/
 
@@ -316,82 +385,147 @@ export class Control extends Component {
 	  PROP:	x   : int;
 	  GET : Returns  control x coordinate.
 	  SET : Sets the control x coordinate.
-	  INFO: When alignX is not 'none' setting x coordinate is not allowed.
+	  INFO: When autoX is non-null setting x coordinate is not allowed.
 	——————————————————————————————————————————————————————————————————————————*/
 	get x() {
 		return this._x;
 	}
 
-	set x(value = 0) {
-		if (!is.num(value) || this._x == value || this._alignX != 'none')
+	set x(val = 0) {
+		if (this._autoX !== null)
 			return;
-		this._x = value;
-		this._shade.left = '' + value +'px';
-		if (this._blockValidate)
-			return;
-		this.resizing(false);
-		this.invalidate();
+		if (this._setX(val)) 
+			this.coordsChanged();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	y   : int;
 	  GET : Returns  control y coordinate.
 	  SET : Sets the control y coordinate.
-	  INFO: When alignY is not 'none' setting y coordinate is not allowed.
+	  INFO: When autoY is non-null setting y coordinate is not allowed.
 	——————————————————————————————————————————————————————————————————————————*/
 	get y() {
 		return(this._y);
 	}
 
-	set y(value = 0) {
-		if (!is.num(value) || this._y == value || this._alignY != 'none')
+	set y(val = 0) {
+		if (this._autoY !== null)
 			return;
-		this._y = value;
-		this._shade.top = '' + value +'px';
-		if (this._blockValidate)
-			return;
-		this.resizing(false);
-		this.invalidate();
+		if (this._setY(val))
+			this.coordsChanged();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	width : int;
 	  GET : Returns  control width.
 	  SET : Sets the control width.
+	  INFO: When autoWidth is non-null setting width is not allowed.
 	——————————————————————————————————————————————————————————————————————————*/
 	get width() {
 		return this._width;
 	}
 
-	set width(value = 64) {
-		if (!is.num(value) || this._width == value)
+	set width(val = 64) {
+		if (this._autoWidth !== null)
 			return;
-		this._width = value;
-		this._shade.width = '' + value + 'px';
-		if (this._blockValidate)
-			return;
-		this.resizing(true);
-		this.invalidate();
+		if (this._setW(val)) {
+			if (this._autoX)	// not 0 or null?
+				calcAutoX(this, this._own.innerWidth)
+			this.coordsChanged(true);
+		}
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	height : int;
 	  GET : Returns  control height.
 	  SET : Sets the control height.
+	  INFO: When autoHeight is non-null setting height is not allowed.
 	——————————————————————————————————————————————————————————————————————————*/
 	get height() {
 		return this._height;
 	}
 
-	set height(value = 64) {
-		if (!is.num(value) || this._height == value)
+	set height(val = 64) {
+		if (this._autoHeight !== null)
 			return;
-		this._height = value; 
-		this._shade.height = '' + value + 'px';
-		if (this._blockValidate)
-			return;
-		this.resizing(true);
-		this.invalidate();
+		if (this._setH(val)){
+			if (this._autoY)	// not 0 or null?
+				calcAutoY(this, this._own.innerHeight)
+			this.coordsChanged(true);
+		}
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+		All '_set' methods:
+		*	Are raw calls which do not make necessary checkings.
+		*	Operate on shadow coordinates only.
+		*	Do not set element style values. 
+		*	No relocation dispatching and invalidation is done.
+		*	They return true if shadow coordinates change.
+	——————————————————————————————————————————————————————————————————————————*/
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setX [protected].
+	  TASK: 
+		Sets the x coordinate of control without alignment or autoX checking.
+	  ARGS:
+		x	: number	: X coordinate value in pixels.
+	  RETV: : boolean	: true if x changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setX(x = 0) {
+		if (typeof x !== "number" || this._x === x)
+			return false;
+		this._x = x;
+		this._shade.left = '' + x +'px';
+		return true;
+	}
+	
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setY [protected].
+	  TASK: 
+		Sets the y coordinate of control without alignment or autoY checking.
+	  ARGS:
+		y	: number	: Y coordinate value in pixels.
+	  RETV: : boolean	: true if y changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setY(y = 0) {
+		if (typeof y !== "number" || this._y === y)
+			return false;
+		this._y = y;
+		this._shade.top = '' + y +'px';
+		return true;
+	}
+	
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setW [protected].
+	  TASK: 
+		Sets the width of control without autoWidth checking.
+	  ARGS:
+		w	: number	: Width value in pixels.
+	  RETV: : boolean	: true if width changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setW(w = 0) {
+		if (typeof w !== "number" || this._width === w || w < 0)
+			return false;
+		this._width = w;
+		this._shade.width = '' + w +'px';
+		return true;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setH [protected].
+	  TASK: 
+		Sets the height of control without autoHeight checking.
+	  ARGS:
+		h	: number	: Height value in pixels.
+	  RETV: : boolean	: true if height changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setH(h = 0) {
+		if (typeof h !== "number" || this._height === h || h < 0)
+			return false;
+		this._height = h;
+		this._shade.height = '' + h +'px';
+		return true;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -404,30 +538,33 @@ export class Control extends Component {
 			x will not be automatic.
 		* Viewport values object.
 			The value will be extracted from object and processed.
-		* A string: Will be treated as a CSS property.
 		* A number between 0 and 1 (exclusive) i.e: 0.5 .
 			x will be set to owner innerWidth * autoX.
 		* A number with value <= 0 or value >= 1, x = value.
+		* A string:
+			"right" 	: Aligns the control to right.
+			"center"	: Aligns the control to center.
+			Other values will be treated as a CSS property which 
+			may cause a reflow.
 	——————————————————————————————————————————————————————————————————————————*/
 	get autoX() {
 		return(this._autoX);
 	}
 
-	set autoX(value = null){
+	set autoX(val = null) {
 		var typ;
 
-		if (value == this._autoX)
+		if (val === this._autoX)
 			return;
-		if (value == null) {
+		if (val === null) {
 			this._autoX = null;
 			return;
 		}
-		typ = typeof value;
-		if (typ != "number" && typ != "string" && value.constructor != Object) 
+		typ = typeof val;
+		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
 			return;
-		this._autoX = value;
-		if (this._own instanceof Control)
-			calcAutoX(this, this._own.innerWidth);
+		this._autoX = val;
+		this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -440,30 +577,33 @@ export class Control extends Component {
 			y will not be automatic.
 		* Viewport values object.
 			The value will be extracted from object and processed.
-		* A string: Will be treated as a CSS property.
 		* A number between 0 and 1 (exclusive) i.e: 0.2 .
-			y will be set to owner innerWidth * autoX.
+			y will be set to owner innerHeight * autoY.
 		* A number with value <= 0 or value >= 1, y = value.
+		* A string: 
+			"bottom" 	: Aligns the control to bottom.
+			"center"	: Aligns the control to center.
+			Other values will be treated as a CSS property which 
+			may cause a reflow.
 	——————————————————————————————————————————————————————————————————————————*/
 	get autoY() {
 		return(this._autoY);
 	}
 
-	set autoY(value = null){
+	set autoY(val = null) {
 		var typ;
 
-		if (value == this._autoY)
+		if (val === this._autoY)
 			return;
-		if (value == null) {
+		if (val === null) {
 			this._autoY = null;
 			return;
 		}
-		typ = typeof value;
-		if (typ != "number" && typ != "string" && value.constructor != Object) 
+		typ = typeof val;
+		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
 			return;
-		this._autoY = value;
-		if (this._own instanceof Control)
-			calcAutoY(this, this._own.innerHeight);
+		this._autoY = val;
+		this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -485,21 +625,20 @@ export class Control extends Component {
 		return(this._autoWidth);
 	}
 
-	set autoWidth(value = null){
+	set autoWidth(val = null) {
 		var typ;
 
-		if (value === this._autoWidth)
+		if (val === this._autoWidth)
 			return;
-		if (value === null) {
+		if (val === null) {
 			this._autoWidth = null;
 			return;
 		}
-		typ = typeof value;
-		if (typ !== "number" && typ !== "string" && value.constructor !== Object) 
+		typ = typeof val;
+		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
 			return;
-		this._autoWidth = value;
-		if (this._own instanceof Control)
-			calcAutoWidth(this, this._own.innerWidth);
+		this._autoWidth = val;
+		this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -521,147 +660,149 @@ export class Control extends Component {
 		return(this._autoHeight);
 	}
 
-	set autoHeight(value = null){
+	set autoHeight(val = null){
 		var typ;
 
-		if (value === this._autoHeight)
+		if (val === this._autoHeight)
 			return;
-		if (value === null) {
+		if (val === null) {
 			this._autoHeight = null;
 			return;
 		}
-		typ = typeof value;
-		if (typ !== "number" && typ !== "string" && value.constructor !== Object) 
+		typ = typeof val;
+		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
 			return;
-		this._autoHeight = value;
-		if (this._own instanceof Control)
-			calcAutoHeight(this, this._own.innerHeight);
+		this._autoHeight = val;
+		this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	alignX : String;
-	  GET : Returns  control x alignment.
-	  SET : Sets the control x alignment.
-	  INFO:
-		Alignment values are 'none', 'center', 'right'.
-		If set to 'center' or 'right' autoX becomes null.
-		For left alignment, just set x to 0.
+	  PROP: shellWidth
+	  GET : Gets the computed control padding and border width.
 	——————————————————————————————————————————————————————————————————————————*/
-	get alignX() {
-		return(this._alignX);
+	get shellWidth(){
+		return this._shellW;
 	}
-
-	set alignX(value = 'none') {
-		value = (ctl.ALIGN_X[value]) ? value : 'none';
-		if (this._alignX === value)
-			return;
-		this._alignX = value;
-		if (value === 'none')
-			return;
-		this._autoX = null;
-		if (this._own instanceof Control)
-			calcAlignX(t, this._own.innerWidth);
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	alignY : String;
-	  GET : Returns  control y alignment.
-	  SET : Sets the control y alignment.
-	  INFO:
-		Alignment values are 'none', 'center', 'bottom'.
-		If set to 'center' or 'bottom' autoY becomes null.
-		For top alignment, just set y to 0.
-	——————————————————————————————————————————————————————————————————————————*/
-	get alignY() {
-		return(this._alignY);
-	}
-
-	set alignY(value = 'none') {
-		value = (ctl.ALIGN_Y[value]) ? value : 'none';
-		if (this._alignY === value)
-			return;
-		this._alignY = value;
-		if (value === 'none')
-			return;
-		this._autoY = null;
-		if (this._own instanceof Control)
-			calcAlignY(t, this._own.innerHeight);
-	}
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: dimensions
-	  TASK: Computes dimension values of the control all at once.
-	——————————————————————————————————————————————————————————————————————————*/
-	dimensions() {
-		var s,
-			pw,
-			ph,
-			tw,
-			th;
-
-		s = this._computed;
-		pw = parseFloat(s.paddingLeft || '0') + parseFloat(s.paddingRight || '0');
-		tw = parseFloat(s.borderLeftWidth || '0') +  parseFloat(s.borderRightWidth || '0') + pw;
-		ph = parseFloat(s.paddingTop || '0') + parseFloat(s.paddingBottom || '0');
-		th = parseFloat(s.borderTopWidth || '0') + parseFloat(s.borderBottomWidth || '0') + ph;
-		return {
-			shellW: tw,
-			innerW: this._width - tw,
-			rangeW: this._element.scrollWidth - pw,
-			shellH: th,
-			innerH: this._height - th,
-			rangeH: this._element.scrollHeight - ph
-		}
-	}
-
-	
-
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: innerWidth
 	  GET : Gets the computed control visible content width.
 	——————————————————————————————————————————————————————————————————————————*/
 	get innerWidth(){
-		var s = this._computed;
-		return this._width - (
-			parseFloat(s.paddingLeft || '0') + parseFloat(s.paddingRight || '0') +
-			parseFloat(s.borderLeftWidth || '0') + parseFloat(s.borderRightWidth || '0') 
-		);
+		return this._width - this._shellW;
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: widthToContent
+	  TASK: Sets width to fit the content.
+	  RETV: 	: Boolean : True if width changed.
+	  INFO: This is called when autoWidth = "content".
+	——————————————————————————————————————————————————————————————————————————*/
+	widthToContent() {
+		var s = this._element.style,
+			r;
+		
+		s.left = '0px';
+		r = this._widthByStyle("fit-content");
+		s.left = ''+ this._x + 'px';
+		return r;
+	}
+
+	// Do not meddle with these methods...
+	_widthByStyle(val) {
+		var s = this._element.style;
+
+		s.width = val;							// reflow.
+		val = parseFloat(this._computed.width || 0);
+		if (this._width === val) {
+			s.width = '' + this._width + 'px';	// reflow.
+			return false; 
+		}
+		return this._setW(val);
+	}
+
+	_widthByMembers() {
+		return this._setW(this.membersWidth + this.shellWidth);
+	}
+
+	get membersWidth() {
+		var c,
+			x, 
+			w = 0;
+
+		for(c of this._ctl){
+			if (c.visible){
+				x = c._x + c._width;
+				if (x > w)
+					w = x;
+			}
+		}
+		return w;
+	}
+	
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP: shellHeight
+	  GET : Gets the computed control padding and border height.
+	——————————————————————————————————————————————————————————————————————————*/
+	get shellHeight() {
+		return this._shellH;
+		
+	}
+	
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: innerHeight
 	  GET : Gets the computed control visible content height.
 	——————————————————————————————————————————————————————————————————————————*/
-	get innerHeight(){
-		var s = this._computed;
-		return this._height - (
-			parseFloat(s.paddingTop || '0') + parseFloat(s.paddingBottom || '0') +
-			parseFloat(s.borderTopWidth || '0') + parseFloat(s.borderBottomWidth || '0')
-		);
+	get innerHeight() {
+		return this._height - this._shellH;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP: contentWidth
-	  GET : Gets the control content width.
+	  FUNC: heightToContent
+	  TASK: Sets height to fit the content.
+	  RETV: 	: Boolean : True if height changed.
+	  INFO: This is called when autoHeight = "content".
+	  		Should be overridden according to the nature of Control.
 	——————————————————————————————————————————————————————————————————————————*/
-	get contentWidth(){
-		var s = this._computed;
-		return this._element.scrollWidth - (
-			parseFloat(s.paddingLeft || '0') +
-			parseFloat(s.paddingRight || '0')
-		);
+	heightToContent(fromTop = true) {
+		var s = this._element.style,
+			r;
+		
+		s.top = '0px';
+		r = this._heightByStyle("fit-content");
+		s.top = ''+ this._y + 'px';
+		return r;
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP: contentHeight
-	  GET : Gets the control content height.
-	——————————————————————————————————————————————————————————————————————————*/
-	get contentHeight(){
-		var s = this._computed;
-		return this._element.scrollHeight - (
-			parseFloat(s.paddingTop || '0') +
-			parseFloat(s.paddingBottom || '0')
-		);
+	// Do not meddle with these methods...
+	_heightByStyle(val) {
+		this._element.style.height = val;							// reflow.
+		val = parseFloat(this._computed.height || 0);
+		if (this._height === val) {
+			this._element.style.height = '' + this._height + 'px';	// reflow.
+			return false; 
+		}
+		return this._setH(val);
+	}
+
+	_heightByMembers() {
+		return this._setH(this.membersHeight + this.shellHeight);
+	}
+
+	get membersHeight() {
+		var c,
+			y, 
+			h = 0;
+
+		for(c of this._ctl){
+			if (c.visible){
+				y = c._y + c._height;
+				if (y > h)
+					h = y;
+			}
+		}
+		return h;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -671,83 +812,102 @@ export class Control extends Component {
 	——————————————————————————————————————————————————————————————————————————*/
 	autoAdjust() {
 		var t = this,
-			ow = t._own,
+			o = t._own,
 			dx,
 			dy,
-			od;
+			ow,
+			oh,
+			ch = false;
 		
-		if (!(ow instanceof Control))
-			return false,
-		dx = ow._width - ow._oldWidth;
-		dy = ow._height - ow._oldHeight;
-		if 	(!(	t._autoWidth || 
-				t._autoHeight || 
-				t._autoX || 
-				t._autoY ||
-				(dx && t.anchorRight) || 
-				(dy && t.anchorBottom) ||
-				(dx && t._alignX == "none") || 
-				(dy && t._alignY == "none")))
+		if (!(o instanceof Control))
 			return false;
-		od = t._own.dimensions();
-		t._blockValidate = true;
+		dx = o._width - o._oldW;
+		dy = o._height - o._oldH;
+		if 	(!(	t._autoX !== null || t._autoY !== null ||
+				t._autoWidth !== null || t._autoHeight !== null || 
+				(dx && t.anchorRight) || (dy && t.anchorLeft)))
+			return false;
+		ow = o.innerWidth;
+		oh = o.innerHeight;
 		if (t._autoWidth) 
-			calcAutoWidth(t, od.innerW);
+			ch ||= calcAutoWidth(t, ow);
 		if (t._autoHeight) 
-			calcAutoHeight(t, od.innerH);
+			ch ||= calcAutoHeight(t, oh);
 		if (t.autoX)
-			calcAutoX(t, od.innerW);
+			ch ||= calcAutoX(t, ow);
 		if (t.autoY)
-			calcAutoY(t, od.innerH);
+			ch ||= calcAutoY(t, oh);
 		if (dx && t.anchorRight) {
 			if (t.anchorLeft) 
-				t.width += dx;
+				ch ||= this._setW(t, t._width + dx);
 			else
-				t.x += dx;
+				ch ||= this._setX(t, t._x + dx);
 		}
 		if (dy && t.anchorBottom) {
 			if (t.anchorTop)
-				t.height += dy;
+				ch ||= this._setH(t, t.height + dy);
 			else
-				t.y += dy;
+				ch ||= this._setY(t, t._y + dy);
 		}
-		if (dx && t._alignX != 'none')
-			calcAlignX(t, od.innerW);
-		if (dx && t._alignY != 'none')
-			calcAlignY(t, od.innerH);
-		t._blockValidate = false;
-		t.invalidate();
-		return true;
+		if (ch)
+			t.coordsChanged();
+		return ch;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: relocate
+	  TASK: 
+		Notifies owner if it is relocated.
+		Notifies members if it is resized.		
+	—————————————————————————————————————————————————————————————————————————*/
+	relocate() {
+		var	c;
+
+		if (this._own instanceof Control)
+			this._own.doMemberRelocate(this);
+		if (this._oldW === this._width && 
+			this._oldH === this._height)
+			return;
+		for(c of this._ctl)
+			c.doOwnerResize();
+		this._oldW = this._width;
+		this._oldH = this._height;
+	}
+	
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doViewportResize
 	  TASK: Flags the control that viewport is resized.
+	  INFO: This is a global dispatch from display control.
 	——————————————————————————————————————————————————————————————————————————*/
 	doViewportResize() {
-		var s,
+		var c,
 			e = this._eve.onViewportResize;
+
 		this._vpResize = true;
 		this.autoAdjust();
-		for(s in this._mem){
-			if (is.control(this._mem[s]))
-				this._mem[s].doViewportResize();
+		for(c of this._ctl){
+			if (c instanceof Control)
+				c.doViewportResize();
 		}
 		this._vpResize = false;
 		return ((e) ? e.dispatch([this]) : null);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMemberResize
+	  FUNC: doMemberRelocate
 	  TASK: Flags the control that its member is resized or repositioned.
+	  ARGS: 
+		member	: Control :	Member control that is relocated.
+	  INFO: 
+		Dimensions recalculated.
+		Called from relocate() method of member.
+		During viewport resize, autoAdjust is supressed.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMemberResize(member = null) {
-	var e;
+	doMemberRelocate(member = null) {
+	var e = this._eve.onMemberRelocate;
 
-		if (this._vpResize)
-			return;
-		this.autoAdjust();
-		e = this._eve.onMemberResize;
+		if (!this._vpResize)
+			this.contentChanged();
 		return ((e) ? e.dispatch([this, member]) : null);	// dispatch it
 	}
 	
@@ -755,52 +915,16 @@ export class Control extends Component {
 	  FUNC: doOwnerResize
 	  TASK: Flags the control that its owner is resized.
 	  INFO: Dimensions recalculated.
+			Called from relocate() method of owner.
 	——————————————————————————————————————————————————————————————————————————*/
 	doOwnerResize() {
 		var e = this._eve.onOwnerResize;
-
-		this.autoAdjust();
+		
+		if (!this._vpResize)
+			this.autoAdjust();
 		return ((e) ? e.dispatch([this]) : null);
 	}
 	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: resizing 
-	  TASK: 
-	  	Adjusts alignments optionally.  
-		notifies owner if resized and / or repositioned,
-		notifies members if it is resized.
-	  ARGS: align : Boolean : if true alignments will be refreshed.
-	  INFO: align parameter blocks unnecessary call loop of the procedure 
-			from alignX or alignY when set to false.
-	—————————————————————————————————————————————————————————————————————————*/
-	resizing(align) {
-		var	s;
-		
-		if (align)
-			this.reAlign();
-		if (is.control(this._own))
-			this._own.doMemberResize(this);
-		if (this._oldWidth == this._width && this._oldHeight == this._height)
-			return;
-		for(s in this._mem){
-			if (is.control(this._mem[s]))
-				this._mem[s].doOwnerResize();
-		}
-		this._oldWidth = this._width;
-		this._oldHeight = this._height;
-	}
-	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: reAlign
-	  TASK: Coordinate reAlign.
-	——————————————————————————————————————————————————————————————————————————*/
-	reAlign(){
-		if (this._alignX != 'none')
-			this.calcAlignX();
-		if (this._alignY != 'none')
-			this.calcAlignY();
-	}
-
 	/*———————————————————————————————————————————————————————————————————————————
 	  SUBSYS: Interactivity	
 
@@ -894,7 +1018,7 @@ export class Control extends Component {
 	doPointerOver(x, y) {
 	var e = this._eve.onPointerOver;					// fetch event to relay
 	
-		this._mouseOvr = true;							// flag mouse over
+		this._ptrOver = true;							// flag pointer over
 		if (this._ctlState === ctl.ALIVE)				// if state is ALIVE 
 			this.controlState = ctl.HOVER;				// set it to HOVER
 		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
@@ -907,7 +1031,7 @@ export class Control extends Component {
 	doPointerOut() {
 	var e = this._eve.onPointerOut;					// fetch event to relay
 	
-		this._mouseOvr = false;						// not any more.
+		this._ptrOver = false;						// not any more.
 		if (this._ctlState === ctl.HOVER)
 			this.controlState = ctl.ALIVE;
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
@@ -966,11 +1090,11 @@ export class Control extends Component {
 		return(this._zIndex);
 	}
 
-	set zIndex(value = 0){
-		if (!is.num(value) || this._zIndex == value)
+	set zIndex(val = 0){
+		if (typeof val !== "number" || this._zIndex == val)
 			return;	
-		this._zIndex = value;
-		this._shade.zIndex = '' + value;
+		this._zIndex = val;
+		this._shade.zIndex = '' + val;
 		this.invalidate();
 	}
 
@@ -984,11 +1108,11 @@ export class Control extends Component {
 		return(this._opacity);
 	}
 
-	set opacity(value = 1){
-		if (!is.num(value) || value < 0 || value > 1 || this._opacity == value)
+	set opacity(val = 1){
+		if (typeof val !== "number" || val < 0 || val > 1 || this._opacity === val)
 			return;
-		this._opacity = value;
-		this._shade.opacity = '' + value;
+		this._opacity = val;
+		this._shade.opacity = '' + val;
 		this.invalidate();
 	}
 
@@ -1006,10 +1130,10 @@ export class Control extends Component {
 		return(this._tabIndex);
 	}
 
-	set tabIndex(value = 0) {
-		if (!is.num(value) || this._tabIndex == value)
+	set tabIndex(val = 0) {
+		if (typeof val !== "number" || this._tabIndex === val)
 			return;
-		this._tabIndex = value;
+		this._tabIndex = val;
 		this.invalidateContainerTabs();
 	}
 
@@ -1022,10 +1146,10 @@ export class Control extends Component {
 		return this._styleExtra;
 	}
 
-	set styleExtra(v = null) {
-		if ((!is.str(v) && v !== null) || this._styleExtra == v)
+	set styleExtra(val = null) {
+		if ((typeof val !== "string" && val !== null) || this._styleExtra === val)
 			return;
-		this._styleExtra = v;
+		this._styleExtra = val;
 		this._sExtra = calcClassNameSub(this, this._styleExtra);
 		this.classesChanged();
 	}
@@ -1039,12 +1163,12 @@ export class Control extends Component {
 		return this._styleColor;
 	}
 
-	set styleColor(v) {
-		if ((v !== null && !is.str(v)) || this._styleColor == v)
+	set styleColor(val) {
+		if ((val !== null && typeof val !== "string") || this._styleColor === val)
 			return;
-		if (v && !ctl.COLORS[v])
+		if (val && !ctl.COLORS[val])
 			return;
-		this._styleColor = v;
+		this._styleColor = val;
 		this._sColor = calcClassNameSub(this, this._styleColor);
 		this.classesChanged();
 	}
@@ -1058,12 +1182,12 @@ export class Control extends Component {
 		return this._styleSize;
 	}
 
-	set styleSize(v = null) {
-		if ((!is.str(v) && v !== null) || this._styleSize == v)
+	set styleSize(val = null) {
+		if ((typeof val !== "string" && val !== null) || this._styleSize === val)
 			return;
-		if (v && !ctl.SIZES[v])
+		if (val && !ctl.SIZES[val])
 			return;
-		this._styleSize = v;		// set style size name
+		this._styleSize = val;		// set style size name
 		this._sSize = calcClassNameSub(this, this._styleSize);
 		this.classesChanged();
 	}
@@ -1100,13 +1224,13 @@ export class Control extends Component {
 		return(this._ctlState);
 	}
 		
-	set controlState(value = 0){
-		if (!is.num(value) || 
-			value < ctl.DYING ||
-			value > ctl.SLEEP || 
-			value == this._ctlState)
+	set controlState(val = 0){
+		if (!is.num(val) || 
+			val < ctl.DYING ||
+			val > ctl.SLEEP || 
+			val === this._ctlState)
 			return;
-		this._ctlState = value;
+		this._ctlState = val;
 		this.calcAllClassNames();
 		this.checkEvents();
 	}
@@ -1118,7 +1242,7 @@ export class Control extends Component {
 	  INFO: 
 		When set to true: 
 		If all controls in owner chain are visible showing will be true.
-		If it is in clip rectangles of owner chain, then it is displaying.
+		If it is in rectangles of owner chain, then it is displaying.
 		Otherwise control will stay invisible but the value will be true.
 	——————————————————————————————————————————————————————————————————————————*/
 	get visible() {
@@ -1133,7 +1257,7 @@ export class Control extends Component {
 		this._visible = v;
 		this.checkEvents();
 		cascadeShowing(this, this.showing);
-		this.resizing(v);
+		this.relocate(v);
 		this.invalidate();
 	}
 
@@ -1149,7 +1273,7 @@ export class Control extends Component {
 		while(c instanceof Control){
 			if(!c._visible)					// if invisible
 				return(false);
-			if (c === core.display)				// if display
+			if (c === core.display)			// if display
 				return(true);
 			c = c._own;
 		}
@@ -1174,16 +1298,14 @@ export class Control extends Component {
 	}
 
 	set enabled(value = true) {
-		var m;
+		var c;
 
 		value = !!value;
 		if (value == (this._ctlState != ctl.SLEEP))
 			return;
 		this.controlState = (value) ? ctl.ALIVE : ctl.SLEEP;
-		for(m in this._mem){
-			if (is.control(this._mem[m]))
-				this._mem[m].enabled = value;
-		}
+		for(c of this._ctl)
+			c.enabled = value;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -1228,7 +1350,7 @@ export class Control extends Component {
 	get container() {
 		var o = this._own; 
 	
-		while(is.control(o)){
+		while(o instanceof Control){
 			if (is.container(o))
 				return(o);
 			o = o._own;
@@ -1243,44 +1365,9 @@ export class Control extends Component {
 	get interactive() {
 		return this._interact;
 	}
+
 }
 
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: makeElement [private].
-  TASK: Builds and binds a document object model element to control.
-  ARGS:
-	control 	: Control	: Control to bind to element.
-——————————————————————————————————————————————————————————————————————————*/
-function makeElement(control) {
-	var t = control,
-		e = t.class.elementTag;
-
-	if (e == null || t._element)
-		return;
-	t._element = document.createElement(e);
-	t._element.ToreJS_Control = t;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: killElement [private].
-  TASK: Frees control from its document object model element.
-  ARGS:
-	control 	: Control	: Control to unbind.
-——————————————————————————————————————————————————————————————————————————*/
-function killElement(control) {
-	var t = control,
-		e = t._element;
-
-	if (!e)
-		return;
-	if (is.asg(e.ToreJS_Control))
-		delete(e.ToreJS_Control);	
-	if (e !== document.body){ 
-		if (e.parentNode)
-			e.parentNode.removeChild(e);
-	}
-	t._element = null;
-}
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: cascadeShowing [private].
@@ -1290,20 +1377,15 @@ function killElement(control) {
 	showing		: bool		: Visibility state.
 ——————————————————————————————————————————————————————————————————————————*/
 function cascadeShowing(t, showing = false) {
-	var m,
-		c,
+	var c,
 		v = (showing) ? 'visible': 'hidden';
 
 	if (t._element.style.visibility != v) {
 		t._shade.visibility = v;
 		t.invalidate();
 	}
-	for(m in t._mem) {
-		c = t._mem[m];
-		if(!(c instanceof Control))
-			continue;
-		cascadeShowing(c, (showing) ? c._visible : false);		
-	}
+	for(c of t._ctl) 
+		cascadeShowing(c, (showing) ? c._visible : false);
 }
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -1324,20 +1406,152 @@ function calcClassNameSub(t, n){
 
 /*——————————————————————————————————————————————————————————————————————————
   SUBSYS: Dimension. Private functions.
+
+	*	Operate on shadow coordinates only.
+	*	Do not set element style values	where possible. 
+	*	No relocation dispatching and invalidation is done.
+	*	They return true if shadow coordinates change.
+	*	Called only when this (t - the control) has an owner.
+
 ——————————————————————————————————————————————————————————————————————————*/
 
 /*——————————————————————————————————————————————————————————————————————————
-  FUNC: getViewportValue [private].
+  FUNC: calcAutoX [private].
+  TASK: 
+	Calculates and sets the x coordinate of control according to autoX.
+  ARGS: 
+  	t 			: Control : (this).
+	ownerWidth	: number  : Inner width of owner.
+  RETV: 		: boolean : true if x changes.
+——————————————————————————————————————————————————————————————————————————*/
+function calcAutoX(t, ownerWidth){
+	var val = t._autoX;
+
+	if (val.constructor === Object)
+		val = viewportValue(t, val, "autoX");
+	if (val === null)
+		return false;
+	switch(typeof val){
+	case "number":
+		return t._setX((val <= 0 || val >= 1) ? val : ownerWidth * val);
+	case "string": 
+		switch(val) {
+		case "right":
+			return t._setX(ownerWidth - t._width);
+		case "center":
+			return t._setX((ownerWidth - t._width) / 2);
+		default:
+			t._element.style.left = val;					// reflow.
+			val = parseFloat(t._computed.left || 0);
+			if (t._x === val){
+				t._element.style.left = '' + t._x + 'px';	// reflow.
+				return false; 
+			}
+			return t._setX(val);
+		}
+	}
+	return false;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcAutoY [private].
+  TASK:
+	Calculates and sets the y coordinate of control according to autoY.
+  ARGS: 
+	t			: Control : (this).
+	ownerHeight	: number  : Inner height of owner.
+  RETV: 		: boolean : true if y changes.
+——————————————————————————————————————————————————————————————————————————*/
+function calcAutoY(t, ownerHeight){
+	var val = t._autoY;
+
+	if (val.constructor === Object)
+		val = viewportValue(t, val, "autoY");
+	if (val === null)
+		return;
+	switch(typeof val) {
+	case "number":
+		return t._setY((val <= 0 || val >= 1) ? val : ownerHeight * val);
+	case "string":
+		switch(val) {
+		case "bottom":
+			return t._setY(ownerHeight - t._height);
+		case "center":
+			return t._setY((ownerHeight - t._height) / 2);
+		default:
+			t._element.style.top = val;						// reflow.
+			val = parseFloat(t._computed.top || 0);
+			if (t._y === val){
+				t._element.style.top = '' + t._y + 'px';	// reflow.
+				return false; 
+			}
+			return t._setY(val);
+		}
+	}
+	return false;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcAutoWidth [private].
+  TASK: 
+	Calculates and sets the width of control according to autoWidth.
+  ARGS: 
+  	t 			: Control : (this).
+	ownerWidth	: number  : inner width of owner.
+  RETV: 		: boolean : true if width changes.
+——————————————————————————————————————————————————————————————————————————*/
+function calcAutoWidth(t, ownerWidth) {
+	var val = t._autoWidth; 
+
+	if (val.constructor === Object) 
+		val = viewportValue(t, val, "autoWidth");
+	if (val === null)
+		return false;
+	switch(typeof val){
+	case "number": 
+		return t._setW((val > 1) ? val : val * ownerWidth);
+	case "string":
+		return (val === "content") ? t.widthToContent() : t._widthByStyle(val);
+	}
+	return false;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcAutoHeight [private].
+  TASK: Calculates control height.
+  ARGS: 
+	t			: Control : (this).
+	ownerHeight	: number  : Inner height of owner.
+  RETV: 		: boolean : true if height changes.
+——————————————————————————————————————————————————————————————————————————*/
+function calcAutoHeight(t, ownerHeight){
+	var val = t._autoHeight;
+
+	if (val.constructor === Object) 
+		val = viewportValue(t, val, "autoHeight");
+	if (val === null)
+		return false;
+	switch(typeof val) {
+	case "number": 
+		return t._setH((val > 1) ? val : val * ownerHeight);
+	case "string":
+		return (val === "content") ? t.heightToContent(): t._heightByStyle(val);
+	}
+	return false;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: viewportValue [private].
   TASK: 
   	Gets a property value corresponding to current viewport from a 
 	viewport values object.
   ARGS:
-	t	: Control	: Control to set visibility.
+	t	: Control	: Control (for exception data).
 	v	: Object	: Viewport Values object.
 	name: String	: Property name for exception message.
   RETV: : * 		: Extracted string or number.
 ——————————————————————————————————————————————————————————————————————————*/
-function getViewportValue (t, v, name) {
+function viewportValue (t, v, name) {
 	var n = styler.viewportName;
 
 	v = (v[n]) ? v[n] : v.df;
@@ -1346,186 +1560,4 @@ function getViewportValue (t, v, name) {
 	return v;
 }
 
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoX [private].
-  TASK: Calculates control x.
-  ARGS: 
-  	t 				: Control : (this).
-	ownerInnerWidth : number  : Inner width of owner.
-  INFO: 
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoX(t, ownerInnerWidth){
-	var val = t._autoX,
-		typ;
-
-	if (val.constructor === Object)
-		val = getViewportValue(t, val, "autoX");
-	if (val === null)
-		return;
-	typ = typeof val;
-	if (typ === "number") {
-		t.x = (val <= 0 || val >= 1) ? val : ownerInnerWidth * val;
-		return;
-	}
-	if (typ === "string") {
-		t._element.style.y = y;
-		t.y = parseFloat(t._computed.x || 0);
-	}
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoY [private].
-  TASK: Calculates control y.
-  ARGS: 
-	t					: Control : (this).
-	ownerInnerHeight	: number  : Inner height of owner.
-  INFO: 
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoY(t, ownerInnerHeight){
-	var val = t._autoY,
-		typ;
-
-	if (val.constructor === Object)
-		val = getViewportValue(t, val, "autoY");
-	if (val === null)
-		return;
-	typ = typeof val;
-	if (typ === "number") {
-		t.y = (val <= 0 || val >= 1) ? val : ownerInnerHeight * val;
-		return;
-	}
-	if (typ === "string") {
-		t._element.style.y = val;
-		t.y = parseFloat(t._computed.y || 0);
-	}
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoWidth [private].
-  TASK: Calculates control width.
-  ARGS: 
-  	t 				: Control : (this).
-	ownerInnerWidth	: number  : inner width of owner.
-  INFO: 
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoWidth(t, ownerInnerWidth) {
-	var val = t._autoWidth,
-		typ; 
-
-	if (val.constructor === Object) 
-		val = getViewportValue(t, val, "autoWidth");
-	if (val === null)
-		return;
-	typ = typeof val;
-	if (typ === "number") {
-		t.width = (val > 1) ? val : val * ownerInnerWidth;
-		return;
-	}
-	if (typ === "string") {
-		t._element.style.width = val;
-		t.width = parseFloat(t._computed.width || 0);
-	}
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoHeight [private].
-  TASK: Calculates control height.
-  ARGS: 
-	t					: Control : (this).
-	ownerInnerHeight	: number  : Inner height of owner.
-  INFO: 
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoHeight(t, ownerInnerHeight){
-	var val = t._autoHeight,
-		typ;
-
-	if (val.constructor === Object) 
-		val = getViewportValue(t, val, "autoHeight");
-	if (val === null)
-		return;
-	typ = typeof val;
-	if (typ === "number") {
-		t.height = (val > 1) ? val : val * ownerInnerHeight;
-		return;
-	}
-	if (typ === "string") {
-		t._element.style.height = w;
-		t.height = parseFloat(t._computed.height || 0);
-	}
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAlignX [private].
-  TASK: Calculates horizontal alignment.
-  ARGS: 
-  	t 				: Control : (this).
-	ownerInnerWidth	: number  : inner width of owner.
-  INFO: 
-  	Values can be "center" or "right". Left is unnecessary, just set x = 0.
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAlignX(t = null, ownerInnerWidth) {
-	var i,
-		x;
-
-	i = ctl.ALIGN_X[t._alignX];
-	switch(i) {
-	case 1:
-		x = (ownerInnerWidth - t._width) / 2;	// center
-		break;
-	case 2: 
-		x = ownerInnerWidth - t._width;			// right
-		break;
-	default: 
-		return;
-	}
-	x = (x < 0)? 0 : x;
-	if (x != t._x){
-		t._x = x;
-		t._shade.left = '' + t._x + 'px';
-		if (t._blockValidate)
-			return;
-		t.resizing(false);
-		t.invalidate();
-	}
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAlignY [private].
-  TASK: Calculates vertical alignment.
-  ARGS: 
-  	t 					: Control : (this).
-	ownerInnerHeight	: number  : inner height of owner.
-  INFO: 
-  	Values can be "center" or "bottom". top is unnecessary, just set y = 0.
-	The routine is called only when this (t) has an owner.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAlignY(t = null, ownerInnerHeight) {
-	var i,
-		y;
-
-	i = ctl.ALIGN_Y[t._alignY];
-	switch(i) {
-	case 1:
-		y = (ownerInnerHeight - t._height) / 2;	// center
-		break;
-	case 2: 
-		y = ownerInnerHeight - t._height;		// right
-		break;
-	default: 
-		return;
-	}
-	y = (y < 0)? 0 : y;
-	if (y != t._y){
-		t._y = y;
-		t._shade.top = '' + t._y + 'px';
-		if (t._blockValidate)
-			return;
-		t.resizing(false);
-		t.invalidate();
-	}
-}
+sys.registerClass(Control);

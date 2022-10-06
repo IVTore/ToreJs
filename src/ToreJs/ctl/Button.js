@@ -8,6 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys } from "../lib/system.js";
+import { Control } from "./Control.js";
 import { Panel } from "./Panel.js";
 
 
@@ -26,7 +27,7 @@ export class Button extends Panel {
         selected	: {value: false},
         group       : {value: 0},
         layout		: {value: 'horizontal'},
-        autosize	: {value: true},
+        contentAlign: {value: 'center'},
         handCursor	: {value: true},
         tabsLoop	: {value: false}
     }
@@ -46,14 +47,16 @@ export class Button extends Panel {
         owner   : Component : Owner of the new button if any :DEF: null.
         data    : Object    : An object containing instance data :DEF: null.
     ——————————————————————————————————————————————————————————————————————————*/
-    constructor(name = null, owner = null, data = null) {
-        super(name);
+    constructor(name = null, owner = null, data = null, init = true) {
+        super(name, null, null, false);
         this._autosize = true;
         this._layout = "horizontal";
+        this._contentAlign = "center";
         this._tabsLoop = false;
         if (name == sys.LOAD)
             return;
-        this._initControl(owner, data);
+        if (init || owner || data)
+            this._initControl(owner, data);
     }
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -66,9 +69,9 @@ export class Button extends Panel {
 	  RETV: Boolean		: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
-		if (!super.attach(component))
+		if (!super.attach(component, true))
 			return false;
-		if (!is.control(component))
+		if (!(component instanceof Control))
 			return true;
 		component.canFocus = false;
         component.yieldFocus = true;
@@ -87,13 +90,13 @@ export class Button extends Panel {
                 if (!this._selected){
                     l = this._own.members(Button, {group: this._group});
                     for(c in l)
-                        l[c].selected = Boolean(l[c] === this);
+                        l[c].selected = !!(l[c] === this);
                 } else {
                     if (this._allowAllUp)
                         this.selected = false;
                 }
             } else 
-                this.selected = Boolean(!this._selected);
+                this.selected = !this._selected;
         }
         super.doHit(x, y, e)
     }
@@ -106,16 +109,16 @@ export class Button extends Panel {
       SET : Sets the button control state and propagates it to sub 
             components which can not focus.
     ——————————————————————————————————————————————————————————————————————————*/
-    set controlState(value) {
+    set controlState(val) {
         var i = this._ctlState,
             l;
         
-        super.controlState = value;
+        super.controlState = val;
         if (i == this._ctlState)
             return;
         l = this.members(Control, {canFocus: false});
         for(i in l)
-            l[i].controlState = v;
+            l[i].controlState = val;
     }
 
     /*————————————————————————————————————————————————————————————————————————————
@@ -133,7 +136,7 @@ export class Button extends Panel {
         if (value === this._selected)
             return;
         this._selected = v;
-        this._styleRoot = selected ? 'Down' : '';
+        this._styleRoot = selected ? 'On' : '';
         this.calcAllClassNames();
     }
 

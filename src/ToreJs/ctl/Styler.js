@@ -132,6 +132,7 @@ class Styler extends Component {
 	/*—————————————————————————————————————————————————————————————————————————
 	  FUNC: doViewportChange
 	  TASK: Applies a media change to css.
+	  INFO: Called from Display.
 	—————————————————————————————————————————————————————————————————————————*/
 	doViewportChange() {
 		var n = this.calculateViewportName();
@@ -211,6 +212,10 @@ class Styler extends Component {
 		this._css.deleteRule(i);
 		this._rls.splice(i, 1);
 		delete this._dyn[name];
+	}
+
+	get viewportSizeName() {
+		return this._vnm;
 	}
 }
 

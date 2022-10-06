@@ -7,9 +7,9 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys } from "../lib/index.js";
+import { core, is, sys } from "../lib/index.js";
 import { ctl } from "../ctl/index.js";
-import { Control } from "../ctl/index.js";
+import { Control, display } from "../ctl/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Label
@@ -20,11 +20,10 @@ export class Label extends Control {
 	static allowMemberClass = null;		// no members allowed.
 
 	static cdta = {
-		autosize: {value: true},
 		tag: {value: null},
 		text: {value: null},
 		textAlign: {value: "left"},
-		wrapEnabled: {value: false}
+		wrap: {value: false}
 	}
 
 	_tag = null;
@@ -43,7 +42,7 @@ export class Label extends Control {
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
-		super(name);
+		super(name, null, null, false);
 		this._shade.whiteSpace = "pre";
 		this._shade.textAlign = "left";
 		this._autosize = true;
@@ -62,14 +61,37 @@ export class Label extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: recalculate [override].
+	  TASK: Called by display, this calculates the necessary values for
+			the control after rendering.
+	——————————————————————————————————————————————————————————————————————————*/
+	recalculate() {
+		super.recalculate();
+	}
+	
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: widthToContent
+	  TASK: Sets width to fit the content.
+	  RETV: 	: Boolean : True if width changed.
+	  INFO: This is called when autoWidth = "content".
+	  		Active at recalculation frame, causes reflow. 
+	——————————————————————————————————————————————————————————————————————————*/
+	widthToContent() {
+		var s = this._element.style,
+			r;
+		
+		s.left = '0px';
+		r = this._widthByStyle("fit-content");
+		s.left = ''+ this._x + 'px';
+		return r;
+	}
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	doLanguageChange
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange() {
-		if (this._tag) {
-			this._out = calcOut(core.i18n.find(v));
-			this.contentChanged();
-		}
+		if (this._tag)
+			calcOut(this, core.i18n.find(v));
 		super.doLanguageChange();
 	}
 
@@ -86,16 +108,15 @@ export class Label extends Control {
 		return(this._tag);
 	}
 
-	set tag(v = null) {
-		if (!is.str(v)){
-			if (v !== null)
+	set tag(val = null) {
+		if (!is.str(val)){
+			if (val !== null)
 				return;
 		}
-		if (this._tag == v)
+		if (this._tag == val)
 			return;
-		this._tag = v;
-		this._out = calcOut((v == null) ? this._text : core.i18n.find(v));
-		this.contentChanged();
+		this._tag = val;
+		calcOut(this, (val == null) ? this._text : core.i18n.find(val));
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -115,8 +136,7 @@ export class Label extends Control {
 		this._text = value;
 		if (this._tag !== null)
 			return;
-		this._out = calcOut(value);
-		this.contentChanged();
+		calcOut(this, value);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -129,25 +149,25 @@ export class Label extends Control {
 		return(this._textAlign);
 	}
 
-	set textAlign(value = null) {
-		if (!value || this._textAlign == value || alignVals.indexOf(value) == -1)
+	set textAlign(val = null) {
+		if (!val || this._textAlign == val || alignVals.indexOf(val) == -1)
 			return;
-		this._shade.textAlign = value;
+		this._shade.textAlign = val;
 		this.invalidate();
 	}
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	wrapEnabled : boolean;
+	  PROP:	wrap : boolean;
 	  GET : Returns if wrapping is enabled or not.
 	  SET : Sets    if wrapping is enabled or not.
 	————————————————————————————————————————————————————————————————————————————*/
-	get wrapEnabled() {
+	get wrap() {
 		return(this._wrap);
 	}
 
-	set wrapEnabled(value = false) {
-		value = !!value;
-		if (this._wrap != value)
-			this._wrap = value;
+	set wrap(val = false) {
+		val = !!val;
+		if (this._wrap != val)
+			this._wrap = val;
 		this._shade.whiteSpace = (this._wrap ? "pre-wrap" : "pre");
 		this.invalidate();
 	}
@@ -165,12 +185,50 @@ const alignVals = ["left","center","right","justify"];
 
 // private methods.
 
-function calcOut(data) {
-	if (is.str(data))
-		return data;
-	if (is.arr(data))
-		return data.join('\n');
-	return data.toString();
+function calcOut(t, data = null) {
+	var o;
+	while(true) {
+		if (typeof data === "string") { 
+			o = data;
+			break;
+		}
+		if (Array.isArray(data)) {
+			o = data.join('\n');
+			break;
+		}
+		o = data.toString();
+		break;
+	}
+	if (o !== t._out) {
+		t._out = o;
+		t.contentChanged();
+	}
 }
+
+function calcTextWidth(t) {
+	var ctx = textCtxt,
+		sty = t._computed,
+		txt = t._out,
+		wid;
+
+	if (!txt || txt === "")
+		return 0;
+	wid = (txt.length * (parseFloat(sty.fontSize) || 12) * 0.5);
+	if (wid > screen.availWidth)		// very long text, will always need calculation.
+		return screen.availWidth;		// so no need to calculate actual width.
+	ctx.font = (sty.fontWeight || '400') + ' ' + (sty.fontSize || '16px') + ' ' +	(sty.fontFamily || 'system-ui'); 
+	return ctx.measureText(txt).width;
+}
+
+function initCalc(){
+	var c = document.createElement("canvas");
+	c.id = 'TextCalculator';
+	c.style = "visibility:hidden;"
+	//core.display._element.appendChild(c);
+	return c;
+}
+
+var textCalc = initCalc(),
+	textCtxt = textCalc.getContext("2d");
 
 sys.registerClass(Label);

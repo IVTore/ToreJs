@@ -27,7 +27,6 @@ export class Container extends Control {
 		focus			: {value: null},
 		defaultControl	: {value: null}
 	}
-
 	_tabsLoop = true;		// tab enabled.
 	_tabCache = null;		// tabs cache.
 	_calcTabs = true;		// tabs recalculate flag.
@@ -43,11 +42,12 @@ export class Container extends Control {
 		owner	: Component	: Owner of the new container if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
-	constructor(name = null, owner = null, data = null) {
-		super(name)
-		if (name == sys.LOAD)
+	constructor(name = null, owner = null, data = null, init = true) {
+		super(name, null, null, false);
+		if (name === sys.LOAD)
 			return;
-		this._initControl(owner, data);
+		if (init || owner || data)
+			this._initControl(owner, data);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -69,6 +69,40 @@ export class Container extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: makeElement [override].
+	  TASK: Builds and binds a document object model element to control.
+	——————————————————————————————————————————————————————————————————————————*/
+	makeElement() {
+		var s;
+
+		super.makeElement();
+		if (this._wrapper !== this._element)
+			return;
+		this._wrapper = document.createElement('div');
+		this._wrapper.ToreJS_Control = this;
+		this._element.appendChild(this._wrapper);	
+		s = this._wrapper.style;
+		s.position = "relative";
+		s.width = "auto";
+		s.height = "auto";
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: killElement [override].
+	  TASK: Frees control from its document object model element.
+	——————————————————————————————————————————————————————————————————————————*/
+	killElement() {
+		var e = this._wrapper;
+
+		if (!e)
+			return;
+		if (is.asg(e.ToreJS_Control))
+			delete(e.ToreJS_Control);	
+		if (e.parentNode)
+			e.parentNode.removeChild(e);
+		super.killElement();
+	}
+	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
 	  TASK:	
 		Attaches a member component to the container, if new component 
@@ -80,7 +114,7 @@ export class Container extends Control {
 	attach(component = null) {
 		if (!super.attach(component))
 			return false;
-		if (is.control(component))
+		if (component instanceof Control)
 			this._calcTabs = true;
 		return true;
 	}
@@ -97,11 +131,26 @@ export class Container extends Control {
 	detach(component){
 		if (!super.detach(component))		
 			return false;	
-		if (is.control(component))
+		if (component instanceof Control)
 			this._calcTabs = true;
 		return true;
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: render
+	  TASK: This draws the control. Called by display before new frame.
+	——————————————————————————————————————————————————————————————————————————*/
+	render() {
+		var shade = this._shade,
+			style = this._wrapper.style;
+
+		if (shade.height)
+			style.height = shade.height;
+		if (shade.width)
+			style.width = shade.width;
+		super.render();
+	}
+	
 	/*——————————————————————————————————————————————————————————————————————————
 		SUBSYS: Focus & Tab control	
 		Automatic management of focusing, tab ordering for sub controls. 
@@ -118,15 +167,16 @@ export class Container extends Control {
 			c,
 			a = [];
 
-		for(m in t._mem){
-			c = t._mem[m];
-			if (!is.control(c) || !c._interact || (c._tabIndex < 0 && tabonly))
+		for(c of t._ctl){
+			if (!c._interact || (c._tabIndex < 0 && tabonly))
 				continue;
-			if (c instanceof Container && !c.class.canFocusWhenEmpty && c.fetchFocusChildren() == null) 
+			if (c instanceof Container && 
+				!c.class.canFocusWhenEmpty && 
+				c.fetchFocusChildren() === null) 
 				continue;
 			a.push(c);
 		}
-		return (a.length == 0) ? null: a;
+		return (a.length === 0) ? null: a;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -140,22 +190,21 @@ export class Container extends Control {
 								or tabsLoop is false and focus is out.
 	——————————————————————————————————————————————————————————————————————————*/
 	nextTab(backward = false) {
-		var t = this,
-			l,
+		var l,
 			i;
 
-		if (t._calcTabs)
-			t.calculateTabs();
-		if (t._tabCache == null)
+		if (this._calcTabs)
+			this.calculateTabs();
+		if (this._tabCache === null)
 			return null;
-		i = t._tabCache.indexOf(t._curFocus);
-		l = t._tabCache.length - 1;
-		i = (i == -1) ? ((backward) ? l : 0):((backward) ? i - 1 : i + 1);
+		i = this._tabCache.indexOf(this._curFocus);
+		l = this._tabCache.length - 1;
+		i = (i === -1) ? ((backward) ? l : 0):((backward) ? i - 1 : i + 1);
 		if (i < 0)
-			i = (tabsLoop) ? ((backward) ? l : 0) : 0;
+			i = (this._tabsLoop) ? ((backward) ? l : 0) : 0;
 		if (i > l)
-			i = (tabsLoop) ? ((!backward) ? 0 : l) : l;
-		return t._tabCache[i];
+			i = (this._tabsLoop) ? ((!backward) ? 0 : l) : l;
+		return this._tabCache[i];
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -184,13 +233,13 @@ export class Container extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: canFocusOn
+	  FUNC: focusable
 	  TASK: Discover if a control is focusable within the container.
 	  ARGS: c : Control	: The control to check focusability.
 	  RETV:		Boolean	: true if control is focusable.
 	——————————————————————————————————————————————————————————————————————————*/
-	canFocusOn(control = null) {
-		return (is.control(control) && control._interact && control.container === this);
+	focusable(c = null) {
+		return (c instanceof Control && c._interact && c.container === this);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -199,15 +248,14 @@ export class Container extends Control {
 	  RETV:   : Control : valid focus control, or null, if there is none.
 	——————————————————————————————————————————————————————————————————————————*/
 	validFocus() {
-		var t = this,
-			c;
+		var c;
 
-		if (t.canFocusOn(t._curFocus))		 // if current focus is valid.
-			return(t._curFocus);
-		c = t.nextTab();
+		if (this.focusable(this._curFocus))		// if current focus is valid.
+			return(this._curFocus);
+		c = this.nextTab();
 		if (c !== null)
 			return c;
-		return ((t.class.canFocusWhenEmpty) ? t : null);
+		return ((this.class.canFocusWhenEmpty) ? this : null);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -226,17 +274,16 @@ export class Container extends Control {
 		return(this._curFocus);
 	}
 
-	set focus(c){
-		var t = this,
-			d = core.display;
+	set focus(val = null){
+		var d = core.display;
 
-		if(!t.canFocusOn(c))				// ignore if not focusable
+		if(!this.focusable(val))	// ignore if not focusable
 			return;		  
-		t._curFocus = c;
-		if (d.currentContainer != t)
+		this._curFocus = val;
+		if (d.currentContainer != this)
 			return;
-		if (d.currentControl != c)
-			d.currentControl = c;
+		if (d.currentControl != val)
+			d.currentControl = val;
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -248,10 +295,13 @@ export class Container extends Control {
 		return(this._defFocus);
 	}
 
-	set defaultControl(control = null){
-		if (!this.canFocusOn(control))
+	set defaultControl(val = null){
+		if (!val || !this.focusable(val))
 			return;
-		this._defFocus = control;
+		this._defFocus = val;
 	}
 }
+// Control class needs this, to avoid disrupting module hierarchy.
+is.container = function(x) {return(x instanceof Container);} 
 
+sys.registerClass(Container);

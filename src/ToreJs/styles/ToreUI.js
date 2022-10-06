@@ -75,16 +75,29 @@ export function ToreUI(){
         }
     });
 
+    s.addRule("Label",{
+        backgroundColor: "Yellow"
+    })
+    
     s.addRule("Button", {
         borderStyle: 'solid',
         borderWidth: '1px',
-        borderRadius: {
-            xs: '0.25rem',
-            sm: '0.3rem',
-            md: '0.4rem',
-            lg: '0.5rem',
-            xl: '1rem',
-            xxl: '2rem'
+        //lineHeight: "1.4"
+    });
+
+    s.addRule("ButtonTiny", {
+        padding: '0.4375rem'
+    });
+
+    s.addRule("ButtonSmall", {
+        padding: '0.5rem'
+    });
+
+    s.addRule("ButtonMedium", {
+        padding: {
+            xs: '0.5625rem',
+            df: 'calc(0.52rem + 0.12vw)',
+            xxl: '0.625rem'
         }
     });
 

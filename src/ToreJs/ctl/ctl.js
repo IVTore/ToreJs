@@ -25,26 +25,6 @@ export const ctl = {
 		'Sleep'
 	],
 
-	// Control 2D X alignment
-	ALIGN_X: {
-		none: 0,
-		center: 1,
-		right: 2
-	},
-	// Control 2D Y alignment	
-	ALIGN_Y: {
-		none: 0,
-		center: 1,
-		bottom: 2
-	},
-
-	// Panel Container 2D layout
-	LAYOUT: {
-		none: 1,
-		horizontal: 1,
-		vertical: 1
-	},
-
 	SIZES: {
 		Tiny: 1,
 		Small: 1,

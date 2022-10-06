@@ -9,8 +9,6 @@
 import { TObject } from "../lib/TObject.js";
 import { Component } from "../lib/Component.js";
 import { EventHandler } from "../lib/EventHandler.js";
-import { Control } from "../ctl/Control.js";
-import { Container } from "../ctl/Container.js";
 
 /*———————————————————————————————————————————————————————————————————————————
   PROC: exc 
@@ -172,16 +170,14 @@ const sys = {
 			c = i._new_;						// get the class
 			if (is.str(c))						// if string
 				c = sys.classByName(c);			// try fetching class
-			if (isClass(c))						// if failed to fetch, exception
+			if (!isClass(c))					// if failed to fetch, exception
 				exc('E_CLASS_INV', (i._new_) ? 'null' : i._new_);
-			d = (isSuper(TObject, c));
-			o = d ? new c(sys.LOAD) : new c();
-			if (is.component(o) && is.component(t) && !i._var_) {
-				o.name = e;
+			d = isSuper(Component, c);
+			o = d ? new c(e) : new c();
+			if (d && is.component(t) && !i._var_) 
 				t.attach(o);
-			} else {
+			else 
 				t[e] = o;
-			}
 			sys.propSet(o, i);					// set the contents
 			if (d)
 				o.doLoadComplete();
@@ -204,9 +200,7 @@ const is = {
 	ident: x => is.str(x) && IDENTIFIER_REGEXP.test(x),				// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
-	component: x => (x !== undefined && x instanceof Component),
-	control: x => (x !== undefined && x instanceof Control),
-	container: x => (x !== undefined && x instanceof Container)
+	component: x => (x !== undefined && x instanceof Component)
 }
 
 
@@ -272,12 +266,6 @@ var	ptor,		// parent constructor.
 	pp,			// parent prop.
 	i;
 
-	function initialize() {
-		if (!ctor[info].initialized && is.fun(ctor.classInit))
-			ctor.classInit();
-		ctor[info].initialized = true;
-	}
-
 	ptor = Object.getPrototypeOf(ctor.prototype).constructor;
 	ptor = (ptor !== Object) ? ptor : null;
 	if (ptor) {
@@ -288,12 +276,10 @@ var	ptor,		// parent constructor.
 	cdta = (ctor.cdta) ? ctor.cdta: {};
 	pdta = (ptor) ? ptor.cdta: {};
 	info = 'info' + ctor.name;
-	if (ctor[info] && ctor[info].ready) {
-		initialize();
+	if (ctor[info] && ctor[info].ready)
 		return;
-	}
 	// Add class info.
-	ctor[info] = {ready: false, initialized: false};
+	ctor[info] = {ready: false};
 	// Inherit properties of parent.
 	for(i in pdta) {
 		if (!cdta[i]) 						// if not defined.
@@ -340,7 +326,6 @@ var	ptor,		// parent constructor.
 	ctor.cdta = cdta;
 	ctor[info].ready = true;
 	classes[ctor.name] = ctor;
-	initialize();
 }
 
 // this is here because it needs a seperate closure. 
@@ -355,12 +340,9 @@ function defineEventProperty(ctor, propName) {
 	);
 }
 
-
 registerClass(TObject);
 registerClass(Component);
 registerClass(EventHandler);
-registerClass(Control);
-registerClass(Container);
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CONST: core

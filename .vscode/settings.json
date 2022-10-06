@@ -1,0 +1,5 @@
+{
+	"typescript.disableAutomaticTypeAcquisition": true,
+	"npm.fetchOnlinePackageInfo": false,
+	"liveServer.settings.port": 5536
+}

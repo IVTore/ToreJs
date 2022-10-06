@@ -8,7 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { TObject, Component, sys, is, exc, core } from "../lib/index.js";
-import { ctl, Container, Panel, styler } from "../ctl/index.js";
+import { ctl, Control, Container, Panel, styler } from "../ctl/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: Display
@@ -25,7 +25,7 @@ import { ctl, Container, Panel, styler } from "../ctl/index.js";
 class Display extends Panel {
 
 	// Display does not make an element but binds to body.
-	static elementTag = null;
+	static elementTag = 'body';
 
 	// Display special events and handler names.
 	static displayEvents = {
@@ -58,7 +58,10 @@ class Display extends Panel {
 	_zrd =	null;		// zoom-rotate data
 	_renLst = null;		// render list
 	_renFrm = false;	// render frame requested.
-
+	_rcaLst = null;		// calculate list.
+	_rcaFrm = false;	// recalculating frame requested.
+	_framed = false;	// true if there is an active frame requested.
+	
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
 	  TASK: Constructs display singleton.
@@ -69,22 +72,20 @@ class Display extends Panel {
 
 		if (core["display"])
 			exc("E_SINGLETON", "core.display");
-		super(sys.LOAD);
+		super('display', null, null, false);
 		this._sta = sys.LIVE;
-		this.name = "display";
-		core.attach(this);
-		this._element = document.body;			// we do not make, but bind it.
-		this._element.ToreJS_Control = this;
+		this.name = 'display';
 		this.tabsLoop = true;
-		this._curCon = this;					// display is current container 
-		this._events = {};						// display events list
-		this._renLst = [];						// request animation list
+		this._curCon = this;				// display is current container 
+		this._events = {};					// display events list
+		this._renLst = [];					// render list.
+		this._rcaLst = [];					// recalculate list.
 		l = this.class.displayEvents;
 		for(e in l){						// link and add event listeners
 			this._events[e] = sys.bindHandler(this, l[e]);
 			window.addEventListener(e, this._events[e], true);
-		}
-		this.controlState = ctl.ALIVE;
+		}		
+		this._initControl(core);
 		this.doViewportResize();
 	}
 
@@ -106,9 +107,20 @@ class Display extends Panel {
 		}
 		t._events = null;	
 		t._renLst = null;
+		t._rcaLst = null;
 		super.destroy();
 	}
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: requestFrame.
+	  TASK: Requests an animation frame if not requested.
+	——————————————————————————————————————————————————————————————————————————*/
+	requestFrame(){
+		if (this._framed)
+			return;
+		this._framed = true;
+		window.requestAnimationFrame(this.validate);
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addRenderQueue
 	  TASK: Adds invalidated control to queue.
@@ -117,13 +129,13 @@ class Display extends Panel {
 	addRenderQueue(control = null){
 		var t = this;
 
-		if (!is.control(control) || t._renLst.indexOf(control) > -1)
+		if (!(control instanceof Control) || t._renLst.indexOf(control) > -1)
 			return;
 		t._renLst.push(control);
 		if (t._renFrm)
 			return;
 		t._renFrm = true;
-		window.requestAnimationFrame(t.validate);
+		t.requestFrame();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -131,39 +143,54 @@ class Display extends Panel {
 	  TASK: Renders invalidated controls in queue.
 	——————————————————————————————————————————————————————————————————————————*/
 	validate(timeStamp) {
-		var t = display,
-			r = t._renLst,
-			l = r.length,
-			i,
-			c;
+		var t = core.display,
+			r,
+			l,
+			i;
+
+		t._framed = false;
 		
-		t._renLst = [];
-		t._renFrm = false;
-		
-		for(i = 0; i < l; i++){
-			c = r[i];
-			c.render();
-		}	
+		if (t._renFrm) {
+			r = t._renLst;
+			t._renLst = [];
+			t._renFrm = false;
+			l = r.length;
+			console.log("render:", l, r);
+			for(i = 0; i < l; i++)
+				r[i].render();
+			t._rcaLst = r;
+			t._rcaFrm = true;
+			t.requestFrame();
+			return;
+		}
+		r = t._rcaLst;
+		t._rcaLst = [];
+		t._rcaFrm = false;
+		l = r.length;
+		for(i = 0; i < l; i++)
+			r[i].recalculate();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doViewportResize [override]
 	  TASK: Flags the display that window is resized.
 	——————————————————————————————————————————————————————————————————————————*/
-	doViewportResize() {
+	doViewportResize(){
 		this.width = 1;
 		this.height = 1;
-		styler.mediaChange();
+		styler.doViewportChange();
 		return super.doViewportResize();
 	}
 
+	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: resizing [override].
+	  FUNC: relocate [override].
 	  TASK: Notifies member controls that display is resized.
 	  ARGS: align : Boolean : not used in override.
 	—————————————————————————————————————————————————————————————————————————*/
-	resizing(align) {
-		super.resizing(false);
+	// TODO: check if redundant.
+	relocate() {
+		super.relocate(); 
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -280,8 +307,7 @@ class Display extends Panel {
 			return;
 		}
 		r = handleMouseEvent(e);
-		c = r.c;
-		
+		c = r.c;		
 		if (c) {
 			c.doPointerUp(r.x, r.y, e);
 			if (o === c)
@@ -573,7 +599,7 @@ class Display extends Panel {
 		var t = this,
 			i;
 
-		if (!is.control(c) || !c._interact || c === t._curCtl){
+		if (!(c instanceof Control) || !c._interact || c === t._curCtl){
 			t.reFocus(); 
 			return;
 		}
@@ -674,17 +700,6 @@ class Display extends Panel {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	autosize : Boolean [override].
-	  GET : always false.
-	  SET : blocked.
-	——————————————————————————————————————————————————————————————————————————*/
-	get autosize() {
-		return(false);
-	}
-
-	set autosize(v) {}
-
-	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	visible : Boolean [override].
 	  GET : always true.
 	  SET : blocked.
@@ -782,3 +797,4 @@ function findOpaque(event) {
 }
 
 export const display = new Display();
+display.doViewportResize();

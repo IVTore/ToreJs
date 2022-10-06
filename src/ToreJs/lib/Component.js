@@ -257,27 +257,26 @@ export class Component extends TObject {
 	members(ofClass = Component, filter = null) {
 	var t = this, 
 		r = [],
+		nam,
 		mem,
 		itm;	
 
-		function canAdd(nam){
+		function add(){
 			mem = t._mem[nam];
 			if (!(mem instanceof ofClass))	// if class is not ok
-				return false;
+				return;
 			for(itm in filter) {
 				if (filter[itm] !== mem[itm])
-					return false;
+					return;
 			}
-			return true;
+			r.push(mem);
 		}
 	
 		t.checkDead();
 		if(!ofClass)						// check class filter
-			ofClass = TComponent;	
-		for(nam in t._mem){					// look members
-			if (canAdd(nam))
-				r.push(mem);				// collect it
-		}
+			ofClass = Component;	
+		for(nam in t._mem)					// look members
+			add();							// collect if possible.
 		return(r);
 	}
 

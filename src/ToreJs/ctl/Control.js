@@ -885,6 +885,7 @@ export class Control extends Component {
 
 		this._vpResize = true;
 		this.autoAdjust();
+		this.invalidate();
 		for(c of this._ctl){
 			if (c instanceof Control)
 				c.doViewportResize();

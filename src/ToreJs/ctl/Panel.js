@@ -195,15 +195,15 @@ export class Panel extends Container {
 			return;
 		}
 		if (t._layout === "horizontal") {
-			if (t._wrap || t._contentAlign === null || t._contentAlign === 'right')
-				c = calcHorWrapOrTop(t, s);
+			if (t._wrap)
+				c = calcHorWrapped(t, s);
 			else
-				c = calcHorCenterOrBottom(t, s);
+				c = calcHorLinear(t, s);
 		} else {						// Vertical.
-			if (t._wrap || t._contentAlign === null || t._contentAlign === 'bottom')
-				c = calcVerWrapOrLeft(t, s);
+			if (t._wrap)
+				c = calcVerWrapped(t, s);
 			else
-				c = calcVerCenterOrRight(t, s);
+				c = calcVerLinear(t, s);
 		}
 		t.autoAdjust();			
 		t._calculating = false;			// Release.
@@ -495,21 +495,18 @@ function calcMinHeight(pnl, seq){
 	return min;
 }
 
-function calcHorWrapOrTop(pnl, seq) {
+function calcHorWrapped(pnl, seq) {
 	var wid,
 		rtl = pnl._rightToLeft,
 		top = 0,
 		lft = 0,
 		hei = 0,
 		ctl,
-		sqc,
-		chg,
-		pch = false;
+		chg;
 	
 	wid = maxInnerWidth(pnl);
-	sqc = calcSizes(pnl, seq, wid, maxInnerHeight(pnl));
 	for(ctl of seq){
-		if (pnl._wrap && (lft + ctl._width > wid)){
+		if (lft + ctl._width > wid){
 			if (lft !== 0){
 				top += hei + pnl._splitY;
 				hei = 0;
@@ -521,29 +518,36 @@ function calcHorWrapOrTop(pnl, seq) {
 		if (chg) {						// control needs rendering.
 			ctl.invalidate();
 			pnl.doMemberRelocate(ctl);
-			pch = true;
 		}
 		if (hei < ctl._height)
 			hei = ctl._height;
 		lft += ctl._width + pnl._splitX;
 	}
-	return pch;
 }
 
-function calcHorCenterOrBottom(pnl, seq) {
+function calcHorLinear(pnl, seq) {
 	var wid,
 		hei,
 		rtl = pnl._rightToLeft,
+		top = (pnl._contentAlign === null || pnl._contentAlign === 'right'),
 		cen = (pnl._contentAlign === "center"),
 		lft = 0,
+		cty,
 		ctl,
 		chg;
 	
 	hei = (pnl._autoHeight === 'content') ? calcMinHeight(pnl, seq) : pnl.innerHeight;
 	wid = (pnl._autoWidth === 'content') ? calcHorWidth(pnl, seq) : pnl.innerWidth;
 	for(ctl of seq){
+		if (top) {
+			cty = 0;
+		} else {
+			cty = hei - ctl._height;
+			if (cen)
+				cty /= 2;
+		}
 		chg = ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY((cen) ? (hei - ctl._height) / 2 : (hei - ctl._height))
+		chg ||= ctl._setY(cty);
 		if (chg) {
 			ctl.invalidate();
 			pnl.doMemberRelocate(ctl);
@@ -552,16 +556,55 @@ function calcHorCenterOrBottom(pnl, seq) {
 	}
 }
 
-function calcVerCenterOrRight(pnl, seq) {
+function calcVerWrapped(pnl, seq) {
+	var hei,
+		rtl = pnl._rightToLeft,
+		top = 0,
+		lft = 0,
+		wid = 0,
+		ctl,
+		chg;
+
+	for(ctl of seq) {
+		if (top + ctl._height > hei) {
+			if (top !== 0) {
+				lft += wid + pnl._splitX;
+				wid = 0;
+			}
+			top = 0;
+		}
+		chg = ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
+		chg ||= ctl._setY(top);
+		if (chg){
+			ctl.invalidate();
+			pnl.doMemberRelocate(ctl);
+		}
+		if (wid < ctl._width)
+			wid = ctl._width;
+		top += ctl._height + pnl._splitY;
+	}
+
+}
+
+function calcVerLinear(pnl, seq) {
 	var wid,
+		lft = (pnl._contentAlign === null || pnl._contentAlign === "bottom"),
 		cen = (pnl._contentAlign === "center"),
 		top = 0,
 		ctl,
+		ctx,
 		chg;
 
 	wid = (pnl._autoWidth === 'content') ? calcMinWidth(pnl._ctl, seq) : pnl.innerWidth;
 	for(ctl of seq) {
-		chg = ctl._setX((cen) ? (wid - ctl._width) / 2 : (wid - ctl._width));
+		if (lft) {					// speed optimization.
+			ctx = 0;				// ctx = (lft)? 0 : (cen) ? (wid - ctl._width) / 2 : (wid - ctl._width));
+		} else {
+			ctx = wid - ctl.width;
+			if (cen)
+				ctx /= 2;
+		}
+		chg = ctl._setX(ctx);
 		chg ||= ctl._setY(top);
 		if (chg) {
 			ctl.invalidate();
@@ -737,43 +780,6 @@ function fetchSequenced(t) {
 		r.push(c);
 	}
 	return (r.length) ? r : null;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: checkDimension [private].
-  TASK: Calculates total width and height of members	
-  ARGS:
-	pnl	: Panel		: Control (for exception data).
-  RETV: 
-  		: Object 	: Object containing totalWidth and totalHeight 
-					  of members.
-——————————————————————————————————————————————————————————————————————————*/
-function adjustDimension(pnl) {
-	var c,
-		cx,
-		cy,
-		w = 0,
-		h = 0;
-
-	if (pnl.autoWidth !== 'content' && pnl.autoHeight !== 'content') 
-		return;
-	for(c of pnl._ctl){
-		if (!c.visible)
-			continue;
-		cx = c._x + c._width	
-		cy = c._y + c._height;
-		if (cx > w)
-			w = cx;
-		if (cy > h)
-			h = cy;
-	}
-	c = false;
-	if (pnl.autoWidth === 'content' && pnl._width !== w) 
-		c = pnl._setW(w + pnl.shellWidth);
-	if (pnl.autoHeight === 'content' && pnl._height !== h) 
-		c ||= pnl._setH(h + pnl.shellHeight);
-	if (c)
-		pnl.coordsChanged();
 }
 
 sys.registerClass(Panel);

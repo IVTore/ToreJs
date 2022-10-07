@@ -57,9 +57,9 @@ class Display extends Panel {
 	_drg =	null;		// drag data
 	_zrd =	null;		// zoom-rotate data
 	_renLst = null;		// render list
-	_renFrm = false;	// render frame requested.
 	_rcaLst = null;		// calculate list.
 	_rcaFrm = false;	// recalculating frame requested.
+	_renFrm = false;	// render frame requested.
 	_framed = false;	// true if there is an active frame requested.
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -149,11 +149,10 @@ class Display extends Panel {
 			i;
 
 		t._framed = false;
-		
 		if (t._renFrm) {
+			t._renFrm = false;
 			r = t._renLst;
 			t._renLst = [];
-			t._renFrm = false;
 			l = r.length;
 			console.log("render:", l, r);
 			for(i = 0; i < l; i++)
@@ -181,7 +180,6 @@ class Display extends Panel {
 		styler.doViewportChange();
 		return super.doViewportResize();
 	}
-
 	
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: relocate [override].
@@ -190,7 +188,7 @@ class Display extends Panel {
 	—————————————————————————————————————————————————————————————————————————*/
 	// TODO: check if redundant.
 	relocate() {
-		super.relocate(); 
+		//super.relocate(); 
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————

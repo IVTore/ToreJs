@@ -55,6 +55,7 @@ export class EventHandler extends TObject {
 			t._fun = null;
 		}
 		t._rdy = false;
+		t._nam = null;
 		t._src = null;
 		t._tar = null;
 		t._def = null;
@@ -63,21 +64,22 @@ export class EventHandler extends TObject {
 	}
 
 	dispatch(args){
-		var t = this;
-		return t._tar[t._met].apply(t._tar, args);
+		if (this._rdy)
+			return this._tar[this._met].apply(this._tar, args);
+		exc('E_INV_HANDLER', 
+			((this._src) ? this._src._nam : "?") + "." +
+			((this._nam) ? this._nam : "?") + " = [ EventHandler ]" +
+			((this._tar) ? this._tar._nam : "?") + "." +
+			 (this._met) ? this._met : "?");
 	}
 
 	get target(){ return this._tar;}
 	set target(value) {
-		if (this._sta !== sys.LOAD)
-			exc("E_CTOR_ONLY", "target");
 		setEventHandlerTarget(this, value);
 	}
 
 	get method(){ return this._met;}
 	set method(value){
-		if (this._sta !== sys.LOAD)
-			exc("E_CTOR_ONLY", "method");
 		setEventHandlerMethod(this, value);
 	}
 
@@ -90,7 +92,7 @@ export class EventHandler extends TObject {
 	}
 
 	doLoadComplete(){
-		checkEventHandlerMethod(this, this._met);
+		checkEventHandlerMethod(this);
 		super.doLoadComplete();
 	}
 
@@ -99,9 +101,11 @@ export class EventHandler extends TObject {
 		d;
 
 		if (t._rdy)
-			return;		
+			return;
+		checkEventHandlerTarget(this);
+		checkEventHandlerMethod(this);
 		if (!is.component(source))
-			exc('E_INV_ARG',"source");
+			exc('E_INV_ARG', "source");
 		if (!is.str(eventName))
 			exc('E_INV_ARG', 'eventName');
 		d = source.class.cdta[eventName];
@@ -115,25 +119,48 @@ export class EventHandler extends TObject {
 		t._tar._hdt.push(t);
 		if (!t._def.src)
 			return;
-		t._fun = function(e){ return t.dispatch([t._src, e]); }
+		t._fun = function(e) { 
+			return t.dispatch([t._src, e]); 
+		}
 		t._src[t._def.src].addEventListener(t._def.typ, t._fun, false);
 	}
 }
 
 // private.
-function setEventHandlerTarget(eventHandler, target){
-	if (!is.component(target))
-		exc("E_INV_ARG","target != TComponent");
-	eventHandler._tar = target;
+function setEventHandlerTarget(handler, target) {
+	if (target === null)
+		return;
+	if (handler._tar !== null)
+		exc("E_SET_ONCE_ONLY", "target");
+	if (typeof target === 'string')
+		target = sys.fetchObject(target);
+	handler._tar = target;
+	checkEventHandlerTarget(handler);
 }
+
 // private.
-function setEventHandlerMethod(eventHandler, method){
-	if (eventHandler._sta != sys.LOAD) 
-		checkEventHandlerMethod(eventHandler, method)
-	eventHandler._met = method;
+function setEventHandlerMethod(handler, method) {
+	if (method === null)
+		return;
+	if (handler._met !== null)
+		exc("E_SET_ONCE_ONLY", "method");
+	handler._met = method;
+	if (handler._sta != sys.LOAD) 
+		checkEventHandlerMethod(handler)
 }
+
 // private.
-function checkEventHandlerMethod(eventHandler, method){
-	if (!is.fun(eventHandler._tar[method]))
-		exc("E_INV_ARG","method");
+function checkEventHandlerTarget(handler) {
+	if (is.component(handler._tar)) 
+		return;
+	handler._tar = null;
+	exc("E_INV_VAL", "target != TComponent");
+}
+
+// private.
+function checkEventHandlerMethod(handler) {
+	if (is.fun(handler._tar[handler._met])) 
+		return;
+	handler._met = null;
+	exc("E_INV_VAL", "method");
 }

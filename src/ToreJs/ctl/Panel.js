@@ -107,7 +107,7 @@ export class Panel extends Container {
 
 		if (!super.detach(component))
 			return false;
-		if (!is.control(component))
+		if (!(component instanceof Control))
 			return true;
 		i = this.sequenceIdx(component);
 		if (i !== -1)
@@ -153,7 +153,7 @@ export class Panel extends Container {
 	  RETV: 	: Boolean : True if width changed.
 	  INFO: This is called when autoWidth = "content".
 	——————————————————————————————————————————————————————————————————————————*/
-	widthToContent() {
+	widthToFit() {
 		return this._widthByMembers();
 	}
 
@@ -163,7 +163,7 @@ export class Panel extends Container {
 	  RETV: 	: Boolean : True if height changed.
 	  INFO: This is called when autoHeight = "content".
 	——————————————————————————————————————————————————————————————————————————*/
-	heightToContent() {
+	heightToFit() {
 		return this._heightByMembers();
 	}
 
@@ -172,38 +172,39 @@ export class Panel extends Container {
 	  TASK: Sets the coordinates of sub control(s) in panel.
 	  INFO: 
 	  	Sub control layout is interdependant on	layout, sequence, rightToLeft, 
-		and autosize.
+		wrap, width / autoWidth and height / autoHeight.
 		1) Only members in sequence array are effected.
 		2) When layout is "none" nothing is done.
 		3) When there is layout:
-			a)	splitX, splitY and rightToLeft are effective.
-			b)	Sub controls will be fitted into panel via wrapping if 
-				their coordinates overflow.
+			a)	splitX, splitY, wrap and rightToLeft are effective.
+			b)	If wrap is true sub controls will be fitted into panel via 
+				wrapping if their coordinates overflow.
 			c)	Sub control autoX and autoY will be set to null.
+			d)	When autoHeight or autoWidth is "content", respective width or 
+				height of panel becomes dependant to content, not its containers
 	——————————————————————————————————————————————————————————————————————————*/
 	calcLayout() {
 		var t = this,
-			c,
 			s;
 
 		if (t._layout === null || t._calculating || !t._ctlState || t._sequence === null)
 			return;	
 		t._calculating = true;			// Block recursions.
 		s = fetchSequenced(t);
-		if (s === null) {
+		if (s === null) {				// If nothing in sequence,
 			t._calculating = false;		// Release.
 			return;
 		}
 		if (t._layout === "horizontal") {
 			if (t._wrap)
-				c = calcHorWrapped(t, s);
+				calcHorWrapped(t, s);
 			else
-				c = calcHorLinear(t, s);
+				calcHorLinear(t, s);
 		} else {						// Vertical.
 			if (t._wrap)
-				c = calcVerWrapped(t, s);
+				calcVerWrapped(t, s);
 			else
-				c = calcVerLinear(t, s);
+				calcVerLinear(t, s);
 		}
 		t.autoAdjust();			
 		t._calculating = false;			// Release.
@@ -296,6 +297,24 @@ export class Panel extends Container {
 		this.contentChanged();
 	}
 
+	/*———————————————————————————————————————————————————————————————————————————
+	  PROP: wrap : Boolean;
+	  GET : Gets if subcontrols are wrapped in layout when out of bounds.
+	  SET : Sets if subcontrols are wrapped in layout when out of bounds.
+	  INFO: Ineffective if layout is 'none'		
+	——————————————————————————————————————————————————————————————————————————*/
+	get wrap() {
+		return this._splitY;
+	}
+
+	set wrap(value = false) {
+		value = !!value;
+		if (this._wrap == value) 
+			return;
+		this._wrap = value;
+		this.contentChanged();
+	}
+
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	sequence : Array;
 	  GET : Gets layout sequence of panel.
@@ -374,88 +393,15 @@ export class Panel extends Container {
 
 // Private methods.
 
-function maxInnerWidth(c) {
-	var o = c,
-		s = 0,
-		w;
-
-	while(o instanceof Control){
-		w = o._width;
-		s += o.shellWidth;
-		if(o.autoWidth !== 'content')
-			break;
-		o = o._own;
-	}
-	return w - s;
-}
-
-function maxInnerHeight(c) {
-	var o = c,
-		s = 0,
-		h;
-
-	while(o instanceof Control){
-		h = o._height;
-		s += o.shellHeight;
-		if(o._autoHeight !== 'content')
-			break;
-		o = o._own;
-	}
-	return h - s;
-}
-
-function calcSizes(pnl, seq, wid, hei) {
-	var c,
-		ps = pnl._element.style,
-		ws = pnl._wrapper.style,
-		ch,
-		ca = [];
-	
-	ps.width = '' + wid + 'px';
-	ws.width = ps.width;
-	ps.height = '' + hei + 'px';
-	ws.height = ps.height; 	
-	for(c of seq){
-		if (!c.visible || (c._autoWidth !== 'content' && c._autoHeight !== 'content')){
-			ca.push(false);
-			continue;
-		}
-		ch = false;
-		if (c instanceof Panel) {
-			// TODO: left, top = 0;
-			// TODO: sqc.push(c.calcLayout());
-			// TODO: continue;
-		}
-		if (c._autoWidth === "content")
-			ch = c.widthToContent();
-		if (c._autoHeight === "content")
-			ch ||= c.heightToContent();
-		ca.push(ch);
-	}
-	ps.width = '' + pnl._width + 'px';
-	ws.width = ps.width;
-	ps.height = '' + pnl._height + 'px';
-	ws.height = ps.height; 	
-	return ca;
-}
-
-function calcMinWidth(pnl, seq){
-	var arr = pnl._ctl,
-		ctl,
-		wid,
-		min = 0;
-	
-	for(ctl of arr) {
-		if (!ctl.visible)
-			continue;
-		wid = (seq.indexOf(ctl) > -1) ? ctl._width: ctl._x + ctl._width;
-		if (min < wid)
-			min = wid;
-	}
-	return min;
-}
-
-function calcHorWidth(pnl, seq){
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcHorLinearWidth
+  TASK: Calculates inner width for horizontal linear layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  RETV: 	: number : inner width.
+  INFO: This is required when rtl = true and autoWidth = "fit".
+——————————————————————————————————————————————————————————————————————————*/
+function calcHorLinearWidth(pnl, seq){
 	var arr = pnl._ctl,
 		ctl,
 		wid,
@@ -479,6 +425,36 @@ function calcHorWidth(pnl, seq){
 	return tot;
 }
 
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcMinWidth
+  TASK: Calculates minimum inner width for vertical linear layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  RETV: 	: number : minimum possible inner width.
+——————————————————————————————————————————————————————————————————————————*/
+function calcMinWidth(pnl, seq){
+	var arr = pnl._ctl,
+		ctl,
+		wid,
+		min = 0;
+	
+	for(ctl of arr) {
+		if (!ctl.visible)
+			continue;
+		wid = (seq.indexOf(ctl) > -1) ? ctl._width: ctl._x + ctl._width;
+		if (min < wid)
+			min = wid;
+	}
+	return min;
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcMinHeight
+  TASK: Calculates minimum inner height for horizontal linear layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  RETV: 	: number : minimum possible inner height.
+——————————————————————————————————————————————————————————————————————————*/
 function calcMinHeight(pnl, seq){
 	var arr = pnl._ctl,
 		ctl,
@@ -495,36 +471,134 @@ function calcMinHeight(pnl, seq){
 	return min;
 }
 
-function calcHorWrapped(pnl, seq) {
-	var wid,
-		rtl = pnl._rightToLeft,
-		top = 0,
-		lft = 0,
-		hei = 0,
-		ctl,
-		chg;
-	
-	wid = maxInnerWidth(pnl);
-	for(ctl of seq){
-		if (lft + ctl._width > wid){
-			if (lft !== 0){
-				top += hei + pnl._splitY;
-				hei = 0;
-			}
-			lft = 0; 
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: commonWrapped
+  TASK: Executes final common code for wrapped layouts. 
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  RETV: 	: number : minimum possible inner width.
+——————————————————————————————————————————————————————————————————————————*/
+function commonWrapped(pnl, seq, nsx, nsy, wid){
+	var rtl = pnl._rightToLeft,
+		sub,
+		idx,
+		len,
+		chx,
+		chy,
+		tmp;
+
+	len = seq.length;
+	if (rtl && pnl._autoWidth === "fit") {
+		wid = 0;
+		for (idx = 0; idx < len; idx++) {
+			tmp = nsx[idx] + seq[idx]._width;
+			if (wid < tmp)
+				wid = tmp;
 		}
-		chg ||= ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY(top);
-		if (chg) {						// control needs rendering.
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
+		for(sub of pnl._ctl) {
+			if (seq.indexOf(sub) > -1)
+				continue;
+			tmp = sub._x + sub._width;
+			if (wid < tmp)
+				wid = tmp;
 		}
-		if (hei < ctl._height)
-			hei = ctl._height;
-		lft += ctl._width + pnl._splitX;
+	}
+
+	for(idx = 0; idx < len; idx++){
+		sub = seq[idx];
+		chx = sub._setX((rtl) ? (wid - (nsx[idx] + sub._width)) : nsx[idx]);
+		chy = sub._setY(nsy[idx]);
+		if (chx || chy) {						// control needs rendering.
+			sub.invalidate();
+			pnl.doMemberRelocate(sub);
+		}
 	}
 }
 
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcHorWrapped
+  TASK: Calculates subcontrol positions for wrapped horizontal layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  INFO: When wrapped, contentAlign has no meaning.
+——————————————————————————————————————————————————————————————————————————*/
+function calcHorWrapped(pnl, seq) {
+	var wid = pnl.maxAllowedInnerWidth(),
+		top = 0,
+		lft = 0,
+		hei = 0,
+		sub,
+		nsx = [],
+		nsy = [],
+		idx,
+		len,
+	
+	len = seq.length;
+	for(idx = 0; idx < len; idx++){
+		sub = seq[idx];
+		if (lft + sub._width > wid){
+			if (lft !== 0){
+				top += hei + pnl._splitY;
+				hei = 0;
+				lft = 0;
+			}
+		}
+		nsx.push(lft);
+		nsy.push(top);
+		if (hei < sub._height)
+			hei = sub._height;
+		lft += sub._width + pnl._splitX;
+	}
+	commonWrapped(pnl, seq, nsx, nsy, wid);
+
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcVerWrapped
+  TASK: This utterly unnecessary function calculates subcontrol positions 
+		for wrapped vertical layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  INFO: When wrapped, contentAlign has no meaning.
+——————————————————————————————————————————————————————————————————————————*/
+function calcVerWrapped(pnl, seq) {
+	var hei,
+		top = 0,
+		lft = 0,
+		wid = 0,
+		sub,
+		nsx = [],
+		nsy = [],
+		idx,
+		len;
+
+	len = seq.length;
+	for(idx = 0; idx < len; idx++) {
+		sub = seq[idx];
+		if (top + sub._height > hei) {
+			if (top !== 0) {
+				lft += wid + pnl._splitX;
+				wid = 0;
+			}
+			top = 0;
+		}
+		nsx.push(lft);
+		nsy.push(top);
+		if (wid < sub._width)
+			wid = sub._width;
+		top += sub._height + pnl._splitY;
+	}
+	commonWrapped(pnl, seq, nsx, nsy, pnl.maxAllowedInnerWidth());	
+}
+
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcHorLinear [private].
+  TASK: Calculates subcontrol positions for linear horizontal layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  INFO: contentAlign property defines vertical alignment for subcontrols.
+		"center", centers, "bottom" aligns bottom, any other value is top.
+——————————————————————————————————————————————————————————————————————————*/
 function calcHorLinear(pnl, seq) {
 	var wid,
 		hei,
@@ -533,232 +607,70 @@ function calcHorLinear(pnl, seq) {
 		cen = (pnl._contentAlign === "center"),
 		lft = 0,
 		cty,
-		ctl,
-		chg;
+		sub,
+		chx,
+		chy;
 	
-	hei = (pnl._autoHeight === 'content') ? calcMinHeight(pnl, seq) : pnl.innerHeight;
-	wid = (pnl._autoWidth === 'content') ? calcHorWidth(pnl, seq) : pnl.innerWidth;
-	for(ctl of seq){
+	hei = (pnl._autoHeight === 'fit') ? calcMinHeight(pnl, seq) : pnl.innerHeight;
+	wid = (pnl._autoWidth === 'fit') ? calcHorLinearWidth(pnl, seq) : pnl.innerWidth;
+	for(sub of seq){
 		if (top) {
 			cty = 0;
 		} else {
-			cty = hei - ctl._height;
+			cty = hei - sub._height;
 			if (cen)
 				cty /= 2;
 		}
-		chg = ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY(cty);
-		if (chg) {
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
+		chx = sub._setX((rtl) ? (wid - (lft + sub._width)) : lft);
+		chy = sub._setY(cty);
+		if (chx || chy) {
+			sub.invalidate();
+			pnl.doMemberRelocate(sub);
 		}
-		lft += ctl._width + pnl._splitX;
+		lft += sub._width + pnl._splitX;
 	}
 }
 
-function calcVerWrapped(pnl, seq) {
-	var hei,
-		rtl = pnl._rightToLeft,
-		top = 0,
-		lft = 0,
-		wid = 0,
-		ctl,
-		chg;
 
-	for(ctl of seq) {
-		if (top + ctl._height > hei) {
-			if (top !== 0) {
-				lft += wid + pnl._splitX;
-				wid = 0;
-			}
-			top = 0;
-		}
-		chg = ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY(top);
-		if (chg){
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
-		}
-		if (wid < ctl._width)
-			wid = ctl._width;
-		top += ctl._height + pnl._splitY;
-	}
 
-}
-
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: calcVerLinear
+  TASK: Calculates subcontrol positions for linear vertical layout.
+  ARGS:	pnl	: Panel	 : Panel.
+		seq	: Array	 : Array of visible controls in sequence.
+  INFO: 
+  	*	contentAlign property defines horizontal alignment for subcontrols.
+		"center", centers, "right" aligns right, any other value is left.
+	*	rightToLeft has no meaning in vertical linear layout.
+——————————————————————————————————————————————————————————————————————————*/
 function calcVerLinear(pnl, seq) {
 	var wid,
 		lft = (pnl._contentAlign === null || pnl._contentAlign === "bottom"),
 		cen = (pnl._contentAlign === "center"),
 		top = 0,
-		ctl,
+		sub,
 		ctx,
-		chg;
+		chx,
+		chy;
 
-	wid = (pnl._autoWidth === 'content') ? calcMinWidth(pnl._ctl, seq) : pnl.innerWidth;
-	for(ctl of seq) {
-		if (lft) {					// speed optimization.
-			ctx = 0;				// ctx = (lft)? 0 : (cen) ? (wid - ctl._width) / 2 : (wid - ctl._width));
+	wid = (pnl._autoWidth === 'fit') ? calcMinWidth(pnl, seq) : pnl.innerWidth;
+	for(sub of seq) {
+		if (lft) {
+			ctx = 0;
 		} else {
-			ctx = wid - ctl.width;
+			ctx = wid - sub._width;
 			if (cen)
 				ctx /= 2;
 		}
-		chg = ctl._setX(ctx);
-		chg ||= ctl._setY(top);
-		if (chg) {
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
+		chx = sub._setX(ctx);
+		chy = sub._setY(top);
+		if (chx || chy) {
+			sub.invalidate();
+			pnl.doMemberRelocate(sub);
 		}
-		top += ctl._height + pnl._splitY;
+		top += sub._height + pnl._splitY;
 	}
 }
-
-
-
-
-
-
-
-
-
-/*
-function calcHorWrapOrTop(pnl, seq) {
-	var wid,
-		rtl = pnl._rightToLeft,
-		top = 0,
-		lft = 0,
-		hei = 0,
-		ctl,
-		sqc,
-		idx,
-		len,
-		chg,
-		pch = false;
-	
-	wid = maxInnerWidth(pnl);
-	sqc = calcSizes(pnl, seq, wid, maxInnerHeight(pnl));
-	len = seq.length;
-	for(idx = 0; idx < len; idx++){
-		ctl = seq[idx];
-		chg = sqc[idx];
-		if (pnl._wrap && (lft + ctl._width > wid)){
-			if (lft !== 0){
-				top += hei + pnl._splitY;
-				hei = 0;
-			}
-			lft = 0; 
-		}
-		chg ||= ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY(top);
-		if (chg) {						// control needs rendering.
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
-			pch = true;
-		}
-		if (hei < ctl._height)
-			hei = ctl._height;
-		lft += ctl._width + pnl._splitX;
-	}
-	return pch;
-}
-
-function calcHorCenterOrBottom(pnl, seq) {
-	var wid,
-		hei,
-		rtl = pnl._rightToLeft,
-		cen = (pnl._contentAlign === "center"),
-		lft = 0,
-		ctl,
-		sqc,
-		idx,
-		len,
-		chg,
-		pch = false;
-	
-	sqc = calcSizes(pnl, seq, maxInnerWidth(pnl), pnl.innerHeight);
-	hei = calcMinHeight(pnl._ctl, seq);
-	len = seq.length;
-	for(idx = 0; idx < len; idx++){
-		ctl = seq[idx];
-		chg = sqc[idx];
-		chg ||= ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		chg ||= ctl._setY((cen) ? (hei - ctl._height) / 2 : (hei - ctl._height));
-		if (chg) {
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
-			pch = true;
-		}
-		lft += ctl._width + pnl._splitX;
-	}
-	return pch;
-}
-
-
-function calcVerWrapOrLeft(pnl, seq) {
-	var hei,
-		rtl = pnl._rightToLeft,
-		top = 0,
-		lft = 0,
-		wid = 0,
-		ctl,
-
-		cx,
-		cy,
-		pch = false;
-
-	for(ctl of seq) {
-		if (pnl._wrap && (top + ctl._height > hei)) {
-			if (top !== 0) {
-				lft += wid + pnl._splitX;
-				wid = 0;
-			}
-			top = 0;
-		}
-		cx = ctl._setX((rtl) ? (wid - (lft + ctl._width)) : lft);
-		cy = ctl._setY(top);
-		if (cx || cy){
-			ctl.invalidate();
-			pch = true;
-		}
-		if (wid < ctl._width)
-			wid = ctl._width;
-		top += ctl._height + pnl._splitY;
-	}
-	return pch;
-}
-
-function calcVerCenterOrRight(pnl, seq) {
-	var wid = pnl.innerWidth,
-		cen = (pnl._contentAlign === "center"),
-		top = 0,
-		ctl,
-		sqc,
-		chg,
-		idx,
-		len,
-		pch;
-
-	if (pnl._autoWidth === 'content') {
-		calcSizes(pnl, seq, maxInnerWidth(pnl), pnl.innerHeight);
-		wid = calcMinWidth(pnl._ctl, seq);
-	}
-	len = seq.length;
-	for(idx = 0; idx < len; idx++) {
-		ctl = seq[idx];
-		chg = false; //sqc[idx];
-		chg ||= ctl._setX((cen) ? (wid - ctl._width) / 2 : (wid - ctl._width));
-		chg ||= ctl._setY(top);
-		if (chg) {
-			pch = true;
-			ctl.invalidate();
-			pnl.doMemberRelocate(ctl);
-		}
-		top += ctl._height + pnl._splitY;
-	}
-	return pch;
-}
-*/
 
 // Builds an array of sequenced controls.
 function fetchSequenced(t) {

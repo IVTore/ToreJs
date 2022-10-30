@@ -72,9 +72,9 @@ export class Control extends Component {
 		onMemberRelocate: {event: true},
 		onOwnerResize	: {event: true},
 		onLanguageChange: {event: true},
-		onStartDrag		: {event: true},
+		onDragStart		: {event: true},
 		onDrag			: {event: true},
-		onEndDrag		: {event: true},
+		onDragEnd		: {event: true},
 		onHit			: {event: true},
 		onDoubleHit		: {event: true},
 		onPointerDown	: {event: true},
@@ -194,7 +194,7 @@ export class Control extends Component {
 			return;
 		this.controlState = ctl.DYING;
 		super.destroy();		// inherited destroy
-		_ctl = null;
+		this._ctl = null;
 		this.killElement();
 	}
 
@@ -230,6 +230,7 @@ export class Control extends Component {
 		this._wrapper = null;
 		this._element = null;
 	}
+
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
 	  TASK:	Attaches a member component to the Control.
@@ -328,18 +329,24 @@ export class Control extends Component {
 	  TASK: This draws the control. Called by display before new frame.
 	——————————————————————————————————————————————————————————————————————————*/
 	render() {
-		var i,
-			shade = this._shade,
-			style = this._element.style,
-			clChg = this._classesChanged,
-			coChg = this._contentChanged;
-			
+		var index,
+			shade,
+			style,
+			clChg,
+			coChg;
+
+		if (!this._sta)
+			return;
+		shade = this._shade,
+		style = this._element.style,
+		clChg = this._classesChanged,
+		coChg = this._contentChanged;
+		this._shade = {};
 		this._invalid = false;
 		this._classesChanged = false;
 		this._contentChanged = false;
-		this._shade = {};
-		for(i in shade)
-			style[i] = shade[i];
+		for(index in shade)
+			style[index] = shade[index];
 		if (!this._ctlState)
 			return;
 		if (clChg)
@@ -364,6 +371,8 @@ export class Control extends Component {
 	recalculate() {
 		var s = this._computed;
 
+		if (!this._sta)
+			return;
 		this._shellW = 
 			parseFloat(s.paddingLeft || '0') +
 			parseFloat(s.paddingRight || '0') +
@@ -616,10 +625,13 @@ export class Control extends Component {
 			width will not be automatic.
 		* Viewport values object.
 			The value will be extracted from object and processed.
-		* A string: Will be treated as a CSS property.
 		* A number between (0 and 1] (0 excluded, 1 included) i.e: 0.5 .
 			width will be set to owner inner width * autoWidth.
 		* A number with value = 0 or value >= 1, width = value.
+		* A string: 
+			Always causes reflow.
+			"fit"	: This is a tricky fit-content.
+			Other values will be treated as a CSS property.
 	——————————————————————————————————————————————————————————————————————————*/
 	get autoWidth() {
 		return(this._autoWidth);
@@ -655,6 +667,10 @@ export class Control extends Component {
 		* A number between (0 and 1] (0 excluded, 1 included) i.e: 0.5 .
 			height will be set to owner inner height * autoHeight.
 		* A number with value = 0 or value >= 1, height = value.
+		* A string: 
+			Always causes reflow.
+			"fit"	: This is a tricky fit-content.
+			Other values will be treated as a CSS property.
 	——————————————————————————————————————————————————————————————————————————*/
 	get autoHeight() {
 		return(this._autoHeight);
@@ -678,10 +694,18 @@ export class Control extends Component {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: shellWidth
-	  GET : Gets the computed control padding and border width.
+	  GET : Gets the computed sum of control padding and border width.
 	——————————————————————————————————————————————————————————————————————————*/
 	get shellWidth(){
 		return this._shellW;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP: shellHeight
+	  GET : Gets the computed sum of control padding and border height.
+	——————————————————————————————————————————————————————————————————————————*/
+	get shellHeight() {
+		return this._shellH;	
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -693,12 +717,63 @@ export class Control extends Component {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: widthToContent
-	  TASK: Sets width to fit the content.
-	  RETV: 	: Boolean : True if width changed.
-	  INFO: This is called when autoWidth = "content".
+	  PROP: innerHeight
+	  GET : Gets the computed control visible content height.
 	——————————————————————————————————————————————————————————————————————————*/
-	widthToContent() {
+	get innerHeight() {
+		return this._height - this._shellH;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: maxAllowedInnerWidth.
+	  TASK: This finds the maximum allowed inner width for the control.
+	  RETV: 	: number : maximum allowed inner width for the control.
+	  INFO: When autoWidth is "fit", tries find maximum width possible.
+	——————————————————————————————————————————————————————————————————————————*/
+	maxAllowedInnerWidth() {
+		var c = this,
+			s = 0,
+			w;
+
+		while(c instanceof Control){
+			w = c._width;
+			s += c._shellW;
+			if(c._autoWidth !== 'fit')
+				break;
+			c = c._own;
+		}
+		return w - s;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: maxAllowedInnerHeight.
+	  TASK: This finds the maximum allowed inner height for the control.
+	  RETV: 	: number : maximum allowed inner height for the control.
+	  INFO: When autoWidth is "fit", tries find maximum height possible.
+	——————————————————————————————————————————————————————————————————————————*/
+	maxAllowedInnerHeight() {
+		var c = this,
+			s = 0,
+			h;
+
+		while(c instanceof Control){
+			h = c._height;
+			s += c._shellH;
+			if(c._autoHeight !== 'fit')
+				break;
+			c = c._own;
+		}
+		return h - s;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: widthToFit
+	  TASK: Sets width to fit the content.
+	  RETV:		: Boolean : True if width changed.
+	  INFO: This is called when autoWidth = "fit".
+			Should be overridden according to the nature of Control.
+	——————————————————————————————————————————————————————————————————————————*/
+	widthToFit() {
 		var s = this._element.style,
 			r;
 		
@@ -708,64 +783,14 @@ export class Control extends Component {
 		return r;
 	}
 
-	// Do not meddle with these methods...
-	_widthByStyle(val) {
-		var s = this._element.style;
-
-		s.width = val;							// reflow.
-		val = parseFloat(this._computed.width || 0);
-		if (this._width === val) {
-			s.width = '' + this._width + 'px';	// reflow.
-			return false; 
-		}
-		return this._setW(val);
-	}
-
-	_widthByMembers() {
-		return this._setW(this.membersWidth + this.shellWidth);
-	}
-
-	get membersWidth() {
-		var c,
-			x, 
-			w = 0;
-
-		for(c of this._ctl){
-			if (c.visible){
-				x = c._x + c._width;
-				if (x > w)
-					w = x;
-			}
-		}
-		return w;
-	}
-	
-
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP: shellHeight
-	  GET : Gets the computed control padding and border height.
-	——————————————————————————————————————————————————————————————————————————*/
-	get shellHeight() {
-		return this._shellH;
-		
-	}
-	
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP: innerHeight
-	  GET : Gets the computed control visible content height.
-	——————————————————————————————————————————————————————————————————————————*/
-	get innerHeight() {
-		return this._height - this._shellH;
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: heightToContent
+	  FUNC: heightToFit
 	  TASK: Sets height to fit the content.
 	  RETV: 	: Boolean : True if height changed.
-	  INFO: This is called when autoHeight = "content".
-	  		Should be overridden according to the nature of Control.
+	  INFO: This is called when autoHeight = "fit".
+			Should be overridden according to the nature of Control.
 	——————————————————————————————————————————————————————————————————————————*/
-	heightToContent(fromTop = true) {
+	heightToFit() {
 		var s = this._element.style,
 			r;
 		
@@ -776,9 +801,21 @@ export class Control extends Component {
 	}
 
 	// Do not meddle with these methods...
+	_widthByStyle(val) {
+		var s = this._element.style;
+
+		s.width = val;							// reflow.
+		val = parseFloat(this._computed.width || '0');
+		if (this._width === val) {
+			s.width = '' + this._width + 'px';	// reflow.
+			return false; 
+		}
+		return this._setW(val);
+	}
+
 	_heightByStyle(val) {
 		this._element.style.height = val;							// reflow.
-		val = parseFloat(this._computed.height || 0);
+		val = parseFloat(this._computed.height || '0');
 		if (this._height === val) {
 			this._element.style.height = '' + this._height + 'px';	// reflow.
 			return false; 
@@ -786,8 +823,27 @@ export class Control extends Component {
 		return this._setH(val);
 	}
 
+	_widthByMembers() {
+		return this._setW(this.membersWidth + this._shellW);
+	}
+
 	_heightByMembers() {
-		return this._setH(this.membersHeight + this.shellHeight);
+		return this._setH(this.membersHeight + this._shellH);
+	}
+
+	get membersWidth() {
+		var c,
+			x, 
+			w = 0;
+
+		for(c of this._ctl){
+			if (c._visible){
+				x = c._x + c._width;
+				if (x > w)
+					w = x;
+			}
+		}
+		return w;
 	}
 
 	get membersHeight() {
@@ -796,7 +852,7 @@ export class Control extends Component {
 			h = 0;
 
 		for(c of this._ctl){
-			if (c.visible){
+			if (c._visible){
 				y = c._y + c._height;
 				if (y > h)
 					h = y;
@@ -1413,7 +1469,6 @@ function calcClassNameSub(t, n){
 	*	No relocation dispatching and invalidation is done.
 	*	They return true if shadow coordinates change.
 	*	Called only when this (t - the control) has an owner.
-
 ——————————————————————————————————————————————————————————————————————————*/
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -1512,7 +1567,7 @@ function calcAutoWidth(t, ownerWidth) {
 	case "number": 
 		return t._setW((val > 1) ? val : val * ownerWidth);
 	case "string":
-		return (val === "content") ? t.widthToContent() : t._widthByStyle(val);
+		return (val === "fit") ? t.widthToFit() : t._widthByStyle(val);
 	}
 	return false;
 }
@@ -1536,7 +1591,7 @@ function calcAutoHeight(t, ownerHeight){
 	case "number": 
 		return t._setH((val > 1) ? val : val * ownerHeight);
 	case "string":
-		return (val === "content") ? t.heightToContent(): t._heightByStyle(val);
+		return (val === "fit") ? t.heightToFit(): t._heightByStyle(val);
 	}
 	return false;
 }

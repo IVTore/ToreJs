@@ -29,15 +29,15 @@ class Display extends Panel {
 
 	// Display special events and handler names.
 	static displayEvents = {
-		touchstart: 'hndTouchStart',
-		touchmove:	'hndTouchMove',
-		touchend:	'hndTouchEnd',
-		mousedown:	'hndMouseDown',
-		mousemove:	'hndMouseMove',		
-		mouseup:	'hndMouseUp',
+		touchstart: 'handleTouchStart',
+		touchmove:	'handleTouchMove',
+		touchend:	'handleTouchEnd',
+		mousedown:	'handleMouseDown',
+		mousemove:	'handleMouseMove',		
+		mouseup:	'handleMouseUp',
 		resize: 	'doViewportResize',
-		keydown:  	'hndKeyDown',
-		keyup:		'hndKeyUp'
+		keydown:  	'handleKeyDown',
+		keyup:		'handleKeyUp'
 	}
 
 	static cdta = {
@@ -184,17 +184,15 @@ class Display extends Panel {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: relocate [override].
 	  TASK: Notifies member controls that display is resized.
-	  ARGS: align : Boolean : not used in override.
+	  INFO: Redundant in Display.
 	—————————————————————————————————————————————————————————————————————————*/
-	// TODO: check if redundant.
-	relocate() {
-		//super.relocate(); 
-	}
+	relocate() { }
 
 	/*————————————————————————————————————————————————————————————————————————————
 		Application Focus Control.
 		This subsystem works in coherence with focusing and tabbing
 		mechanisms of containers and controls.
+		Hit means any pointer hit, regardless of mouse or touch.
 	————————————————————————————————————————————————————————————————————————————*/
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: hitChk
@@ -202,123 +200,142 @@ class Display extends Panel {
 		Double hit checking function. Issues hit and sets timer for
 		double hit capture.
 	  ARGS:
-		n	: Control 	: hit target control.
+		n	: Control 	: (newly) hit target control.
 		x	: number	: Control relative click x coordinate 
 		y	: number	: Control relative click y coordinate
-		e	: UIEvent	: Original event.
+		e	: UIEvent	: Original javascript event coming from DOM.
 	——————————————————————————————————————————————————————————————————————————*/
 	hitChk(n, x, y, e) {
 		var t = display,
-			o = t._dblCan;
+			o = t._dblCan;			// Get old double hit candidate control.
 
-		t.hitOut();
-		n.doHit(x, y, e);
-		if(n === o){
-			n.doDoubleHit(x, y, e);
-			return;
+		t.dblHitReset();			// Clear doublehit timer and candidate.
+		n.doHit(x, y, e);			// Send a hit event to target control.
+		if(n === o) {				// If new target and old candidate matches,
+			n.doDoubleHit(x, y, e);	// send a double hit event to target control.
+			return;					// done here.
 		}
-		t._dblCan = n;
-		t._dblTim = setTimeout(t.hitOut, 500);	
+		t._dblCan = n;				// Set new target as double hit candidate.
+		t._dblTim = setTimeout(t.dblHitReset, 500);			// activate timer.
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: hitOut
 	  TASK:	Double hit timeout function. 
 	——————————————————————————————————————————————————————————————————————————*/
-	hitOut() {
-		var t = display;
+	dblHitReset() {
+		var t = display;			// Unbinded so use display as this reference.
 		
-		if(!t._dblTim)
-			return;
-		clearTimeout(t._dblTim);
-		t._dblTim = null;
-		t._dblCan = null;
+		if(!t._dblTim)				// If timer is not active,
+			return;					// we are done here.
+		clearTimeout(t._dblTim);	// Clear timer.
+		t._dblTim = null;			// Set handle to null for marking cleared.
+		t._dblCan = null;			// Clear double hit candidate control.
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: hndMouseDown.
+	  FUNC: handleMouseDown.
 	  TASK:	Application mouse pressed over handler.
+	  ARGS:
+		e	: UIEvent	: Original javascript event coming from DOM.
+	  INFO: This method is bound to display, so this === display.
 	——————————————————————————————————————————————————————————————————————————*/
-	hndMouseDown(e) {
-		var	r = handleMouseEvent(e),
-			c = r.c;
+	handleMouseDown(e) {
+		var	r = handleMouseEvent(e),		// Pre process mouse event.
+			c = r.c;						// Get control.
 			
-		this._ptrOrg = c;
-		this._mptCtl = c;
-		if (c) {
-			c.doPointerDown(r.x, r.y, e);
+		this._ptrOrg = c;					// Set pointer down origin to control.
+		this._mptCtl = c;					// Set mouse pointer origin to control.
+		if (c) {							// If control is not null.
+			c.doPointerDown(r.x, r.y, e);	// Send pointer down event to control.
 			console.log(c.namePath, r.x, r.y);
 		}
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: hndMouseMove
+	  PROC: handleMouseMove
 	  TASK: Application mouse move handler.
 	  INFO: Generates mouse move, out and over.
 	——————————————————————————————————————————————————————————————————————————*/
-	hndMouseMove(e) {
+	handleMouseMove(e) {
 		var t = this,
 			r,
 			c,
 			o;
 
-		if (t._ptrChk)
-			return;
-		if (t._drg){
-			t.doDrag(e.pageX, e.pageY);
-			return;
-		}
-		r = handleMouseEvent(e);
-		c = r.c;
-		o = t._mptCtl;
+		if (t._ptrChk)						// If just checking (), 
+			return;							// done here.
+		r = handleMouseEvent(e);			// Pre-process mouse event.
+		c = r.c;							// Get current target control.
+		o = t._mptCtl;						// Get old target control.
+
+		// ***********************************************
+		// TODO: handleDragStart and handleDrag branching.
+		// ***********************************************
 		
-		if (c && c === o){
-			o.doPointerMove(r.x, r.y, e);
-			return;
-		}		
-		if (o){
-			if (t._ptrOrg === o)
-				o.doPointerUp(r.x, r.y, e);
-			o.doPointerOut(r.x, r.y, e);
+		if (c && c === o) {					// If current and old controls match,
+			o.doPointerMove(r.x, r.y, e);	// Send pointer move event to control.
+			return;							// Done.
+		}									// If mismatch,
+		if (o) {							// If there is an old control,
+			if (t._ptrOrg === o)			// If it is the pointer down origin,
+				o.doPointerUp(r.x, r.y, e);	// send a pointer up event to old.
+			o.doPointerOut(r.x, r.y, e);	// Send a pointer out event to old.
 		}	
-		t._mptCtl = c;
-		if (!c)
-			return;	
-		c.doPointerOver(r.x, r.y, e);
-		if (c === t._ptrOrg)
-			c.doPointerDown(r.x, r.y, e);
+		t._mptCtl = c;						// Set as current mouse pointer control.
+		if (!c)								// If no control,
+			return;							// done here.
+		c.doPointerOver(r.x, r.y, e);		// Send a pointer over event.
+		if (c === t._ptrOrg)				// If current is down origin,
+			c.doPointerDown(r.x, r.y, e);	// send a pointer down event.
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	PROC: hndMouseUp
+	PROC: handleMouseUp
 	TASK: Application mouse released over handler.
 	——————————————————————————————————————————————————————————————————————————*/
-	hndMouseUp(e) {
+	handleMouseUp(e) {
 	var t = this,
 		c,								// current control
 		r,								// current control info
 		o = t._ptrOrg;					// old origin control
 
-		t._ptrOrg = null;
-		if(t._drg){
-			t.stopDrag();
-			return;
+		t._ptrOrg = null;				// clear old origin.
+		if(t._drg){						// If dragging, 
+			t.stopDrag();				// stop and handle it,
+			return;						// done here.
 		}
-		r = handleMouseEvent(e);
-		c = r.c;		
-		if (c) {
-			c.doPointerUp(r.x, r.y, e);
-			if (o === c)
-				t.hitChk(c, r.x, r.y);
+		r = handleMouseEvent(e);		// Pre-process mouse event.
+		c = r.c;						// Get current control under mouse.
+		if (c) {						// If there is a control,
+			c.doPointerUp(r.x, r.y, e);	// Send a pointer up event,
+			if (o === c)				// If old and current is same,
+				t.hitChk(c, r.x, r.y);	// process if there is a pointer hit.
 		}		
 	}
 	
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: hndTouchStart
+	  PROC: handleTouchStart
 	  TASK:	Application touch start handler.
 	——————————————————————————————————————————————————————————————————————————*/
-	hndTouchStart(e) {
+	// TODO: handleTouchStart.
+	handleTouchStart(e) {}
+	/*——————————————————————————————————————————————————————————————————————————
+	PROC: 	handleTouchMove
+	TASK:	Application touch move handler.
+	——————————————————————————————————————————————————————————————————————————*/
+	// TODO: handleTouchMove.
+	handleTouchMove(e) {}
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROC: handleTouchEnd
+	  TASK: Application touch end handler.
+	——————————————————————————————————————————————————————————————————————————*/
+	// TODO: handleTouchEnd.
+	handleTouchEnd(e) {}
+
+	/*	
+	handleTouchStart(e) {
 	var t = this,
 		r,
 		c,
@@ -327,7 +344,7 @@ class Display extends Panel {
 		y;
 
 		if(e.touches.length > 1){
-			if(t.hndZoomStart(e))
+			if(t.handleZoomStart(e))
 				return;
 		}
 
@@ -341,16 +358,12 @@ class Display extends Panel {
 		c.doMouseDown(p.x, p.y);
 	}
 
-	hndZoomStart(e) {
+	handleZoomStart(e) {
 		console.log('zoomStart');
 		return(true);
 	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	PROC: 	hndTouchMove
-	TASK:	Application touch move handler.
-	——————————————————————————————————————————————————————————————————————————*/
-	hndTouchMove(e) {
+	
+	handleTouchMove(e) {
 		var t = this,
 			r = e.touches[0],
 			n,
@@ -361,7 +374,7 @@ class Display extends Panel {
 		
 		
 		if (e.touches.length > 1){
-			if(t.hndZoomMove(e))
+			if(t.handleZoomMove(e))
 				return;
 		}
 		
@@ -391,16 +404,12 @@ class Display extends Panel {
 			n.doMouseDown(x, y);
 	}
 
-	hndZoomMove(e) {
+	handleZoomMove(e) {
 		console.log('zoomMove');
 		return(true);
 	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	PROC: 	hndTouchEnd
-	TASK:	Application touch end handler.
-	——————————————————————————————————————————————————————————————————————————*/
-	hndTouchEnd(e) {
+	
+	handleTouchEnd(e) {
 	var t = this,
 		r = e.changedTouches[0],
 		n,
@@ -431,14 +440,14 @@ class Display extends Panel {
 		if(n === o)
 			t.clickChk(n, x, y);
 	}
-
+	*/
 	
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROC: hndKeyUp
+	  PROC: handleKeyUp
 	  TASK: Checks only for tab.
 	————————————————————————————————————————————————————————————————————————————*/
-	hndKeyUp(e) {
+	handleKeyUp(e) {
 		e = e || window.event;				// access event object
 		if (e.keyCode == 9){
 			e.stopImmediatePropagation();
@@ -448,10 +457,10 @@ class Display extends Panel {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROC: hndKeyDown
+	  PROC: handleKeyDown
 	  TASK: Changes the behaviour for keyboard triggered events.
 	————————————————————————————————————————————————————————————————————————————*/
-	hndKeyDown(e){
+	handleKeyDown(e){
 		var t	= this,
 			nctl,
 			ncon;
@@ -485,14 +494,55 @@ class Display extends Panel {
 	/*————————————————————————————————————————————————————————————————————————————
 	  Drag-Drop subsystem 
 	————————————————————————————————————————————————————————————————————————————*/
+	// TODO: Drag-Drop subsystem.
+
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROC: startDrag
+	  PROC: handleDragStart
 	  TASK: Initiates control dragging.
 	  ARGS:
 		c	: Control to drag.
 		x	: Pointer x on the control (Global).
 		y	: Pointer y on the control (Global).
+	  INFO:
+		* 	builds drag data into display._drg.
+		*	Filters incoming coordinates with respect to input range.
+		* 	If there is "onDragStart" handler of target control, calls it.
+		* 	If there is no "onDragStart" handler of target control and it is 
+			draggable, drags the control.
 	————————————————————————————————————————————————————————————————————————————*/
+	handleDragStart(c, x, y) {}
+
+	/*————————————————————————————————————————————————————————————————————————————
+	  PROC: handleDrag
+	  TASK: Calculates coordinates and realizes dragging.
+	  ARGS:
+		dx	: Pointer x on the control (Global).
+		dy	: Pointer y on the control (Global).
+	  INFO:
+		* Fetches drag data from display._drg.
+		* Filters incoming coordinates with respect to input range.
+		* If there is "onDrag" handler of target control, calls it.
+		* If there is no "onDrag" handler of target control, drags the
+		  control.
+	————————————————————————————————————————————————————————————————————————————*/
+	handleDrag(dx, dy) {}
+
+	/*————————————————————————————————————————————————————————————————————————————
+	  PROC: handleDragEnd
+	  TASK: Terminates dragging.
+	  INFO:
+		* 	Fetches drag data from display._drg.
+		*	Filters incoming coordinates with respect to input range.
+		*	If there is "onDragEnd" handler of target control, calls it.
+		*	If there is no "onDragEnd" handler of target control, tries to drop
+			the control.
+	————————————————————————————————————————————————————————————————————————————*/
+	handleDragEnd() {}
+
+
+	/*
+	
+	// Old and somewhat funny code:
 
 	startDrag(c, x, y){
 		var t = this,
@@ -507,19 +557,6 @@ class Display extends Panel {
 			c.dispatch(d, [c]);		// dispatch it	
 	}
 
-	/*————————————————————————————————————————————————————————————————————————————
-	  PROC: doDrag
-	  TASK: Calculates coordinates and realizes dragging.
-	  ARGS:
-		dx	: Pointer x on the control (Global).
-		dy	: Pointer y on the control (Global).
-	  INFO:
-		* Fetches drag data from display._drg.
-		* Filters incoming coordinates with respect to input range.
-		* If there is "onDrag" handler of target control, calls it.
-		* If there is no "onDrag" handler of target control, drags the
-		  control.
-	————————————————————————————————————————————————————————————————————————————*/
 	doDrag(dx, dy){
 	var t = this,
 		d = t._drg,
@@ -583,6 +620,8 @@ class Display extends Panel {
 			c.dispatch(d,[c]);		// dispatch it
 		d = null;	
 	}
+
+	*/
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	currentControl : cControl;

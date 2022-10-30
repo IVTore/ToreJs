@@ -70,21 +70,52 @@ export class Label extends Control {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: widthToContent
+	  FUNC: widthToFit
 	  TASK: Sets width to fit the content.
 	  RETV: 	: Boolean : True if width changed.
-	  INFO: This is called when autoWidth = "content".
+	  INFO: This is called when autoWidth = "fit".
 	  		Active at recalculation frame, causes reflow. 
 	——————————————————————————————————————————————————————————————————————————*/
-	widthToContent() {
+	widthToFit() {
 		var s = this._element.style,
-			r;
+			w = this.maxAllowedInnerWidth() + this._shellW,
+			m;
 		
-		s.left = '0px';
-		r = this._widthByStyle("fit-content");
-		s.left = ''+ this._x + 'px';
-		return r;
+		s.width = 'max-content';
+		m = parseFloat(this._computed.width || '0');
+		if (m <= w)
+			w = m; 
+		if (w === this._width) {
+			s.width = '' + this._width + 'px';
+			return false;
+		}
+		return this._setW(w);
 	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: heightToFit
+	  TASK: Sets height to fit the content.
+	  RETV: 	: Boolean : True if height changed.
+	  INFO: This is called when autoHeight = "fit".
+	  		Active at recalculation frame, causes reflow. 
+	——————————————————————————————————————————————————————————————————————————*/
+	/*
+	heightToFit() {
+		var s = this._element.style,
+			h = this.maxAllowedInnerHeight() + this._shellH,
+			m;
+		
+		s.height = 'max-content';
+		m = parseFloat(this._computed.height || '0');
+		if (m <= h)
+			h = m; 
+		if (h === this._height) {
+			s.height = '' + this._height + 'px';
+			return false;
+		}
+		return this._setH(h);
+	}
+	*/
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	doLanguageChange
 	  TASK:	Signals component that language has changed.

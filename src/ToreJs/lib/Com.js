@@ -68,6 +68,7 @@ function sendPromise(owner = null, options = null){
   CLASS: Com.
   TASKS:
 	Defines http client communicator class.
+	* Well writing HttpClient everywhere is long, so its name is Com.
 	* It is an XHR wrapper.
 	* Does not allow members.
 	* Communication is always asynchronous.
@@ -100,7 +101,7 @@ function sendPromise(owner = null, options = null){
 	comUploadError, comUpload, comUploadEnd
 
 	handler methods are sought in the owner, and the existing ones are
-	bound to their respective events.
+	bound to their respective events automagically.
 
 	Handler method signature example: 
 		owner.comLoadStart(sender, e)

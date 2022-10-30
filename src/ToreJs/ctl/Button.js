@@ -49,7 +49,6 @@ export class Button extends Panel {
     ——————————————————————————————————————————————————————————————————————————*/
     constructor(name = null, owner = null, data = null, init = true) {
         super(name, null, null, false);
-        this._autosize = true;
         this._layout = "horizontal";
         this._contentAlign = "center";
         this._tabsLoop = false;
@@ -95,7 +94,7 @@ export class Button extends Panel {
                     if (this._allowAllUp)
                         this.selected = false;
                 }
-            } else 
+            } else
                 this.selected = !this._selected;
         }
         super.doHit(x, y, e)

@@ -69,15 +69,18 @@ const sys = {
 	  FUNC:	fetchObject 
 	  TASK:	Tries to fetch an object from its pathname from window.
 	  ARGS:	
-		n	: String	: object name path or
-			: Array		: pre splitted object name path
-	  RETV:		: Object 	: fetched object.
+		namePath	: String	: object name path or
+					: Array		: pre splitted object name path
+		fromObject	: Object	: Start object. :DEF: null, means window.
+	  RETV:			: Object 	: fetched object.
 	———————————————————————————————————————————————————————————————————————————*/
-	fetchObject: function(n){
-	var	p = (n instanceof Array)? n : n.split('.'),	
-		i,
-		v = window;
+	fetchObject: function(namePath = "", fromObject = null){
+	var	v = (fromObject) ? fromObject : window,
+		p,
+		i;
 		
+		p = (namePath instanceof Array) ? namePath : 
+					(namePath === '') ? [] : namePath.split('.');
 		try {								
 			for(i in p)				// try fetching by names
 				v = v[p[i]]; 
@@ -140,8 +143,13 @@ const sys = {
 			TComponent	!TComponent		ignored	(true  - add as variable)
 		   !TComponent	!TComponent		ignored	(true  - add as variable)
 		When _var_ defaults to true, it is not overridable.
+
+		Tricky string values:
+			propName: 	"__t." will fetch from "this" and assign.
+			propName: 	"__p." will fetch from parent of "this" and assign.
+			propName: 	"__c." will fetch from core and assign.
 	———————————————————————————————————————————————————————————————————————————*/
-	propSet: function(t, s){  
+	propSet: function(t, s, p = null){  
 	var i,	c,o,d,e;
 	
 		if ((!t) || (!s))						// invalid arguments
@@ -154,33 +162,51 @@ const sys = {
 				t[e] = i;						// set directly
 				continue;
 			}
-			if(i.constructor != Object){		// if source is not generic Object
+			if (typeof i === 'string' && i.startsWith('__') && (i.length === 3 || i[3] === '.')) {
+				d = i.substring(4);
+				console.log("fetching "+ i);
+				switch(i.substring(0, 3)) { 
+				case '__t':
+					t[e] = sys.fetchObject(d, t);
+					continue;
+				case '__p':
+					if (p !== null) {
+						t[e] = sys.fetchObject(d, p);
+						continue;
+					}
+					exc('E_NO_PARENT', 	((t._nam) ? t._nam : '?') + '.' + e + ' = "__p"');
+					break;
+				case '__c' :
+					t[e] = sys.fetchObject(d, core);
+					continue;
+				}
+			}
+			if (i.constructor != Object){		// if source is not generic Object
 				t[e] = i;						// set directly
 				continue;
 			}									// source is generic object...
 			if(t[e] instanceof Object){			// if target is an Object
-				sys.propSet(t[e], i);			// transfer values
+				sys.propSet(t[e], i, t);		// transfer values
 				continue;
 			}									// target is null...
 			if(!i._new_){						// if not a new sub object
 				t[e] = {};						// so it is a generic one
-				sys.propSet(t[e], i);			// transfer values
+				sys.propSet(t[e], i, t);		// transfer values
 				continue;
 			}									// new sub object...
 			c = i._new_;						// get the class
-			if (is.str(c))						// if string
+			if (typeof c === 'string')			// if string
 				c = sys.classByName(c);			// try fetching class
 			if (!isClass(c))					// if failed to fetch, exception
 				exc('E_CLASS_INV', (i._new_) ? 'null' : i._new_);
 			d = isSuper(Component, c);
 			o = d ? new c(e) : new c();
-			if (d && is.component(t) && !i._var_) 
+			d = d && t instanceof Component && !i._var_ ; 
+			if (d) 
 				t.attach(o);
-			else 
+			sys.propSet(o, i, t);				// set the contents
+			if (!d) 
 				t[e] = o;
-			sys.propSet(o, i);					// set the contents
-			if (d)
-				o.doLoadComplete();
 		}
 	}
 

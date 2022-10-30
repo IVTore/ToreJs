@@ -99,9 +99,11 @@ class Styler extends Component {
 	
 	/*——————————————————————————————————————————————————————————————————————————
 	  DTOR: destructor.
-	  TASK: Destroys styler singleton component.
+	  TASK: Destroys component.
+	  INFO: Do not destroy styler.
+	  		If you are completely getting rid of ToreJs use core.destroy();
 	——————————————————————————————————————————————————————————————————————————*/
-	destroy(){
+	destroy() {
 		this._css = null;			//	Uncouple.
 		this._rls = null;
 		super.destroy();
@@ -165,7 +167,7 @@ class Styler extends Component {
 			name = "." + name;
 		i = t._rls.indexOf(name);
 		if (i > -1)
-			t.delRule(name, false); // we allready added '.' if asClass.		
+			t.delRule(name, false); // we already added '.' if asClass.		
 		i = t._css.insertRule(name + " {}", t._css.cssRules.length);
 		t._rls.splice(i, 0, name);
 		s = t._css.cssRules[i].style;

@@ -102,6 +102,7 @@ export class Container extends Control {
 			e.parentNode.removeChild(e);
 		super.killElement();
 	}
+	
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
 	  TASK:	
@@ -137,8 +138,10 @@ export class Container extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: render
+	  FUNC: render [override].
 	  TASK: This draws the control. Called by display before new frame.
+	  INFO: Containers have an inner wrapper div, this override avoids
+			inconsistencies among element div and wrapper div inside it.
 	——————————————————————————————————————————————————————————————————————————*/
 	render() {
 		var shade = this._shade,
@@ -148,6 +151,8 @@ export class Container extends Control {
 			style.height = shade.height;
 		if (shade.width)
 			style.width = shade.width;
+		if (shade.visibility)
+			style.visibility = shade.visibility;
 		super.render();
 	}
 	

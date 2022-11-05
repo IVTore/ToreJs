@@ -20,6 +20,39 @@ import { sys, is, exc, core, Component } from "../lib/index.js";
 
   USAGE:	
 	
+	VIEWPORT:
+
+	Browser body element is represented by display singleton.
+	When the display control is initialized and whenever it is resized
+	via a browser resize, styler doViewportChange method is invoked.
+	Styler uses browser document.documentElement.clientWidth
+	to calculate the viewport name. If name changes, the viewport
+	dependant values in the css are changed by styler.
+
+	The viewport sizes are defined in the protected properties as :
+	_vpSizes = [ 576, 768, 992, 1200, 1400];
+	_vpNames = ['xs','sm','md','lg','xl','xxl'];
+	
+	To define a viewport dependant rule, a simple object is sufficient,
+	such as the padding in the rule definition below:
+
+	styler.addRule("anExample", {
+		backgroundColor: '#EEEEEE',
+		color:'#000000',
+		padding: {
+            xs: '0.5625rem',
+            df: 'calc(0.52rem + 0.12vw)',
+            xxl: '0.625rem'
+        }
+	});
+
+	This creates a dynamic css rule registered as anExample.padding.
+	If viewport is extra small (xs) the padding will be '0.5625rem',
+	If viewport is extra extra large (xxl) it will be '0.625rem',
+	on other viewport states, default (df) it will be 'calc(0.52rem + 0.12vw)'.
+
+	RULES:
+
 	The rules are always class level, unless stated otherwise 
 	(internally prepended with a '.').
 	
@@ -46,14 +79,15 @@ import { sys, is, exc, core, Component } from "../lib/index.js";
 	- panel1.styleColor = "Second"
 	- panel1.styleName = "Extra"
 	- panel1.controlState = ctl.ALIVE.
-	- panel1 element class names will be:
+	
+		The panel1 element class names will be:
 	
 		Panel PanelAlive
 		Tiny TinyAlive PanelTiny PanelTinyAlive
 		Second SecondAlive PanelSecond PanelSecondAlive
 		Extra ExtraAlive PanelExtra PanelExtraAlive
 		
-	- If panel1 is hovered then panel1 element class names will be:
+		If panel1 is hovered then panel1 element class names will be:
 
 		Panel PanelHover
 		Tiny TinyHover PanelTiny PanelTinyHover
@@ -139,7 +173,7 @@ class Styler extends Component {
 	doViewportChange() {
 		var n = this.calculateViewportName();
 
-		if (n == this._vnm)
+		if (n === this._vnm)
 			return;
 		this._vnm = n;
 		applyDynamicRules(this);
@@ -175,7 +209,7 @@ class Styler extends Component {
 			r = rule[i];
 			if (!r)
 				continue;
-			if (is.str(r)){
+			if (typeof r === 'string'){
 				s[i] = r;
 				continue;
 			}
@@ -183,7 +217,7 @@ class Styler extends Component {
 				continue;
 			if (!t._dyn[name])
 				t._dyn[name] = {};
-			t._dyn[name][i] = r;
+			t._dyn[name][i] = Object.assign({}, r);
 			if (r[t._vnm]){
 				s[i] = r[t._vnm];
 				continue;
@@ -214,10 +248,6 @@ class Styler extends Component {
 		this._css.deleteRule(i);
 		this._rls.splice(i, 1);
 		delete this._dyn[name];
-	}
-
-	get viewportSizeName() {
-		return this._vnm;
 	}
 }
 
@@ -308,6 +338,4 @@ function setupStyleSheet(t) {
 		WebkitUserSelect: 'none',
 		userSelect: 'none',
 	}, false);
-
-
 }

@@ -57,7 +57,7 @@ export class Component extends TObject {
 		data	: Object	: An object containing instance data:DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
-		if (name == sys.LOAD && super(sys.LOAD))
+		if (name === sys.LOAD && super(sys.LOAD))
 			return;
 		super();
 		if (name)

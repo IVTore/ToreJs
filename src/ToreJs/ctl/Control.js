@@ -869,45 +869,46 @@ export class Control extends Component {
 	autoAdjust() {
 		var t = this,
 			o = t._own,
-			dx,
-			dy,
-			ow,
-			oh,
-			ch = false;
-		
+			dx, dy,
+			ow, oh,
+			aw = false, ah = false,
+			ax = false, ay = false,
+			ar = false, ab = false;
+
 		if (!(o instanceof Control))
 			return false;
 		dx = o._width - o._oldW;
 		dy = o._height - o._oldH;
-		if 	(!(	t._autoX !== null || t._autoY !== null ||
+		if (!(	t._autoX !== null || t._autoY !== null ||
 				t._autoWidth !== null || t._autoHeight !== null || 
 				(dx && t.anchorRight) || (dy && t.anchorLeft)))
 			return false;
 		ow = o.innerWidth;
 		oh = o.innerHeight;
 		if (t._autoWidth) 
-			ch ||= calcAutoWidth(t, ow);
+			aw = calcAutoWidth(t, ow);
 		if (t._autoHeight) 
-			ch ||= calcAutoHeight(t, oh);
+			ah = calcAutoHeight(t, oh);
 		if (t.autoX)
-			ch ||= calcAutoX(t, ow);
+			ax = calcAutoX(t, ow);
 		if (t.autoY)
-			ch ||= calcAutoY(t, oh);
+			ay = calcAutoY(t, oh);
 		if (dx && t.anchorRight) {
 			if (t.anchorLeft) 
-				ch ||= this._setW(t, t._width + dx);
+				ar = this._setW(t, t._width + dx);
 			else
-				ch ||= this._setX(t, t._x + dx);
+				ar = this._setX(t, t._x + dx);
 		}
 		if (dy && t.anchorBottom) {
 			if (t.anchorTop)
-				ch ||= this._setH(t, t.height + dy);
+				ab = this._setH(t, t.height + dy);
 			else
-				ch ||= this._setY(t, t._y + dy);
+				ab = this._setY(t, t._y + dy);
 		}
-		if (ch)
+		aw = (aw || ah || ax || ay || ar || ab);
+		if (aw)
 			t.coordsChanged();
-		return ch;
+		return aw;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -1259,7 +1260,9 @@ export class Control extends Component {
 			s = ctl.SUFFIX[this._ctlState];
 		
 		function calcSub(n){
-			return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : '';
+			if (typeof n === 'string') 
+				return ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s;
+			return '';
 		}
 
 		this._sBase = c + ' ' + c + s;
@@ -1458,7 +1461,9 @@ function calcClassNameSub(t, n){
 	var c = t.class.name+ ((t._styleRoot !== null) ? t._styleRoot : ''),
 		s = ctl.SUFFIX[t._ctlState];
 
-	return (is.str(n))? ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s : '';
+	if (typeof n === "string")
+		return ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s;
+	return '';
 }
 
 /*——————————————————————————————————————————————————————————————————————————

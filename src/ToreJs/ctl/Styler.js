@@ -195,7 +195,7 @@ class Styler extends Component {
 			s,
 			r;
 
-		if (!is.str(name) || !is.plain(rule))
+		if (typeof name !== 'string' || !is.plain(rule))
 			return;
 		if (asClass)
 			name = "." + name;
@@ -222,7 +222,7 @@ class Styler extends Component {
 				s[i] = r[t._vnm];
 				continue;
 			}
-			if (is.str(r.df)){
+			if (typeof r.df === 'string'){
 				s[i] = r.df;
 				continue;
 			}

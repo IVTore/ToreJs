@@ -328,18 +328,18 @@ export class Component extends TObject {
 		hndIns = (handler instanceof EventHandler);
 
 		t.checkDead();
-		if (!d || !d.event)							// if not an event, exception
+		if (!d || !d.event)					// if not an event, exception
 			exc('E_EVENT_INV', name);
-		if (!hndNul && h && h === handler)			// Same?.
+		if (!hndNul && h && h === handler)	// Same?.
 			return;
-		if (!(hndNul || hndIns))					// Valid parameter?
+		if (!(hndNul || hndIns))			// Valid parameter?
 			exc('E_EVENT_ARG', "handler");
-		if (h)										// if assigned, clear
+		if (h)								// if assigned, clear
 			h.destroy();
-		if (hndNul)									// if handler null,
-			return;									// we just clear.
-		if (handler.source) 						// if handler is in use,
-			handler = new EventHandler(handler.target, handler.method)
+		if (hndNul)							// if handler null,
+			return;							// we just clear.
+		if (handler.source) 				// if handler is in use, clone it.
+			handler = new EventHandler(handler.target, handler.method); 
 		handler.assign(this, name);
 	}
 
@@ -352,7 +352,7 @@ export class Component extends TObject {
 	——————————————————————————————————————————————————————————————————————————*/
 	getEvent(name = null) {
 		var r;
-		if (!is.str(name))
+		if (typeof name !== 'string')
 			return null;
 		r = this._eve[name];
 		return (r) ? r : null;
@@ -376,7 +376,7 @@ export class Component extends TObject {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC:	doLoadComplete
+	  FUNC:	doLoadComplete
 	  TASK:	Signals component that loading (deserialization) is complete.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete() {
@@ -406,8 +406,8 @@ export class Component extends TObject {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	name : String;
-	  TASK:	GET  : Returns component name.
-			SET  : Checks name validity, then sets the name of the component.
+	  GET : Returns component name.
+	  SET : Checks name validity, then sets the name of the component.
 	——————————————————————————————————————————————————————————————————————————*/
 	get name() {
 		return(this._nam);
@@ -438,7 +438,7 @@ export class Component extends TObject {
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	namePath : String 
-	  TASK:	GET : Returns the global component name path string.
+	  GET : Returns the global component name path string.
 	————————————————————————————————————————————————————————————————————————————*/
 	get namePath(){
 	var t = this;
@@ -446,7 +446,7 @@ export class Component extends TObject {
 	}
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP: owner
-	  TASK:	GET : Get owner of the component.
+	  GET : Get owner of the component.
 	 ———————————————————————————————————————————————————————————————————————————*/
 	get owner(){
 		return(this._own);

@@ -79,7 +79,8 @@ const sys = {
 		p,
 		i;
 		
-		p = (namePath instanceof Array) ? namePath : 
+		p = (namePath instanceof Array) ? 
+					 namePath : 
 					(namePath === '') ? [] : namePath.split('.');
 		try {								
 			for(i in p)				// try fetching by names
@@ -106,7 +107,7 @@ const sys = {
 	bindHandler: function(target = null, handler = null) {
 		if(!is.component(target))
 			exc('E_ARG_INV', 'target');
-		if(!is.str(handler))
+		if(typeof handler !== 'string')
 			exc('E_ARG_INV', 'handler');
 		if(!is.fun(target[handler]))
 			exc('E_HANDLER_INV', target.name + "." + handler);
@@ -155,7 +156,7 @@ const sys = {
 		if ((!t) || (!s))						// invalid arguments
 			exc('E_ARG_INV');
 		for(e in s){							// iterate source elements
-			if (e == '_new_' || e == '_var_')	// those keys are processed
+			if (e === '_new_' || e === '_var_')	// those keys are processed
 				continue;
 			i = s[e];							// get element value at source
 			if(i === null){						// if null
@@ -164,7 +165,6 @@ const sys = {
 			}
 			if (typeof i === 'string' && i.startsWith('__') && (i.length === 3 || i[3] === '.')) {
 				d = i.substring(4);
-				console.log("fetching "+ i);
 				switch(i.substring(0, 3)) { 
 				case '__t':
 					t[e] = sys.fetchObject(d, t);
@@ -181,7 +181,7 @@ const sys = {
 					continue;
 				}
 			}
-			if (i.constructor != Object){		// if source is not generic Object
+			if (i.constructor !== Object){		// if source is not generic Object
 				t[e] = i;						// set directly
 				continue;
 			}									// source is generic object...
@@ -209,7 +209,6 @@ const sys = {
 				t[e] = o;
 		}
 	}
-
 };
 
 // Precompiled identifier regexp.
@@ -218,12 +217,12 @@ const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
 const is = {
 	def: x => x !== undefined,										// Checks if argument is defined.
 	asg: x => x !== undefined && x !== null,						// Checks if argument is assigned.
-	str: x => typeof(x) === "string",								// Checks if argument is a string.
+	//str: x => typeof(x) === "string",								// Checks if argument is a string.
 	num: x => typeof(x) === "number",								// Checks if argument is a number.
 	arr: x => Array.isArray(x),										// Checks if argument is an array.
 	fun: x => typeof(x) === "function",								// Checks if argument is a function.
 	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype), // Checks if argument is a plain object: {}.
-	ident: x => is.str(x) && IDENTIFIER_REGEXP.test(x),				// Checks if argument is identifier.
+	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
 	component: x => (x !== undefined && x instanceof Component)

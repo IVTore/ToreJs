@@ -3,7 +3,7 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Control.js: Tore Js base visual control component class.
+  About		: 	Control.js: Tore Js base visual component (control) class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
@@ -13,7 +13,7 @@ import { styler } from "../ctl/Styler.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: Control
-  TASKS: Defines basic behaviours of Tore JS visual controls.
+  TASKS: Defines basic behaviours of Tore JS controls.
   NOTES:
 	*	Parent - Child hierarchy is mapped to standard owner-member system.
 	*	Control defines an interactivity scheme. 
@@ -60,6 +60,7 @@ export class Control extends Component {
 		controlState	: {value: ctl.ALIVE},
 		visible			: {value: true},
 		canFocus		: {value: false},
+		hitOpaque		: {value: false},
 		yieldFocus		: {value: false},
 		
 		dragEnabled		: {value: false, store: true},
@@ -103,7 +104,7 @@ export class Control extends Component {
 	_zIndex = 0;				// Z index.
 	_opacity = 1;				// Opacity (alpha).
 	_tabIndex = 0;				// Tab index.
-	
+		
 	_styleExtra = null;			// Extra style name. 
 	_styleColor = null;			// Color style name.
 	_styleSize = null;			// Size style name.
@@ -114,9 +115,12 @@ export class Control extends Component {
 	_visible = true;			// Visibility setting.
 	_canFocus = true;			// Control can focus or not.
 	_interact = false;			// Interactibility state.
+	_hitOpaque = false;			// When true, transparent control 
+								// surfaces must not interact with
+								// hit events. This is for controls
+								// like Canvas, Image etc.
 	_yieldFocus = false;		// If control must yield focus
 								// to the other controls under it.
-
 	dragEnabled = false;		// If true control is draggable.
 	dropEnabled = false;		// If true control is a dropzone.
 	
@@ -160,10 +164,7 @@ export class Control extends Component {
 		this._computed = getComputedStyle(this._element);
 		this.canFocus = this.class.canFocusDefault;
 		sys.propSet(this._shade, this.class.initialStyle);
-		if (name === sys.LOAD)
-			return;
-		if (init || owner || data)
-			this._initControl(owner, data);
+		this._initControl(name, owner, data, init);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -173,7 +174,9 @@ export class Control extends Component {
 		owner 	: Control	: owner if any.
 		data	: Object	: data if any.
 	——————————————————————————————————————————————————————————————————————————*/
-	_initControl(owner = null, data = null) {
+	_initControl(name = null, owner = null, data = null, init = true) {
+		if (name === sys.LOAD || !init)
+			return;
 		this.controlState = ctl.ALIVE;
 		this._blockValidate = true;
 		if (owner)
@@ -1388,6 +1391,19 @@ export class Control extends Component {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	hitOpaque : Boolean ;
+	  GET : Returns true if control can be only hit at opaque surfaces.
+	  SET : Sets if control can be only hit at opaque surfaces.
+	  INFO:	This is for controls like Image, Canvas etc.
+	——————————————————————————————————————————————————————————————————————————*/
+	get hitOpaque() {
+		return(this._hitOpaque);
+	}
+
+	set hitOpaque(val){
+		this._hitOpaque = !!val;
+	}
+	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	yieldFocus : Boolean ;
 	  GET : Returns true if control can yield focus.
 	  SET : if true flags that control can yield focus.
@@ -1400,8 +1416,8 @@ export class Control extends Component {
 		return(this._yieldFocus);
 	}
 
-	set yieldFocus(value){
-		this._yieldFocus = !!value;
+	set yieldFocus(val){
+		this._yieldFocus = !!val;
 	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: container

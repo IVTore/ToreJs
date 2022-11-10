@@ -19,7 +19,7 @@ import { ctl, Control, Container, Panel, styler } from "../ctl/index.js";
 	The display control manages:
 	1) Browser tab behaviour.
 	2) Focusing of all controls.
-	3) Mouse and Touch events.
+	3) Mouse (and TODO: Touch) events.
 ————————————————————————————————————————————————————————————————————————————*/
 
 class Display extends Panel {
@@ -85,7 +85,7 @@ class Display extends Panel {
 			this._events[e] = sys.bindHandler(this, l[e]);
 			window.addEventListener(e, this._events[e], true);
 		}		
-		this._initControl(core);
+		this._initControl('display', core);
 		this.doViewportResize();
 	}
 
@@ -295,23 +295,23 @@ class Display extends Panel {
 	TASK: Application mouse released over handler.
 	——————————————————————————————————————————————————————————————————————————*/
 	handleMouseUp(e) {
-	var t = this,
-		c,								// current control
-		r,								// current control info
-		o = t._ptrOrg;					// old origin control
+	var c,									// current control
+		r,									// current control info
+		o = this._ptrOrg;					// old origin control
 
-		t._ptrOrg = null;				// clear old origin.
-		if(t._drg){						// If dragging, 
-			t.stopDrag();				// stop and handle it,
-			return;						// done here.
+		this._ptrOrg = null;				// clear old origin.
+
+		// ***********************************************
+		// TODO: handleDragEnd branching.
+		// ***********************************************
+		
+		r = handleMouseEvent(e);			// Pre-process mouse event.
+		c = r.c;							// Get current control under mouse.
+		if (c) {							// If there is a control,
+			c.doPointerUp(r.x, r.y, e);		// Send a pointer up event,
+			if (o === c)					// If old and current is same,
+				this.hitChk(c, r.x, r.y);	// process if there is a pointer hit.
 		}
-		r = handleMouseEvent(e);		// Pre-process mouse event.
-		c = r.c;						// Get current control under mouse.
-		if (c) {						// If there is a control,
-			c.doPointerUp(r.x, r.y, e);	// Send a pointer up event,
-			if (o === c)				// If old and current is same,
-				t.hitChk(c, r.x, r.y);	// process if there is a pointer hit.
-		}		
 	}
 	
 
@@ -449,7 +449,7 @@ class Display extends Panel {
 	————————————————————————————————————————————————————————————————————————————*/
 	handleKeyUp(e) {
 		e = e || window.event;				// access event object
-		if (e.keyCode == 9){
+		if (e.keyCode === 9){
 			e.stopImmediatePropagation();
 			e.preventDefault();
 			this.reFocus();
@@ -466,7 +466,7 @@ class Display extends Panel {
 			ncon;
 		
 		e = e || window.event;				// access event object
-		if(e.keyCode == 9){
+		if(e.keyCode === 9){
 			e.stopImmediatePropagation();
 			e.preventDefault();
 			ncon = t._curCon;

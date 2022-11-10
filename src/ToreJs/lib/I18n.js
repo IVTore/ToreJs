@@ -62,15 +62,9 @@ class I18n extends Component {
 	  TASK:	Modifies member attachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	attach(component = null){
-	var t = this,
-		n;
-
 		if (!super.attach(component))
 			return false;
-		n = component.name;
-		if (t._seq.indexOf(n) < 0)
-			t._seq.push(n);
-		if (t._seq.indexOf(n) == 0)
+		if (sys.addUnique(this._seq, component.name) === 0)
 			core.doLanguageChange();
 		return true;
 	}
@@ -80,18 +74,17 @@ class I18n extends Component {
 	  TASK:	Modifies member detachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
-	var t = this,
-		i;
+	var i;
 
 		if (!super.detach(component))
 			return false;
-		i = (t._seq) ? t._seq.indexOf(component.name) : -1;
+		i = (this._seq) ? this._seq.indexOf(component.name) : -1;
 		if (kill)
 			component.destroy();
 		if (i < 0)
 			return true;
-		t._seq.splice(i, 1);
-		if (i == 0)
+		this._seq.splice(i, 1);
+		if (i === 0)
 			core.doLanguageChange();
 		return true;
 	}
@@ -112,19 +105,18 @@ class I18n extends Component {
 			until data is found. 
 			If data is not found selector is returned.
 	———————————————————————————————————————————————————————————————————————————*/
-	find(selector = null, language = null){
-	var t = this,
-		r,
-		i,
-		s = (is.str(language)) ? language : t._seq[0];
+	find(selector = null, language = null) {
+		var	r,
+			i,
+			s = (is.str(language)) ? language : this._seq[0];
 		
-		if (!is.str(selector))
+		if (typeof selector !== 'string')
 			exc("E_INV_ARG", "selector");
-		r = t._mem[s][selector];
+		r = this._mem[s][selector];
 		if (r)
 			return(r);
-		for(i in t._seq){
-			r = t._mem[t._seq[i]][selector];
+		for(i in this._seq){
+			r = this._mem[this._seq[i]][selector];
 			if (r)
 				return(r);
 		}
@@ -138,23 +130,20 @@ class I18n extends Component {
 	  INFO: Active language is the first language at sequence.
 	————————————————————————————————————————————————————————————————————————————*/
 	get language() {
-		var t = this;
-				
-		if (!t._sta || t._seq.length == 0) 
+		if (!this._sta || this._seq.length == 0) 
 			return null;
-		return t._seq[0];
+		return this._seq[0];
 	}
 
-	set language(value = null) {
-		var t = this,
-			s = t._seq;
+	set language(val = null) {
+		var s = this._seq;
 
-		if (!t._sta || s.length == 0 || !is.str(value) || !t._mem[value])
-			exc('E_LANG_SET', value);
-		if (s[0] == value)
+		if (!this._sta || s.length == 0 || typeof val !== 'string' || !this._mem[val])
+			exc('E_LANG_SET', val);
+		if (s[0] === val)
 			return;
-		s.splice(s.indexOf(value), 1);
-		s.unshift(value);
+		s.splice(s.indexOf(val), 1);
+		s.unshift(val);
 		core.doLanguageChange();
 	}
 
@@ -196,10 +185,8 @@ class I18n extends Component {
 			if ((a.indexOf(s) === -1) && (t._mem[s]))
 				a.push(s);
 		}
-		for(i in t._mem){
-			if (a.indexOf(i) === -1)
-				a.push(i)
-		}
+		for(i in t._mem)
+			sys.addUnique(a, i);
 		t._seq = a;
 		t.language = l;
 	}

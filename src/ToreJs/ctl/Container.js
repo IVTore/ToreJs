@@ -8,11 +8,11 @@
 ——————————————————————————————————————————————————————————————————————————*/
 
 import { is, sys, core } from "../lib/system.js";
-import { Control } from "../ctl/Control.js";
+import { Control } from "./Control.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Container
-  TASKS: Defines Container control class. 
+  TASKS: Defines Container base control class. 
 		 Container class is the anchestor of all control classes which 
 		 need automatic management of focusing and tab ordering for sub 
 		 controls.
@@ -44,15 +44,12 @@ export class Container extends Control {
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
 		super(name, null, null, false);
-		if (name === sys.LOAD)
-			return;
-		if (init || owner || data)
-			this._initControl(owner, data);
+		this._initControl(name, owner, data, init);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy.
-	  TASK: Destroys the control.
+	  TASK: Destroys the container.
 	————————————————————————————————————————————————————————————————————————————*/
 	destroy() {
 		var t = this;
@@ -71,6 +68,10 @@ export class Container extends Control {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: makeElement [override].
 	  TASK: Builds and binds a document object model element to control.
+			Containers are made of two divs.
+			Outer div is absolute positioned.
+			Inner div is relative positioned and is a wrapper.
+			This way the coordinate consistency is preserved.
 	——————————————————————————————————————————————————————————————————————————*/
 	makeElement() {
 		var s;
@@ -89,7 +90,7 @@ export class Container extends Control {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: killElement [override].
-	  TASK: Frees control from its document object model element.
+	  TASK: Frees container from its DOM elements.
 	——————————————————————————————————————————————————————————————————————————*/
 	killElement() {
 		var e = this._wrapper;

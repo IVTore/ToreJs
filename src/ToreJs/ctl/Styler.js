@@ -289,7 +289,7 @@ function applyDynamicRules(t) {
 				style[n] = r[t._vnm];
 				continue;
 			}
-			if (is.str(r.df)){
+			if (typeof r.df === 'string'){
 				style[n] = r.df;
 				continue;
 			}

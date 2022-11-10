@@ -42,18 +42,17 @@ export class TObject {
 			state to DEAD. Every descendant should define destroy and call
 			super.destroy();
 	———————————————————————————————————————————————————————————————————————————*/
-	destroy(){
-		var t = this,
-			c = t.constructor.cdta || {},
+	destroy() {
+		var c = this.constructor.cdta || {},
 			i;
 		
-		if (!t._sta)					// dead already
+		if (!this._sta)					// dead already
 			return;
-		t._sta = sys.DEAD;
-		for(i in t){					// wipe dynamics
-			if (c[i] || (i[0]==='_'))
+		this._sta = sys.DEAD;
+		for(i in this){					// wipe dynamics
+			if (c[i] || i[0]==='_')
 				continue;
-			delete t[i];
+			delete this[i];
 		}
 	}
 
@@ -64,34 +63,33 @@ export class TObject {
 	  INFO:	Published properties with the default values are not saved.
 			Dynamic properties are saved without such optimization.
 	———————————————————————————————————————————————————————————————————————————*/
-	saveState(){
-	var t = this,						// fetch self
-		cdta = t.constructor.cdta,		// get class data
-		stat = t._sta,					// get current state
+	saveState() {
+	var cdta = this.constructor.cdta,		// get class data
+		stat = this._sta,					// get current state
 		prop,
 		i,
 		v,
 		r = {};
 		
-		t.checkDead()
-		t._sta = sys.SAVE;				// set state to SAVE
+		this.checkDead()
+		this._sta = sys.SAVE;			// set state to SAVE
 		for(i in cdta) {
 			prop = cdta[i];				// get prop info at class data
 			if (!prop.store)			// if not storable, ignore
 				continue;
-			v = t[i];					// get value
+			v = this[i];				// get value
 			if (prop.value === v)		// if value is default, ignore
 				continue;
 			r[i] = v;
 		}
-		for(i in t){
-			if (i[0] === '_') 			// if hidden.
+		for(i in this){
+			if (i[0] === '_') 			// skip if protected.
 				continue;
-			if (cdta[i])				// if prop.
+			if (cdta[i])				// skip if property.
 				continue;
-			r[i] = t[i];
+			r[i] = this[i];
 		}
-		t._sta = stat;					// set state back
+		this._sta = stat;				// set state back
 		return({p:r});					// props
 	}
 

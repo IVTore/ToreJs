@@ -21,6 +21,7 @@ var p1 = new Panel("p1", display, {
 	layout: "vertical",
 	contentAlign: 'center',
 	autoX: "center",
+	autoY: "center",
 	autoWidth: "fit",
 	autoHeight: "fit",
 	splitX: 1,

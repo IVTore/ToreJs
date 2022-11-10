@@ -110,7 +110,10 @@ export class EventHandler extends TObject {
 			If set value is string, component is fetched by sys.fetchObject().
 	  		Throws exception if not a component descendant.
 	——————————————————————————————————————————————————————————————————————————*/
-	get target(){ return this._tar;}
+	get target() { 
+		return this._tar;
+	}
+
 	set target(val) {
 		setEventHandlerTarget(this, val);
 	}
@@ -124,9 +127,12 @@ export class EventHandler extends TObject {
 				method already given.
 				target component assigned and method does not exist.
 	——————————————————————————————————————————————————————————————————————————*/
-	get method(){ return this._met;}
-	set method(value){
-		setEventHandlerMethod(this, value);
+	get method() {
+		return this._met;
+	}
+
+	set method(val) {
+		setEventHandlerMethod(this, val);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————

@@ -56,13 +56,42 @@ const sys = {
 
 	registerClass: registerClass,
 	
+	/*———————————————————————————————————————————————————————————————————————————
+	  FUNC:	classByName
+	  TASK:	Tries to fetch a constructor of a class with given name.
+	  		class constructor must be registered before.
+	  ARGS:	
+		name : String		: Class name.
+	  RETV:	 : Constructor 	: If registered the class constructor else null.
+	———————————————————————————————————————————————————————————————————————————*/
 	classByName: function(name = null) {
 	var ctor;
 		
-		if (!is.str(name))
+		if (typeof name !== 'string')
 			return null;
 		ctor = classes[name];
 		return (!ctor) ? null : ctor;			
+	},
+
+	/*———————————————————————————————————————————————————————————————————————————
+	  FUNC:	addUnique
+	  TASK:	Adds an item to array if it is not already added.
+	  ARGS:	
+		array	: Array		: Array to add item to.
+		item	: *			: Item to add.
+	  RETV:		: number	: Index of item.
+	  INFO:
+		*	Throws exception if array argument is null or not an array.
+	———————————————————————————————————————————————————————————————————————————*/
+	addUnique: function(array = null, item = null) {
+		var i;
+
+		if (!is.arr(array))
+			exc('E_INV_ARG', 'array');
+		i = array.indexOf(item);
+		if (i > -1)
+			return i;
+		return array.push(item) - 1;
 	},
 
 	/*———————————————————————————————————————————————————————————————————————————
@@ -145,7 +174,7 @@ const sys = {
 		   !TComponent	!TComponent		ignored	(true  - add as variable)
 		When _var_ defaults to true, it is not overridable.
 
-		Tricky string values:
+		Tricky object designator string values:
 			propName: 	"__t." will fetch from "this" and assign.
 			propName: 	"__p." will fetch from parent of "this" and assign.
 			propName: 	"__c." will fetch from core and assign.
@@ -163,6 +192,7 @@ const sys = {
 				t[e] = i;						// set directly
 				continue;
 			}
+			// Tricky object designator string value evaluator.
 			if (typeof i === 'string' && i.startsWith('__') && (i.length === 3 || i[3] === '.')) {
 				d = i.substring(4);
 				switch(i.substring(0, 3)) { 
@@ -217,7 +247,6 @@ const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
 const is = {
 	def: x => x !== undefined,										// Checks if argument is defined.
 	asg: x => x !== undefined && x !== null,						// Checks if argument is assigned.
-	//str: x => typeof(x) === "string",								// Checks if argument is a string.
 	num: x => typeof(x) === "number",								// Checks if argument is a number.
 	arr: x => Array.isArray(x),										// Checks if argument is an array.
 	fun: x => typeof(x) === "function",								// Checks if argument is a function.

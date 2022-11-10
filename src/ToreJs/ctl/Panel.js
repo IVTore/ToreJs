@@ -8,16 +8,67 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { is, sys } from "../lib/index.js";
-import { ctl, Control, Container } from "../ctl/index.js";
+import { ctl, Control, Container } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Panel
-  TASKS: Panel is a container supporting automatic layout of sub controls.
+  TASKS: 
+	Panel is a container supporting automatic layout of sub controls.
+  	
+	Sub control layout is interdependant on:
+		
+	layout	: null or string.
+			if null there is no layout.
+			if 'horizontal' controls are laid horizontally.
+			if 'vertical' controls are laid vertically. 
+	
+	wrap : boolean.
+			if true controls are wrapped while laid.
+			if false controls are laid linearly.
+
+	sequence: array.
+			Contains the names of controls effected from layout and 
+			their laying order.
+
+	rightToLeft : boolean.
+			if true controls are laid from right to left.
+
+	contentAlign : null or string.
+			Valid when wrap is false so controls are laid linearly.
+			If layout is 'horizontal' :
+					if 'center', controls are vertically centered. 
+					if 'bottom', controls are aligned bottom.
+					else , controls are aligned top.
+			If layout is 'vertical' :
+					if 'center', controls are horizontally centered. 
+					if 'right', controls are aligned right.
+					else , controls are aligned left.
+
+	splitX : number.
+			Horizontal split distance between controls in pixels.
+
+	splitY : number.
+			Vertical split distance between controls in pixels.
+
+	width / autoWidth and height / autoHeight:
+			These are limiting factors for layout.
+
+		1) Only members in sequence array are effected.
+		2) When layout is null nothing is done.
+		3) When there is layout:
+			a)	If wrap is true sequenced controls will be fitted into
+				panel via wrapping if their coordinates overflow.
+			b)	Sequenced control autoX and autoY will be set to null.
+				anchorRight and anchorBottom will be set to false.
+			d)	When autoHeight or autoWidth is "fit", respective width or
+				height of panel becomes dependant to both content and 
+				its containers
 ——————————————————————————————————————————————————————————————————————————*/
 export class Panel extends Container {
 
 	static canFocusWhenEmpty = false;
-
+	static canFocusDefault = true;
+	
 	// Property publishing map.
 	static cdta = {
 		splitX		: {value: 0},
@@ -29,12 +80,12 @@ export class Panel extends Container {
 		contentAlign : {value: null}
 	};
 
+	_layout = null;
+	_wrap = false;
 	_splitX = 0;
 	_splitY = 0;
 	_sequence = null;
 	_rightToLeft = false;
-	_layout = null;
-	_wrap = false;
 	_contentAlign = null;
 	_calculating = false;
 
@@ -49,10 +100,7 @@ export class Panel extends Container {
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
 		super(name, null, null, false);
-		if (name == sys.LOAD)
-			return;
-		if (init || owner || data)	
-			this._initControl(owner, data);
+		this._initControl(name, owner, data, init);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -86,8 +134,7 @@ export class Panel extends Container {
 			return true;
 		if (sequence) {
 			this._sequence = this._sequence || [];
-			if (this.sequenceIdx(component) === -1)
-				this._sequence.push(component.name);
+			sys.addUnique(this._sequence, component.name);
 		}
 		this.autoAdjust();
 		return true;
@@ -148,20 +195,20 @@ export class Panel extends Container {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: widthToContent
+	  FUNC: widthToFit
 	  TASK: Sets width to fit the content.
 	  RETV: 	: Boolean : True if width changed.
-	  INFO: This is called when autoWidth = "content".
+	  INFO: This is called when autoWidth = "fit".
 	——————————————————————————————————————————————————————————————————————————*/
 	widthToFit() {
 		return this._widthByMembers();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: heightToContent
+	  FUNC: heightToFit
 	  TASK: Sets height to fit the content.
 	  RETV: 	: Boolean : True if height changed.
-	  INFO: This is called when autoHeight = "content".
+	  INFO: This is called when autoHeight = "fit".
 	——————————————————————————————————————————————————————————————————————————*/
 	heightToFit() {
 		return this._heightByMembers();
@@ -170,18 +217,6 @@ export class Panel extends Container {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: calcLayout
 	  TASK: Sets the coordinates of sub control(s) in panel.
-	  INFO: 
-	  	Sub control layout is interdependant on	layout, sequence, rightToLeft, 
-		wrap, width / autoWidth and height / autoHeight.
-		1) Only members in sequence array are effected.
-		2) When layout is "none" nothing is done.
-		3) When there is layout:
-			a)	splitX, splitY, wrap and rightToLeft are effective.
-			b)	If wrap is true sub controls will be fitted into panel via 
-				wrapping if their coordinates overflow.
-			c)	Sub control autoX and autoY will be set to null.
-			d)	When autoHeight or autoWidth is "content", respective width or 
-				height of panel becomes dependant to content, not its containers
 	——————————————————————————————————————————————————————————————————————————*/
 	calcLayout() {
 		var t = this,
@@ -217,7 +252,7 @@ export class Panel extends Container {
 	  RETV: 		: number  : The member index in sequence or -1 if 
 	  							there is no sequence or
 	  							member is not a control or
-								member is not a member or
+								member is not a member of panel or
 								member is not sequenced.
 	——————————————————————————————————————————————————————————————————————————*/
 	sequenceIdx(member = null){
@@ -297,11 +332,10 @@ export class Panel extends Container {
 		this.contentChanged();
 	}
 
-	/*———————————————————————————————————————————————————————————————————————————
+	/*——————————————————————————————————————————————————————————————————————————
 	  PROP: wrap : Boolean;
-	  GET : Gets if subcontrols are wrapped in layout when out of bounds.
-	  SET : Sets if subcontrols are wrapped in layout when out of bounds.
-	  INFO: Ineffective if layout is 'none'		
+	  GET : Gets if sequenced controls are wrapped in layout when out of bounds.
+	  SET : Sets if sequenced controls are wrapped in layout when out of bounds.
 	——————————————————————————————————————————————————————————————————————————*/
 	get wrap() {
 		return this._splitY;
@@ -315,7 +349,7 @@ export class Panel extends Container {
 		this.contentChanged();
 	}
 
-	/*————————————————————————————————————————————————————————————————————————————
+	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	sequence : Array;
 	  GET : Gets layout sequence of panel.
 	  SET : Sets layout sequence of panel.
@@ -325,7 +359,7 @@ export class Panel extends Container {
 	}
 
 	set sequence(val = null) {
-	var n = [],							// new sequence
+	var n = [],								// new sequence
 		c;
 
 		if (this._sta === sys.LOAD){		// Sequence at load
@@ -343,7 +377,7 @@ export class Panel extends Container {
 		for(c in val){
 			if (!(this._mem[val[c]] instanceof Control))
 				continue;
-			n.push(val[c]);
+			sys.addUnique(n, val[c]);
 		}
 		if (n.length == 0)
 			n = null;

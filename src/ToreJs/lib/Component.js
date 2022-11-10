@@ -74,20 +74,21 @@ export class Component extends TObject {
 	  INFO: Detaches events, owner and all members. Destroys all members.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy() {
-	var t = this,
-		k;
+	var k;
 	
-		if(!t._sta)							// already dead
+		if(!this._sta)						// already dead
 			return;
-		for(k in t._hdt)					// unhook incoming events
-			t._hdt[k].destroy();
-		for(k in t._eve)					// unhook outgoing events
-			t.setEvent(k, null);
-		for(k in t._mem)					// destroy members
-			t._mem[k].destroy();
-		t._mem = null;
-		if (t._own)							// detach from owner
-			t._own.detach(t);
+		if (this._own)						// detach from owner
+			this._own.detach(this);
+		for(k in this._hdt)					// unhook incoming events
+			this._hdt[k].destroy();
+		for(k in this._eve)					// unhook outgoing events
+			this.setEvent(k, null);
+		for(k in this._mem)					// destroy members
+			this._mem[k].destroy();
+		this._hdt = null;
+		this._eve = null;
+		this._mem = null;
 		super.destroy();					// inherited destroy
 	}
 
@@ -100,16 +101,15 @@ export class Component extends TObject {
 		Without owner candidate, name can not be computed.
 	——————————————————————————————————————————————————————————————————————————*/
 	autoname(ownerCandidate = null) {
-		var t = this,
-			i = 1,
+		var i = 1,
 			n;
 
 		if (!ownerCandidate)
 			return;
-		n = t.class.name.toLowerCase();
+		n = this.class.name.toLowerCase();
 		while(true) {
-			if (!ownerCandidate[n+i]) {
-				t.name = n+i;
+			if (!ownerCandidate[ n + i ]) {
+				this.name = n + i;
 				return;
 			}
 			i++;
@@ -153,41 +153,40 @@ export class Component extends TObject {
 			false	:	Raises exception.
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
-	var t = this,
-		allow = t.class.allowMemberClass,
-		write = t.class.allowMemberOverwrite,
-		event = t.onAttach,
+	var allow = this.class.allowMemberClass,
+		write = this.class.allowMemberOverwrite,
+		event = this.onAttach,
 		c = component,
 		o,
 		n;
 		
-		t.checkDead();
+		this.checkDead();
 		if (!c)
 			exc('E_MEM_NULL', 'component');
 		if (!allow)
-			exc('E_MEM_NOT_ALLOWED', t.class.name);
+			exc('E_MEM_NOT_ALLOWED', this.class.name);
 		if (!(c instanceof allow))			// if c is not permitted
 			exc('E_MEM_RESTRICTED', 'component: ! '+ allow.class.name);
-		if (c._own === t)					// if already attached to this
+		if (c._own === this)				// if already attached to this
 			return(false);
-		o = t;
+		o = this;
 		while(o) {							// test if biting own tail
 			if (c === o)
-				exc('E_MEM_RING', t.namePath +"<-"+ c._nam);
+				exc('E_MEM_RING', this.namePath +"<-"+ c._nam);
 			o = o._own;
 		}
 		if (!c._nam)						// If component is not named.
-			c.autoname(t);					// give it a name.
+			c.autoname(this);				// give it a name.
 		n = c._nam;							// get name
-		if (write && t._mem[n])				// if overwritable and has member
-			t._mem[n].destroy();			// destroy old member
-		if (n in t)							// If has element with same name
+		if (write && this._mem[n])			// if overwritable and has member
+			this._mem[n].destroy();			// destroy old member
+		if (n in this)						// If has element with same name
 			exc('E_MEM_NAME', n);
 		if (c._own)							// If has an owner.
 			c._own.detach(c);				// detach from it.
-		c._own = t;
-		t._mem[n] = c;
-		Object.defineProperty( t, n, {
+		c._own = this;
+		this._mem[n] = c;
+		Object.defineProperty( this, n, {
 				get:function(){return(this._mem[n]);},
 				enumerable: false,
 				configurable: true			// deletable.
@@ -195,7 +194,7 @@ export class Component extends TObject {
 		);
 		c.doAttached();						// Inform component.
 		if (event)
-			event.dispatch([t, c]);
+			event.dispatch([this, c]);
 		return(true);
 	}
 	
@@ -209,22 +208,21 @@ export class Component extends TObject {
 	  RETV: 		: Boolean	 : True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
-	var t = this,
-		c = component,
-		event = t._eve.onDetach;
+	var c = component,
+		event = this._eve.onDetach;
 		
-		t.checkDead();
-		if (!is.component(c))				// if not a component exception
+		this.checkDead();
+		if (!(c instanceof Component))		// if not a component exception
 			exc('E_ARG_INV','component');
-		if (c._own != t)					// if barking at the wrong tree
+		if (c._own !== this)				// if barking at the wrong tree
 			return false;
 		if (event)							// dispatch if event exists
-			event.dispatch([t, c]);
-		c._own = null;						// detach
-		delete t[c._nam];					// delete getter.
-		delete t._mem[c._nam];				// remove.
+			event.dispatch([this, c]);
+		c._own = null;						// detach member.
+		delete this[c._nam];				// delete getter.
+		delete this._mem[c._nam];			// remove.
 		c.doDetached(this);					// Inform component.
-		if (kill)
+		if (kill)							// If kill required do it.
 			c.destroy();
 		return true;
 	}
@@ -255,14 +253,11 @@ export class Component extends TObject {
 		has no effect on members.
 	———————————————————————————————————————————————————————————————————————————*/
 	members(ofClass = Component, filter = null) {
-	var t = this, 
-		r = [],
+	var r = [],
 		nam,
-		mem,
 		itm;	
 
-		function add(){
-			mem = t._mem[nam];
+		function collect(mem){
 			if (!(mem instanceof ofClass))	// if class is not ok
 				return;
 			for(itm in filter) {
@@ -272,11 +267,11 @@ export class Component extends TObject {
 			r.push(mem);
 		}
 	
-		t.checkDead();
+		this.checkDead();
 		if(!ofClass)						// check class filter
 			ofClass = Component;	
-		for(nam in t._mem)					// look members
-			add();							// collect if possible.
+		for(nam in this._mem)				// look members
+			collect(this._mem[nam]);		// collect if possible.
 		return(r);
 	}
 
@@ -318,16 +313,17 @@ export class Component extends TObject {
 	  ARGS:	
 		name	: String		: name of the event.
 		handler	: EventHandler	: Event handler target object.
-	  INFO:	This checks the event and the handler then assigns them.
+	  INFO:
+		* This checks the event and the handler then assigns them.
+		* This method is used internally, direct calls are unnecessary.
 	——————————————————————————————————————————————————————————————————————————*/
 	setEvent(name = null, handler = null){
-	var t = this,
-		h = t._eve[name],
-		d = t.constructor.cdta[name],
+	var h = this._eve[name],
+		d = this.constructor.cdta[name],
 		hndNul = (handler === null),
 		hndIns = (handler instanceof EventHandler);
 
-		t.checkDead();
+		this.checkDead();
 		if (!d || !d.event)					// if not an event, exception
 			exc('E_EVENT_INV', name);
 		if (!hndNul && h && h === handler)	// Same?.
@@ -364,14 +360,19 @@ export class Component extends TObject {
 	  RETV:		: Object 
 	  INFO:	Published properties with the default values are not saved.
 			Dynamic properties are saved without such optimization.
+			result data is:
+			{
+				p: {published properties with non default values and 
+					dynamic variables},
+				m: {members},
+				e: {events}
+			}
 	———————————————————————————————————————————————————————————————————————————*/
 	saveState() {
-	var t = this,
-		r;
+	var r = super.saveState(); 	// call inherited
 		
-		r = super.saveState(); 	// call inherited
-		r['m']= t._mem;
-		r['e']= t._eve;
+		r['m'] = this._mem;
+		r['e'] = this._eve;
 		return(r);
 	}
 	
@@ -380,11 +381,10 @@ export class Component extends TObject {
 	  TASK:	Signals component that loading (deserialization) is complete.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete() {
-	var t = this,
-		d = t.onLoadComplete;
+	var d = this.onLoadComplete;
 		
 		if (d)
-			d.dispatch([t]);
+			d.dispatch([this]);
 		super.doLoadComplete();
 	}
 	
@@ -392,16 +392,14 @@ export class Component extends TObject {
 	  FUNC:	doLanguageChange
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
-	doLanguageChange(){
-	var t = this,
-		d = t.onLanguageChange,
+	doLanguageChange() {
+	var event = this.onLanguageChange,
 		n;
-		
-		
-		if (d)
-			d.dispatch([t]);
-		for(n in t._mem)					// propagate to members
-			t._mem[n].doLanguageChange();
+
+		if (event)
+			event.dispatch([this]);
+		for(n in this._mem)					// propagate to members
+			this._mem[n].doLanguageChange();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -413,27 +411,25 @@ export class Component extends TObject {
 		return(this._nam);
 	}
 		
-	set name(value) {
-	var t = this;	
-	
-		if (value == t._nam)
+	set name(val) {
+		if (val == this._nam)
 			return;
-		if (!is.ident(value))
-			exc('E_NAME_SYNTAX', value);
-		if (t._own){
-			if (value in t._own)
-				exc('E_NAME_CLASH', t.own.name + "." + value);
-			delete t._own[t._nam];
-			delete t._own._mem[t._nam];
-			t._own._mem[value] = t;
-			Object.defineProperty( t, n, {
-					get:function(){return(this._mem[n]);},
+		if (!is.ident(val))
+			exc('E_NAME_SYNTAX', val);
+		if (this._own){
+			if (val in this._own)
+				exc('E_NAME_CLASH', this.own.name + "." + val);
+			delete this._own[this._nam];
+			delete this._own._mem[this._nam];
+			this._own._mem[val] = this;
+			Object.defineProperty( this, val, {
+					get:function(){return(this._mem[val]);},
 					enumerable: false,
 					configurable: true			// deletable.
 				}
 			);
 		}
-		t._nam = value;
+		this._nam = val;
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -441,8 +437,7 @@ export class Component extends TObject {
 	  GET : Returns the global component name path string.
 	————————————————————————————————————————————————————————————————————————————*/
 	get namePath(){
-	var t = this;
-		return((t._own ? t._own.namePath + '.' : '') + t._nam);
+		return((this._own ? this._own.namePath + '.' : '') + this._nam);
 	}
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP: owner

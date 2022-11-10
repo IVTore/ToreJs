@@ -41,15 +41,14 @@ export class Label extends Control {
 		owner	: Component	: Owner of the new control if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
-	constructor(name = null, owner = null, data = null) {
+	constructor(name = null, owner = null, data = null, init = true) {
 		super(name, null, null, false);
 		this._shade.whiteSpace = "pre";
 		this._shade.textAlign = "left";
 		this._autosize = true;
-		if (name == sys.LOAD)
-			return;
-		this.text = this._nam;
-		this._initControl(owner, data);
+		if (name !== sys.LOAD)
+			this.text = this._nam;
+		this._initControl(name, owner, data, init);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————

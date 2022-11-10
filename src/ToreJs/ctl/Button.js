@@ -52,10 +52,7 @@ export class Button extends Panel {
         this._layout = "horizontal";
         this._contentAlign = "center";
         this._tabsLoop = false;
-        if (name == sys.LOAD)
-            return;
-        if (init || owner || data)
-            this._initControl(owner, data);
+        this._initControl(name, owner, data, init);
     }
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -113,7 +110,7 @@ export class Button extends Panel {
             l;
         
         super.controlState = val;
-        if (i == this._ctlState)
+        if (i === this._ctlState)
             return;
         l = this.members(Control, {canFocus: false});
         for(i in l)
@@ -155,7 +152,7 @@ export class Button extends Panel {
     set group(value = 0){
         var l;
 
-        if (this._group == value)
+        if (this._group === value)
             return;
         this._group = value;
         if (!this._own)
@@ -174,19 +171,19 @@ export class Button extends Panel {
         return(this._allowAllUp);
     }
 
-    set allowAllUp(value){
+    set allowAllUp(val){
         var l,
             c;
 
-        value = !!value;
-        if (value == this._allowAllUp)
+        val = !!val;
+        if (val === this._allowAllUp)
             return;
-        this._allowAllUp = value;
+        this._allowAllUp = val;
         if (!this._own)
             return;
         l = this._own.members(Button, {group: t._group});
         for(c in l)
-            l[c]._allowAllUp = value;
+            l[c]._allowAllUp = val;
     }
 } 
 

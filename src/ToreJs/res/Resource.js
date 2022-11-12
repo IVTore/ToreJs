@@ -22,14 +22,15 @@ export class Resource extends Component {
 	static cdta = {
 		links: {value: null},
 		source: {value: null},
-		alwaysLoad: {value: true},
+		loadSmall: {value: true},
 	}
 
 	_lnk = null;			// linked controls array.
 	_src = null;			// source data.
-	_alwaysLoad = true;		// When viewport gets smaller force loading
+	_loadSmall = true;		// When viewport gets smaller force loading
 							// of a smaller resource even though a higher
 							// viewport resource is present.
+	
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
@@ -49,45 +50,63 @@ export class Resource extends Component {
 	  TASK: Destroys resource component along with asset data.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy() {
+		this.links = null;
 		super.destroy();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addLink.
-	  TASK: Links a control to resource.
-	  ARGS: control	: Control : The control to link to resource.
-	  INFO: Throws exception if control is invalid.
+	  TASK: Links a resourced control to resource.
+	  ARGS: resCtl : ResControl : The resourced control to attach to resource.
+	  INFO: Throws exception if resourced control is invalid.
 	——————————————————————————————————————————————————————————————————————————*/
 	addLink(resCtl = null) {
+		var i;
+
 		if (!(resCtl instanceof ResControl))
-			exc('E_INV_ARG', 'control');
+			exc('E_INV_ARG', 'resCtl !ResControl');
 		if (!resCtl.state)
-			exc('E_INV_ARG', 'control: '+ resCtl._nam + ' destroyed.');
+			exc('E_INV_ARG', 'resCtl: '+ resCtl._nam + ' destroyed.');
 		this._lnk = this._lnk || [];
-		sys.addUnique(this._lnk, resCtl);
+		i = this._lnk.indexOf(resCtl);
+		if (i !== -1)
+			return;
+		this._lnk.push(resCtl);
+		resCtl.doResourceAttach(this);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: delLink.
-	  TASK: Deletes the link between the control and resource.
-	  ARGS: control	: Control : The control to delete link to resource.
+	  TASK: Deletes the link between the resourced control and resource.
+	  ARGS: resCtl : ResControl : The resourced control to detach from resource.
 	——————————————————————————————————————————————————————————————————————————*/
-	delLink(control = null) {
-	var i;
-
-		if (!control || !this._lnk)
+	delLink(resCtl = null) {
+		if (!resCtl || !this._lnk)
 			return;
-		i = this._lnk.indexOf(control);
+		i = this._lnk.indexOf(resCtl);
 		if (i === -1)
 			return;
+		resCtl.doResourceDetach(this);
 		this._lnk.splice(i, 1);
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: hasLink.
+	  TASK: Returns true if resCtl is linked to resource.
+	  ARGS: resCtl : Control : The control to check link to resource.
+	——————————————————————————————————————————————————————————————————————————*/
+	hasLink(resCtl = null) {
+		return this._lnk ? this._lnk.indexOf(resCtl) > -1 : false;
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	links : array.
 	  GET : Returns a copy of linked controls array.
 	  SET : Sets the linked controls array.
-	  INFO: addLink and delLink are preferred methods.
+	  INFO: Set method serves for; 
+			1] Assignment with a single command.
+			2] sys.propSet() or constructor data parameter. 
+			3] Deserialization.
 	————————————————————————————————————————————————————————————————————————————*/
 	get links() {
 		if (this._lnk === null || this.lnk.length === 0)
@@ -96,9 +115,22 @@ export class Resource extends Component {
 	}
 
 	set links(val = null) {
-		if (val === null){
-			if (this._lnk)
+		var i,
+			l;
+
+		if (val !== null && !Array.isArray(val))
+			exc('E_INV_ARG', 'val != null && class != Array');
+		if (this._lnk) {
+			l = this._lnk.length();
+			for(i = 0; i < l; i++)
+				this._lnk[i].doResourceDetach(this);
+			this._lnk = null;
 		}
+		if (val === null)
+			return;
+		l = val.length();
+		for(i = 0; i < l; i++)
+			this.addLink(val[i]);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————

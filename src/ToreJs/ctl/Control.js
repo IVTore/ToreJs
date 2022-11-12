@@ -1364,7 +1364,7 @@ export class Control extends Component {
 		var c;
 
 		value = !!value;
-		if (value == (this._ctlState != ctl.SLEEP))
+		if (value === (this._ctlState != ctl.SLEEP))
 			return;
 		this.controlState = (value) ? ctl.ALIVE : ctl.SLEEP;
 		for(c of this._ctl)
@@ -1381,10 +1381,10 @@ export class Control extends Component {
 		return(this._canFocus);
 	}
 
-	set canFocus(value){
-		var v = !!value;
+	set canFocus(val){
+		var v = !!val;
 
-		if (this._canFocus == v)
+		if (this._canFocus === v)
 			return;
 		this._canFocus = v;
 		this.checkEvents();
@@ -1403,6 +1403,7 @@ export class Control extends Component {
 	set hitOpaque(val){
 		this._hitOpaque = !!val;
 	}
+
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	yieldFocus : Boolean ;
 	  GET : Returns true if control can yield focus.
@@ -1456,7 +1457,7 @@ function cascadeShowing(t, showing = false) {
 	var c,
 		v = (showing) ? 'visible': 'hidden';
 
-	if (t._element.style.visibility != v) {
+	if (t._element.style.visibility !== v) {
 		t._shade.visibility = v;
 		t.invalidate();
 	}

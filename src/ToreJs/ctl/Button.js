@@ -58,8 +58,11 @@ export class Button extends Panel {
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
 	  TASK:	
-		Attaches a member component to the button, if new component 
-		is a control, makes it unfocusable, and yielding focus to the button.
+		Attaches a member component to the button.
+		If new component is a control, 
+			makes it unfocusable, 
+			yielding focus to the button,
+			adds it to layout sequence.
 	  ARGS:
 		component		: Component :	new member component :DEF: null.
 	  RETV: Boolean		: True on success

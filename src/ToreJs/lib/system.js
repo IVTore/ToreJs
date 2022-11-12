@@ -86,7 +86,7 @@ const sys = {
 	addUnique: function(array = null, item = null) {
 		var i;
 
-		if (!is.arr(array))
+		if (!Array.isArray(array))
 			exc('E_INV_ARG', 'array');
 		i = array.indexOf(item);
 		if (i > -1)

@@ -33,7 +33,7 @@ var p1 = new Panel("p1", display, {
 	},
 	hndVpTtl: function (sender) {
 		var style = getComputedStyle(sender._element);
-		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + styler.viewportSizeName;
+		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + styler.viewportName;
 	},
 	lv: { _new_: Label, styleSize: 'Medium', height: 40, autoWidth: "fit", onViewportResize: { _new_: EventHandler, target: '__p.owner', method: 'hndVpTtl' } },
 	l1: { _new_: Label, styleSize: 'Huge', ...labelProps },

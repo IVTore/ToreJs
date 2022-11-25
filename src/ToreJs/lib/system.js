@@ -250,7 +250,8 @@ const is = {
 	num: x => typeof(x) === "number",								// Checks if argument is a number.
 	arr: x => Array.isArray(x),										// Checks if argument is an array.
 	fun: x => typeof(x) === "function",								// Checks if argument is a function.
-	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype), // Checks if argument is a plain object: {}.
+                                                                    // Checks if argument is a plain object: {}.
+	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype), 
 	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.

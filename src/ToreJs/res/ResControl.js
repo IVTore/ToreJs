@@ -9,7 +9,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { exc } from "../lib";
-import { Resource } from "../res/Resource";
+import { Resource } from "./Resource.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: ResControl

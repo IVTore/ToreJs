@@ -47,7 +47,7 @@ class Display extends Panel {
 
 	_curCtl = null;		// current control
 	_curCon = null;		// current container
-	_events = null;		// display specific events
+	_events = null;		// events specific to display.
 	_ptrOrg = null;		// pointer origin control
 	_ptrChk = false;	// pointer checking.
 	_tptCtl = null;		// touch pointer current control
@@ -61,6 +61,7 @@ class Display extends Panel {
 	_rcaFrm = false;	// recalculating frame requested.
 	_renFrm = false;	// render frame requested.
 	_framed = false;	// true if there is an active frame requested.
+    _vpsnam = 'md';		// Viewport size name.
 	
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
@@ -86,7 +87,6 @@ class Display extends Panel {
 			window.addEventListener(e, this._events[e], true);
 		}		
 		this._initControl('display', core);
-		this.doViewportResize();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -174,10 +174,16 @@ class Display extends Panel {
 	  FUNC: doViewportResize [override]
 	  TASK: Flags the display that window is resized.
 	——————————————————————————————————————————————————————————————————————————*/
-	doViewportResize(){
+	doViewportResize() {
+        var n; 
+
 		this.width = 1;
 		this.height = 1;
-		styler.doViewportChange();
+        n = calculateViewportName();
+		if (n !== this._vpsnam) {
+			this._vpsnam = n;
+		    styler.applyDynamicRules();
+        }
 		return super.doViewportResize();
 	}
 	
@@ -670,6 +676,14 @@ class Display extends Panel {
 		t._curCtl.invalidate();
 	}
 
+    /*————————————————————————————————————————————————————————————————————————————
+	  PROP:	viewportName : string.
+	  GET : Returns current viewport size name.  
+	————————————————————————————————————————————————————————————————————————————*/
+    get viewportName() {
+		return this._vpsnam;
+	}
+
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	currentContainer : cContainer.
 	  GET : Returns container of current focused control.  
@@ -747,6 +761,26 @@ class Display extends Panel {
 
 	set visible(v) {}
 
+}
+
+/*—————————————————————————————————————————————————————————————————————————
+  FUNC: calculateViewportName
+  TASK: Returns the viewport size name.
+  ARGS: w   : number : Viewport width in pixels or null for auto.
+  RETV:		: string : viewport size name.
+—————————————————————————————————————————————————————————————————————————*/
+function calculateViewportName(w = null) {
+    var s = ctl.viewportSizes,
+        i,
+        l = s.length;
+
+    if (w === null)
+        w = document.documentElement.clientWidth;
+    for(i = 0; i < l; i++) {
+        if (w < s[i])
+            break;
+    }
+    return ctl.viewportNames[i];
 }
 
 /*——————————————————————————————————————————————————————————————————————————

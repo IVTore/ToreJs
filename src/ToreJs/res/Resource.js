@@ -7,9 +7,8 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { exc, is, sys } from "../lib/index.js";
+import { exc, is, sys, core } from "../lib/index.js";
 import { ctl, ResControl } from "../ctl/index.js";
-import { resources } from "./Resources.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Resource
@@ -40,7 +39,7 @@ export class Resource extends Component {
 		super(name);
 		if (name === sys.LOAD)
 			return;
-		resources.attach(this);
+		core.resources.attach(this);
 		if (data)
 			sys.propSet(this, data);
 	}

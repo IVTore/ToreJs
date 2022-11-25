@@ -6,6 +6,7 @@
   About		: 	ctl.js: Tore Js visual control component helpers.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
+import { is } from "../lib/index.js";
 
 export const ctl = {
 				
@@ -46,4 +47,25 @@ export const ctl = {
 		Link: 1
 	},
 
+    viewportSizes : [ 576, 768, 992, 1200, 1400],
+
+	viewportNames : ['xs','sm','md','lg','xl','xxl']
 }
+
+function isViewportObject(o = null) {
+    var i,
+        l;
+
+    if (o === null || !is.plain(o))
+        return false;
+    if (o.df !== undefined)
+        return true;
+    l = ctl.viewportNames.length;
+    for(i = 0; i < l; i++) {
+        if (o[ctl.viewportNames[i]] === undefined)
+            return false;
+    }
+    return true;
+}
+
+is.vpObj = isViewportObject;

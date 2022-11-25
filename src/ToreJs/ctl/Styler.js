@@ -8,6 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys, is, exc, core, Component } from "../lib/index.js";
+import { display } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Styler
@@ -29,10 +30,10 @@ import { sys, is, exc, core, Component } from "../lib/index.js";
 	to calculate the viewport name. If name changes, the viewport
 	dependant values in the css are changed by styler.
 
-	The viewport sizes are defined in the protected properties as :
-	_vpSizes = [ 576, 768, 992, 1200, 1400];
-	_vpNames = ['xs','sm','md','lg','xl','xxl'];
-	
+	The viewport sizes are defined in ctl.js as :
+	ctl.viewportSizes = [ 576, 768, 992, 1200, 1400];
+	ctl.viewportNames = ['xs','sm','md','lg','xl','xxl'];
+    	
 	To define a viewport dependant rule, a simple object is sufficient,
 	such as the padding in the rule definition below:
 
@@ -105,13 +106,9 @@ class Styler extends Component {
 	static allowMemberClass = null;
 	static cdta = {};
 	
-	// Less than 576 is xs, 768 is sm, 992 is md etc.
-	_vpSizes = [ 576, 768, 992, 1200, 1400];
-	_vpNames = ['xs','sm','md','lg','xl','xxl'];
 	_css = null;			// document.styleSheets[0].
 	_rls = null;			// Rules list.
 	_pxr = 0;				// Pixels in 1rem.
-	_vnm = 'md';			// Viewport size name.
 	_dyn = {};				// Dynamic values bank.
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -126,7 +123,6 @@ class Styler extends Component {
 		super("styler", core);
 		s = window.getComputedStyle(document.documentElement);
 		this._pxr = parseInt(s.fontSize, 10);
-		this._vnm = this.calculateViewportName(document.documentElement.clientWidth);
 		setupStyleSheet(this);
 		captureCssRules(this);
 	}
@@ -143,44 +139,8 @@ class Styler extends Component {
 		super.destroy();
 	}
 
-	get viewportName() {
-		return this._vnm;
-	}
-
-	/*—————————————————————————————————————————————————————————————————————————
-	  FUNC: calculateMediaSizeName
-	  TASK: Returns the viewport size name.
-	  RETV:		: String	: viewport size name.
-	—————————————————————————————————————————————————————————————————————————*/
-	calculateViewportName() {
-		var s = this._vpSizes,
-			w = document.documentElement.clientWidth,
-			i,
-			l = s.length;
-	
-		for(i = 0; i < l; i++) {
-			if (w < s[i])
-				return this._vpNames[i];
-		}
-		return this._vpNames[l];
-	}
-
-	/*—————————————————————————————————————————————————————————————————————————
-	  FUNC: doViewportChange
-	  TASK: Applies a media change to css.
-	  INFO: Called from Display.
-	—————————————————————————————————————————————————————————————————————————*/
-	doViewportChange() {
-		var n = this.calculateViewportName();
-
-		if (n === this._vnm)
-			return;
-		this._vnm = n;
-		applyDynamicRules(this);
-	}
-
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: addRule
+	  FUNC: addRule
 	  TASK: Sets the contents of a rule with the given name and properties.
 	  ARGS:
 		name	: String	: rule name.
@@ -213,8 +173,8 @@ class Styler extends Component {
 				s[i] = r;
 				continue;
 			}
-			if (!is.plain(r))
-				continue;
+			if (!is.vpObj(r))
+                exc('E_INV_RULE_VAL', name + '.' + i);
 			if (!t._dyn[name])
 				t._dyn[name] = {};
 			t._dyn[name][i] = Object.assign({}, r);
@@ -230,7 +190,7 @@ class Styler extends Component {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: delRule
+	  FUNC: delRule
 	  TASK: Removes a rule with the given name.
 	  ARGS:
 		name	: String	: rule name.
@@ -249,6 +209,41 @@ class Styler extends Component {
 		this._rls.splice(i, 1);
 		delete this._dyn[name];
 	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: applyDynamicRules
+	  TASK: Applies all viewport size dependent dynamic rules.
+	——————————————————————————————————————————————————————————————————————————*/
+    applyDynamicRules() {
+        var sName,
+            sItem,
+            style,
+            vpnam = display.viewportName,
+            n,
+            r;
+        
+        for(sName in this._dyn){
+            sItem = this._dyn[sName];
+            style = this._css.cssRules[this._rls.indexOf(sName)];
+            if (!style) {
+                console.log("Dynamic Rule:", sName, "not found.")
+                continue;
+            }
+            style = style.style;
+            for(n in sItem) {
+                r = sItem[n];
+                if (r[vpnam]){
+                    style[n] = r[vpnam];
+                    continue;
+                }
+                if (typeof r.df === 'string'){
+                    style[n] = r.df;
+                    continue;
+                }
+            }
+        }
+    }
+
 }
 
 export const styler = new Styler();
@@ -265,36 +260,6 @@ function captureCssRules(t) {
 	t._rls = [];
 	for(i = 0; i < l; i++)
 		t._rls.push(lst[i].selectorText);
-}
-
-// Applies all media size dependent dynamic rules.
-function applyDynamicRules(t) {
-	var sName,
-		sItem,
-		style,
-		n,
-		r;
-	
-	for(sName in t._dyn){
-		sItem = t._dyn[sName];
-		style = t._css.cssRules[t._rls.indexOf(sName)];
-		if (!style) {
-			console.log("Dynamic Rule:", sName, "not found.")
-			continue;
-		}
-		style = style.style;
-		for(n in sItem) {
-			r = sItem[n];
-			if (r[t._vnm]){
-				style[n] = r[t._vnm];
-				continue;
-			}
-			if (typeof r.df === 'string'){
-				style[n] = r.df;
-				continue;
-			}
-		}
-	}
 }
 
 // Sets up the base styles of ToreJS

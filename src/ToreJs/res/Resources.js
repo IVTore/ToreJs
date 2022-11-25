@@ -9,6 +9,7 @@
 
 import { is, sys, core } from "../lib/index.js";
 import { ctl, Control, Container } from "../ctl/index.js";
+import { Resource } from "../res/Resource.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: Resources

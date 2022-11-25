@@ -650,7 +650,7 @@ export class Control extends Component {
 			return;
 		}
 		typ = typeof val;
-		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
+		if (typ !== "number" && typ !== "string" && !ctl.viewportObjectCheck(val)) 
 			return;
 		this._autoWidth = val;
 		this.autoAdjust();

@@ -76,7 +76,7 @@ export class ResControl extends Control {
 			this._src = val;
 			return;
 		}
-		if (is.plain(val))
+		if (is.vpObj(val))
 			this._src = Object.assign({}, r);
 	}
 	

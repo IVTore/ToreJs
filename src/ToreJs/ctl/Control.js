@@ -564,18 +564,14 @@ export class Control extends Component {
 	}
 
 	set autoX(val = null) {
-		var typ;
-
 		if (val === this._autoX)
 			return;
 		if (val === null) {
 			this._autoX = null;
 			return;
 		}
-		typ = typeof val;
-		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
-			return;
-		this._autoX = val;
+		ctl.checkAutoValue(val, this, 'autoX');
+		this._autoX = Object.assign({}, val);
 		this.autoAdjust();
 	}
 
@@ -603,18 +599,14 @@ export class Control extends Component {
 	}
 
 	set autoY(val = null) {
-		var typ;
-
 		if (val === this._autoY)
 			return;
 		if (val === null) {
 			this._autoY = null;
 			return;
 		}
-		typ = typeof val;
-		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
-			return;
-		this._autoY = val;
+		ctl.checkAutoValue(val, this, 'autoY');
+		this._autoY = Object.assign({}, val);
 		this.autoAdjust();
 	}
 
@@ -641,18 +633,14 @@ export class Control extends Component {
 	}
 
 	set autoWidth(val = null) {
-		var typ;
-
 		if (val === this._autoWidth)
 			return;
 		if (val === null) {
 			this._autoWidth = null;
 			return;
 		}
-		typ = typeof val;
-		if (typ !== "number" && typ !== "string" && !ctl.viewportObjectCheck(val)) 
-			return;
-		this._autoWidth = val;
+		ctl.checkAutoValue(val, this, 'autoWidth');
+		this._autoWidth = Object.assign({}, val);
 		this.autoAdjust();
 	}
 
@@ -680,18 +668,14 @@ export class Control extends Component {
 	}
 
 	set autoHeight(val = null){
-		var typ;
-
 		if (val === this._autoHeight)
 			return;
 		if (val === null) {
 			this._autoHeight = null;
 			return;
 		}
-		typ = typeof val;
-		if (typ !== "number" && typ !== "string" && val.constructor !== Object) 
-			return;
-		this._autoHeight = val;
+		ctl.checkAutoValue(val, this, 'autoHeight');
+		this._autoHeight = Object.assign({}, val);
 		this.autoAdjust();
 	}
 

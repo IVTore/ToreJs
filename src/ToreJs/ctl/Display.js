@@ -54,8 +54,8 @@ class Display extends Panel {
 	_mptCtl = null;		// mouse pointer current control
 	_dblCan = null;		// double hit candidate
 	_dblTim = null;		// double hit timer
-	_drg =	null;		// drag data
-	_zrd =	null;		// zoom-rotate data
+	_drgDta = null;		// drag data
+	_zmrDta = null;		// zoom-rotate data
 	_renLst = null;		// render list
 	_rcaLst = null;		// calculate list.
 	_rcaFrm = false;	// recalculating frame requested.

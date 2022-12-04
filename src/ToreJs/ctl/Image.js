@@ -8,23 +8,29 @@
   License	: MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { exc } from "../lib";
+import { exc } from "../lib/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: Image
   TASKS: Defines behaviours of Tore JS Image controls.
 ————————————————————————————————————————————————————————————————————————————*/
 
-export class ResControl extends Control {
+export class Image extends Control {
 
-	static cdta = {
+    static elementTag = 'image';	
+	static canFocusDefault = false;	
+
+    static cdta = {
 		source:			{value: null},
-		onResLoaded:	{event: true},
-		onResProgress:	{event: true},
-		onResError:		{event: true}
+        loader:         {value: defaultImageLoader},
+		onProgress:	    {event: true},
+        onLoaded:	    {event: true},
+		onError:		{event: true}
 	}
 
-	_src = null;		// source definition.
+	_source = null;		// source definition.
+    _loader = null;     // loader method.Default is defaultImageLoader.
+    _active = false;    // loading in progress.
 	
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -39,12 +45,13 @@ export class ResControl extends Control {
     ——————————————————————————————————————————————————————————————————————————*/
     constructor(name = null, owner = null, data = null, init = true) {
         super(name, null, null, false);
+        loader = defaultImageLoader;
         this._initControl(name, owner, data, init);
     }
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy.
-	  TASK: Destroys the ResControl instance.
+	  TASK: Destroys the Image instance.
 	————————————————————————————————————————————————————————————————————————————*/
 	destroy() {
 		if (!this._sta)
@@ -52,6 +59,33 @@ export class ResControl extends Control {
 		this.source = null;
 		super.destroy();		// inherited destroy
 	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doProgress
+	  TASK: Flags the image control that image load is progressing.
+	  ARGS: e   : progress event.
+	——————————————————————————————————————————————————————————————————————————*/
+    doProgress(e = null) {
+
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doLoaded
+      TASK: Flags the image control that image load is completed.
+	  ARGS: e   : loaded event.
+	——————————————————————————————————————————————————————————————————————————*/
+    doLoaded(e = null) {
+
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doError
+	  TASK: Flags the image control that image load has an error.
+	  ARGS: e   : error event.
+	——————————————————————————————————————————————————————————————————————————*/
+    doError(e = null) {
+
+    }
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	source : null, string or Object.
@@ -68,20 +102,34 @@ export class ResControl extends Control {
 			}
 	————————————————————————————————————————————————————————————————————————————*/
 	get source() {
-		return this._src;
+		return this._source;
 	}
 
 	set source(val = null) {
-		if (typeof val === 'string') {
-			this._src = val;
-			return;
-		}
-		if (is.vpObj(val))
-			this._src = Object.assign({}, r);
+        if (val === this._source)
+            return;
+        while (true) {    
+		    if (typeof val === 'string' || val === null) { 
+			    this._source = val;
+                break;
+            }
+		    if (is.vpObj(val)){
+			    this._source = Object.assign({}, r);
+                break;
+            }
+        }
+        this.contentChanged();
 	}
 	
 
 
 
+
+}
+
+export function defaultImageLoader(img = null) {
+    if (!(img instanceof Image))
+        exc('E_INV_ARG', 'img !Image');
+    
 
 }

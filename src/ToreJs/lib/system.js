@@ -7,8 +7,8 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { TObject } from "../lib/TObject.js";
-import { Component } from "../lib/Component.js";
-import { EventHandler } from "../lib/EventHandler.js";
+import { TComponent } from "../lib/TComponent.js";
+import { TEventHandler } from "../lib/TEventHandler.js";
 
 /*———————————————————————————————————————————————————————————————————————————
   PROC: exc 
@@ -229,9 +229,9 @@ const sys = {
 				c = sys.classByName(c);			// try fetching class
 			if (!isClass(c))					// if failed to fetch, exception
 				exc('E_CLASS_INV', (i._new_) ? 'null' : i._new_);
-			d = isSuper(Component, c);
+			d = isSuper(TComponent, c);
 			o = d ? new c(e) : new c();
-			d = d && t instanceof Component && !i._var_ ; 
+			d = d && t instanceof TComponent && !i._var_ ; 
 			if (d) 
 				t.attach(o);
 			sys.propSet(o, i, t);				// set the contents
@@ -255,7 +255,7 @@ const is = {
 	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
-	component: x => (x !== undefined && x instanceof Component)
+	component: x => (x !== undefined && x instanceof TComponent)
 }
 
 
@@ -396,8 +396,8 @@ function defineEventProperty(ctor, propName) {
 }
 
 registerClass(TObject);
-registerClass(Component);
-registerClass(EventHandler);
+registerClass(TComponent);
+registerClass(TEventHandler);
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CONST: core
@@ -405,7 +405,7 @@ registerClass(EventHandler);
   		 It constructs a component framework connecting various subsystems 
 		 to each other. It integrates the system into one access point.
 ———————————————————————————————————————————————————————————————————————————*/
-const core = new Component('core');
+const core = new TComponent('core');
 window.core = core;
 
 export {sys, is, exc, core};

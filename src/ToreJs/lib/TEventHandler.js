@@ -3,23 +3,23 @@
 
   Version	: 	20220706
   Author	: 	İhsan V. Töre
-  About		: 	EventHandler.js: Tore Js event handler object class.
+  About		: 	TEventHandler.js: Tore Js event handler object class.
   License 	: 	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
 import { TObject } from "./TObject.js";
 
 /*——————————————————————————————————————————————————————————————————————————— 
-  CLASS: EventHandler
+  CLASS: TEventHandler
   TASKS:
   	Event handler class defines the handler target call information.
 	An Event handler instance can be used only for one event.
-	Component setEvent method takes care of that.
+	TComponent setEvent method takes care of that.
 	Event handler instances connect source and target components, 
 	if one of them gets destroyed, event handler instance is automatically
 	destroyed.
 ———————————————————————————————————————————————————————————————————————————*/
-export class EventHandler extends TObject {
+export class TEventHandler extends TObject {
 	
 	static cdta = {
 		target: {value: null},
@@ -36,9 +36,9 @@ export class EventHandler extends TObject {
 
 	/*———————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a EventHandler instance.
+	  TASK: Constructs a TEventHandler instance.
 	  ARGS: 
-		target : Component	: 	Target handler component.
+		target : TComponent	: 	Target handler component.
 			   : string     : 	Target handler component namepath. 
 			   					:DEF: null.
 								if Sys.LOAD construction is by deserialization.
@@ -49,13 +49,13 @@ export class EventHandler extends TObject {
 		if (target === sys.LOAD && super(sys.LOAD))
 			return;
 		super();
-		setEventHandlerTarget(this, target);
-		setEventHandlerMethod(this, method);
+		setTEventHandlerTarget(this, target);
+		setTEventHandlerMethod(this, method);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy.
-	  TASK: Destroys the EventHandler instance.
+	  TASK: Destroys the TEventHandler instance.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy(){
 	var t = this,
@@ -97,13 +97,13 @@ export class EventHandler extends TObject {
 			return this._tar[this._met].apply(this._tar, args);
 		exc('E_INV_HANDLER', 
 			((this._src) ? this._src._nam : "?") + "." +
-			((this._nam) ? this._nam : "?") + " = [ EventHandler ]" +
+			((this._nam) ? this._nam : "?") + " = [ TEventHandler ]" +
 			((this._tar) ? this._tar._nam : "?") + "." +
 			 (this._met) ? this._met : "?");
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	target : Component or string;
+	  PROP:	target : TComponent or string;
 	  GET : Returns target handler component.
 	  SET : Sets target handler component.
 	  INFO: Target component can only be set once.
@@ -115,7 +115,7 @@ export class EventHandler extends TObject {
 	}
 
 	set target(val) {
-		setEventHandlerTarget(this, val);
+		setTEventHandlerTarget(this, val);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -132,7 +132,7 @@ export class EventHandler extends TObject {
 	}
 
 	set method(val) {
-		setEventHandlerMethod(this, val);
+		setTEventHandlerMethod(this, val);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -145,7 +145,7 @@ export class EventHandler extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	source : Component;
+	  PROP:	source : TComponent;
 	  GET : Returns event source component.
 	  INFO: This property is valid after assignment.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -159,8 +159,8 @@ export class EventHandler extends TObject {
 			complete.
 	———————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete(){
-		checkEventHandlerTarget(this);
-		checkEventHandlerMethod(this);
+		checkTEventHandlerTarget(this);
+		checkTEventHandlerMethod(this);
 		super.doLoadComplete();
 	}
 
@@ -168,7 +168,7 @@ export class EventHandler extends TObject {
 	  FUNC: assign.
 	  TASK: Assigns the handler method in target to event at source component.
 	  ARGS:
-		source 		: Component : Event source component (sender).
+		source 		: TComponent : Event source component (sender).
 		eventName	: string	: Event definition name like 'onDetach'.
 	  INFO:
 		Checks 
@@ -195,8 +195,8 @@ export class EventHandler extends TObject {
 
 		if (t._rdy)
 			return;
-		checkEventHandlerTarget(this);
-		checkEventHandlerMethod(this);
+		checkTEventHandlerTarget(this);
+		checkTEventHandlerMethod(this);
 		if (!is.component(source))
 			exc('E_INV_ARG', "source");
 		if (typeof eventName !== 'string')
@@ -221,7 +221,7 @@ export class EventHandler extends TObject {
 
 // private.
 // Controls the target handler component assignment.
-function setEventHandlerTarget(handler, target) {
+function setTEventHandlerTarget(handler, target) {
 	if (target === null)
 		return;
 	if (handler._tar !== null)
@@ -229,24 +229,24 @@ function setEventHandlerTarget(handler, target) {
 	if (typeof target === 'string')
 		target = sys.fetchObject(target);
 	handler._tar = target;
-	checkEventHandlerTarget(handler);
+	checkTEventHandlerTarget(handler);
 }
 
 // private.
 // Controls the target handler component method name assignment.
-function setEventHandlerMethod(handler, method) {
+function setTEventHandlerMethod(handler, method) {
 	if (method === null)
 		return;
 	if (handler._met !== null)
 		exc("E_SET_ONCE_ONLY", "method");
 	handler._met = method;
 	if (handler._sta != sys.LOAD) 
-		checkEventHandlerMethod(handler)
+		checkTEventHandlerMethod(handler)
 }
 
 // private.
 // Checks the target handler component assignment.
-function checkEventHandlerTarget(handler) {
+function checkTEventHandlerTarget(handler) {
 	if (is.component(handler._tar)) 
 		return;
 	handler._tar = null;
@@ -255,7 +255,7 @@ function checkEventHandlerTarget(handler) {
 
 // private.
 // Checks the target handler component method assignment.
-function checkEventHandlerMethod(handler) {
+function checkTEventHandlerMethod(handler) {
 	if (is.fun(handler._tar[handler._met])) 
 		return;
 	handler._met = null;

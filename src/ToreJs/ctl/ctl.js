@@ -6,18 +6,18 @@
   About		: 	ctl.js: Tore Js visual control component helpers.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { Component, exc, is } from "../lib/index.js";
+import { TComponent, exc, is } from "../lib/index.js";
 
 export const ctl = {
 				
-	// Control States
+	// TControl States
 	DYING: 0,	// exiting or dead	
 	ALIVE: 1,	// normal, idle
 	HOVER: 2,	// pointer over 
 	FOCUS: 3,	// selected, focused 
 	SLEEP: 4,	// disabled
 
-	// Control state style suffixes
+	// TControl state style suffixes
 	SUFFIX: [		
 		'Dying',
 		'Alive',
@@ -49,16 +49,7 @@ export const ctl = {
 		Light: 1,
 		Dark: 1, 
 		Link: 1
-	},
-
-    checkAutoValue(val = null, control = null, prop = '?') {
-        var t = typeof val;
-        
-        if (val === null || t === "string" || t === "number" || isViewportObject(val))
-            return;
-        let s = ((control instanceof Component) ? control.namePath : '?') + '.' + prop;
-        exc('E_INV_VAL', s);        
-    }
+	}    
 }
 
 function isViewportObject(o = null) {

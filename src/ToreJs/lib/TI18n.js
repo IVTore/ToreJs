@@ -3,14 +3,14 @@
 
   Version	: 	20220706
   Author	: 	İhsan V. Töre
-  About		: 	I18n.js: Tore Js internationalization class.
+  About		: 	TI18n.js: Tore Js internationalization class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc, core } from "./system.js"
-import { Component } from "./Component.js";
+import { TComponent } from "./TComponent.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: Language
+  CLASS: TLanguage
   TASKS: 
 	Stores text and other specific data for a language.
 	Designed as member of core.i18n component.
@@ -18,19 +18,19 @@ import { Component } from "./Component.js";
 	Does not accept members.
 	To take effect it must be attached to core.i18n singleton.
 ————————————————————————————————————————————————————————————————————————————*/
-export class Language extends Component {
+export class TLanguage extends TComponent {
 	static allowMemberClass = null;		// no members allowed.
 }
 
 /*——————————————————————————————————————————————————————————————————————————— 
-  CLASS: I18n
+  CLASS: TI18n
   TASKS: Internationalization singleton component.
-  		 I18n instance is core.i18n singleton.
-  NOTES: It only accepts Language components as members.
+  		 TI18n instance is core.i18n singleton.
+  NOTES: It only accepts TLanguage components as members.
 ———————————————————————————————————————————————————————————————————————————*/
-class I18n extends Component {
+class TI18n extends TComponent {
 
-	static allowMemberClass = Language;
+	static allowMemberClass = TLanguage;
 
 	static cdta = {
 		sequence: {value: null}
@@ -192,6 +192,6 @@ class I18n extends Component {
 	}
 }
 
-sys.registerClass(Language);
+sys.registerClass(TLanguage);
 
-export const i18n = new I18n();
+export const i18n = new TI18n();

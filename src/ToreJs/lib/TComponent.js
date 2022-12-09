@@ -3,28 +3,28 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Component.js: Tore Js base component class.
+  About		: 	TComponent.js: Tore Js base component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
 import { TObject } from "./TObject.js";
-import { EventHandler } from "./EventHandler.js";
+import { TEventHandler } from "./TEventHandler.js";
 
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: Component.
+  CLASS: TComponent.
   TASKS: This is the component class for Tore Js providing.
-		1)	Component hierachy with ownership / membership relations.
+		1)	TComponent hierachy with ownership / membership relations.
 		2)	Easy to use event notification mechanism.
 ——————————————————————————————————————————————————————————————————————————*/
-export class Component extends TObject {
+export class TComponent extends TObject {
 
 	/*——————————————————————————————————————————————————————————————————————————
 		static allowMemberClass		: (used in attach method).
 			The allowed anchestor class of member.
 			When null component is not allowed to have members.
 	——————————————————————————————————————————————————————————————————————————*/
-	static allowMemberClass = Component;
+	static allowMemberClass = TComponent;
 	/*——————————————————————————————————————————————————————————————————————————
 		static allowMemberOverwrite	: (used in attach method).
 			When the name of new member clashes	with an existing member name.
@@ -49,11 +49,11 @@ export class Component extends TObject {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a Component object, attaches it to its owner if any.
+	  TASK: Constructs a TComponent object, attaches it to its owner if any.
 	  ARGS: 
 		name 	: string	: Name of new component :DEF: null.
 							  if Sys.LOAD construction is by deserialization.
-		owner	: Component	: Owner of the new component if any :DEF: null.
+		owner	: TComponent	: Owner of the new component if any :DEF: null.
 		data	: Object	: An object containing instance data:DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
@@ -126,7 +126,7 @@ export class Component extends TObject {
 			They are destroyed if owner gets destroyed.
 		2)	They can not be assigned or removed directly. 
 			This should be done via attach and detach methods.
-		3)	They should be Component or descendant class instances.
+		3)	They should be TComponent or descendant class instances.
 		4)	Member chain is strictly hierarchical. 
 			An owner be a member in one of the components in its member chain.
 		5)	Members are accessed by their names. 
@@ -137,7 +137,7 @@ export class Component extends TObject {
 	  FUNC:	attach
 	  TASK:	Attaches a member component to the component.
 	  ARGS:
-		component	: Component	: new member component.
+		component	: TComponent	: new member component.
 	  RETV: 		: Boolean	: True on success
 	  INFO:	
 		Member components are added to _mem object and a getter
@@ -202,7 +202,7 @@ export class Component extends TObject {
 	  FUNC:	detach
 	  TASK:	Detaches a member component from the component.
 	  ARGS:	
-	  	component	: Component : member component to detach.
+	  	component	: TComponent : member component to detach.
 		kill		: Boolean	 : When true, detached component gets destroyed.
 								   :DEF: false.
 	  RETV: 		: Boolean	 : True on success
@@ -212,7 +212,7 @@ export class Component extends TObject {
 		event = this._eve.onDetach;
 		
 		this.checkDead();
-		if (!(c instanceof Component))		// if not a component exception
+		if (!(c instanceof TComponent))		// if not a component exception
 			exc('E_ARG_INV','component');
 		if (c._own !== this)				// if barking at the wrong tree
 			return false;
@@ -237,7 +237,7 @@ export class Component extends TObject {
 	  FUNC:	doDetached.
 	  TASK:	Method to override to handle when "this" is detached from an owner.
 	  ARGS:
-	  	exOwner	: Component : owner that "this" is detached from. :DEF: null
+	  	exOwner	: TComponent : owner that "this" is detached from. :DEF: null
 	———————————————————————————————————————————————————————————————————————————*/
 	doDetached(exOwner = null) {}
 
@@ -252,7 +252,7 @@ export class Component extends TObject {
 	  	This is a shallow copy of members and any manipulation on array
 		has no effect on members.
 	———————————————————————————————————————————————————————————————————————————*/
-	members(ofClass = Component, filter = null) {
+	members(ofClass = TComponent, filter = null) {
 	var r = [],
 		nam,
 		itm;	
@@ -269,7 +269,7 @@ export class Component extends TObject {
 	
 		this.checkDead();
 		if(!ofClass)						// check class filter
-			ofClass = Component;	
+			ofClass = TComponent;	
 		for(nam in this._mem)				// look members
 			collect(this._mem[nam]);		// collect if possible.
 		return(r);
@@ -282,13 +282,13 @@ export class Component extends TObject {
 		
 		*	This subsystem adds event support to Tore Js components.
 		*	Two main types of events are supported:
-			1) Native Js events originating from any asset of the Component.
+			1) Native Js events originating from any asset of the TComponent.
 			2) Events originating from Components.
-		*	The native events are translated to Component event subsystem.
-		*	The Component events are not translated to native event flow.
+		*	The native events are translated to TComponent event subsystem.
+		*	The TComponent events are not translated to native event flow.
 		*	Event definitions are made in the class cdta.
 		
-			1)	Component events	: <eventName>: {event: true}
+			1)	TComponent events	: <eventName>: {event: true}
 				Example: onAttachMember : {event: true},
 			2)	Native events		: <eventName>: {
 										event: true, 
@@ -298,7 +298,7 @@ export class Component extends TObject {
 				Example: onOpen	: {event: true, typ:'open', src:'loader'}.
 		*	Using events is straightforward: 
 			To attach an event c1.onOpen to function c2.handler : 
-				c1.onOpen = new EventHandler(c2,'handler');	
+				c1.onOpen = new TEventHandler(c2,'handler');	
 			To detach that event: 
 				c1.onOpen = null;
 		*	Events are designed carefully to avoid memory leaks. 
@@ -312,7 +312,7 @@ export class Component extends TObject {
 	  TASK:	Event assignment procedure.
 	  ARGS:	
 		name	: String		: name of the event.
-		handler	: EventHandler	: Event handler target object.
+		handler	: TEventHandler	: Event handler target object.
 	  INFO:
 		* This checks the event and the handler then assigns them.
 		* This method is used internally, direct calls are unnecessary.
@@ -321,7 +321,7 @@ export class Component extends TObject {
 	var h = this._eve[name],
 		d = this.constructor.cdta[name],
 		hndNul = (handler === null),
-		hndIns = (handler instanceof EventHandler);
+		hndIns = (handler instanceof TEventHandler);
 
 		this.checkDead();
 		if (!d || !d.event)					// if not an event, exception
@@ -335,7 +335,7 @@ export class Component extends TObject {
 		if (hndNul)							// if handler null,
 			return;							// we just clear.
 		if (handler.source) 				// if handler is in use, clone it.
-			handler = new EventHandler(handler.target, handler.method); 
+			handler = new TEventHandler(handler.target, handler.method); 
 		handler.assign(this, name);
 	}
 
@@ -344,7 +344,7 @@ export class Component extends TObject {
 	  TASK:	Returns the event handler assigned to an event if any.
 	  ARGS:	
 		name	: String		: name of the event.
-	  RETV: 	: EventHandler	: event handler object or null.
+	  RETV: 	: TEventHandler	: event handler object or null.
 	——————————————————————————————————————————————————————————————————————————*/
 	getEvent(name = null) {
 		var r;

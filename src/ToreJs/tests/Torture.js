@@ -1,5 +1,5 @@
-import { EventHandler } from "../lib/index.js";
-import { styler, display, Panel, Label, Button } from "../ctl/index.js";
+import { TEventHandler } from "../lib/index.js";
+import { styler, display, TPanel, TLabel, TButton } from "../ctl/index.js";
 import { ToreUI } from "../styles/ToreUI.js";
 
 ToreUI();
@@ -14,10 +14,10 @@ var labelProps = {
 	autoWidth: "fit",
 	autoHeight: "fit",
 	wrap: true,
-	onViewportResize: { _new_: EventHandler, target: '__p.owner', method: 'hndVpRes' }
+	onViewportResize: { _new_: TEventHandler, target: '__p.owner', method: 'hndVpRes' }
 };
 
-var p1 = new Panel("p1", display, {
+var p1 = new TPanel("p1", display, {
 	layout: "vertical",
 	contentAlign: 'center',
 	autoX: "center",
@@ -35,19 +35,19 @@ var p1 = new Panel("p1", display, {
 		var style = getComputedStyle(sender._element);
 		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + styler.viewportName;
 	},
-	lv: { _new_: Label, styleSize: 'Medium', height: 40, autoWidth: "fit", onViewportResize: { _new_: EventHandler, target: '__p.owner', method: 'hndVpTtl' } },
-	l1: { _new_: Label, styleSize: 'Huge', ...labelProps },
-	l2: { _new_: Label, styleSize: 'Large', ...labelProps },
-	l3: { _new_: Label, styleSize: 'Big', ...labelProps },
-	l4: { _new_: Label, styleSize: 'Medium', ...labelProps },
-	l5: { _new_: Label, styleSize: 'Small', ...labelProps },
-	l6: { _new_: Label, styleSize: 'Tiny', ...labelProps },
+	lv: { _new_: TLabel, styleSize: 'Medium', height: 40, autoWidth: "fit", onViewportResize: { _new_: TEventHandler, target: '__p.owner', method: 'hndVpTtl' } },
+	l1: { _new_: TLabel, styleSize: 'Huge', ...labelProps },
+	l2: { _new_: TLabel, styleSize: 'Large', ...labelProps },
+	l3: { _new_: TLabel, styleSize: 'Big', ...labelProps },
+	l4: { _new_: TLabel, styleSize: 'Medium', ...labelProps },
+	l5: { _new_: TLabel, styleSize: 'Small', ...labelProps },
+	l6: { _new_: TLabel, styleSize: 'Tiny', ...labelProps },
 	b1: {
-		_new_: Button,
+		_new_: TButton,
 		styleSize: 'Medium',
 		autoWidth: "fit",
 		autoHeight: 'fit',
-		label: { _new_: Label, name: "label", styleSize: 'Medium', text: 'Align Right', autoWidth: "fit", autoHeight: "fit" },
+		label: { _new_: TLabel, name: "label", styleSize: 'Medium', text: 'Align Right', autoWidth: "fit", autoHeight: "fit" },
 		hndHit: function (sender) {
 			if (p1.contentAlign === 'center') {
 				p1.contentAlign = 'right';
@@ -58,7 +58,7 @@ var p1 = new Panel("p1", display, {
 			}
 			console.log(this.contentAlign, this._computed.paddingLeft, this.label.x, this.label.y);
 		},
-		onHit: { _new_: EventHandler, target: '__p', method: 'hndHit' }
+		onHit: { _new_: TEventHandler, target: '__p', method: 'hndHit' }
 	}
 });
 

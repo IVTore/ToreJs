@@ -3,27 +3,26 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Control.js: Tore Js base visual component (control) class.
+  About		: 	TControl.js: Tore Js base visual component (control) class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { sys, is, core, Component, exc } from "../lib/index.js";
+import { sys, is, core, TComponent, exc } from "../lib/index.js";
 import { ctl } from "../ctl/ctl.js";
-import { styler } from "../ctl/Styler.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: Control
+  CLASS: TControl
   TASKS: Defines basic behaviours of Tore JS controls.
   NOTES:
 	*	Parent - Child hierarchy is mapped to standard owner-member system.
-	*	Control defines an interactivity scheme. 
-	*	Control defines a style name scheme, look Styler.js.
+	*	TControl defines an interactivity scheme. 
+	*	TControl defines a style name scheme, look TStyler.js.
 ————————————————————————————————————————————————————————————————————————————*/
-export class Control extends Component {
+export class TControl extends TComponent {
 
-	// Control dom tag. If null, element is not built in Control constructor.
+	// TControl dom tag. If null, element is not built in TControl constructor.
 	static elementTag = 'div';	
-	// Control focusability default.
+	// TControl focusability default.
 	static canFocusDefault = true;	
 
 	// Initial values of control.
@@ -113,12 +112,12 @@ export class Control extends Component {
 	_element = null;			// Dom element.
 	_wrapper = null;			// Wrapper element.
 	_visible = true;			// Visibility setting.
-	_canFocus = true;			// Control can focus or not.
+	_canFocus = true;			// TControl can focus or not.
 	_interact = false;			// Interactibility state.
 	_hitOpaque = false;			// When true, transparent control 
 								// surfaces must not interact with
 								// hit events. This is for controls
-								// like Canvas, Image etc.
+								// like Canvas, TImage etc.
 	_yieldFocus = false;		// If control must yield focus
 								// to the other controls under it.
 	dragEnabled = false;		// If true control is draggable.
@@ -151,11 +150,11 @@ export class Control extends Component {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a Control component, attaches it to its owner if any.
+	  TASK: Constructs a TControl component, attaches it to its owner if any.
 	  ARGS: 
 		name 	: string	: Name of new control :DEF: null.
 							  if Sys.LOAD, construction is by deserialization.
-		owner	: Component	: Owner of the new control if any :DEF: null.
+		owner	: TComponent	: Owner of the new control if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
@@ -171,7 +170,7 @@ export class Control extends Component {
 	  FUNC: _initControl [protected].
 	  TASK: Initializes control.
 	  ARGS:
-		owner 	: Control	: owner if any.
+		owner 	: TControl	: owner if any.
 		data	: Object	: data if any.
 	——————————————————————————————————————————————————————————————————————————*/
 	_initControl(name = null, owner = null, data = null, init = true) {
@@ -236,12 +235,12 @@ export class Control extends Component {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].
-	  TASK:	Attaches a member component to the Control.
+	  TASK:	Attaches a member component to the TControl.
 	  ARGS:
-		component	: Component	: new member component :DEF: null.
+		component	: TComponent	: new member component :DEF: null.
 	  RETV: 		: Boolean	: True on success
 	  INFO:	
-		If member component is a Control;
+		If member component is a TControl;
 		* Member is refreshed and interactivity checked.
 		* this (owner) is size adjusted if auto sizing.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -250,7 +249,7 @@ export class Control extends Component {
 
 		if (!super.attach(c))
 			return false;
-		if (c instanceof Control) {
+		if (c instanceof TControl) {
 			this._ctl.push(c);
 			this._wrapper.appendChild(c._element);
 			c.checkEvents();
@@ -263,7 +262,7 @@ export class Control extends Component {
 	  FUNC:	detach [override].
 	  TASK:	Detaches a member component from the control.
 	  ARGS:	
-		component 	: Component : member component to detach. :DEF: null.
+		component 	: TComponent : member component to detach. :DEF: null.
 	  RETV: Boolean	: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null){
@@ -271,7 +270,7 @@ export class Control extends Component {
 
 		if (!super.detach(component))
 			return false;
-		if (!(component instanceof Control))
+		if (!(component instanceof TControl))
 			return true;
 		i = this._ctl.indexOf(component);
 		if (i !== -1)
@@ -541,6 +540,38 @@ export class Control extends Component {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setAutoVal [protected].
+	  TASK: 
+		Sets automatic values to automatic properties.
+	  ARGS:
+		val		: number	: Value as number.
+				: string	: Value as string.
+				: object	: Value as viewport value object.
+		pvar	: string	: Protected var name associated to property.
+		prop	: string	: Property setter name (for exception info)
+	  RETV: 	: boolean	: true if autoAdjust required.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setAutoValue(val = null, pvar, prop, allowInt = true, allowStr = true) {
+        var	t = typeof val;
+        
+		if (val === this[pvar])
+			return false;		// No autoAdjust required.
+		if (val === null) {
+			this[pvar] = null;
+			return false;		// No autoAdjust required.
+		}
+		if ((allowStr && t === "string") || (allowInt && t === "number")) {
+			this[pvar] = val;
+			return true;		// autoAdjust required.
+		} 
+		if (is.vpObj(val)) {
+			this[pvar] = Object.assign({}, val);
+			return true;		// autoAdjust required.
+		}
+        exc('E_INV_VAL',  this.namePath + '.' + prop);        
+    }
+
+	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	autoX : *.
 	  GET : Returns the autoX value.
 	  SET : Sets    the autoX value.
@@ -564,15 +595,8 @@ export class Control extends Component {
 	}
 
 	set autoX(val = null) {
-		if (val === this._autoX)
-			return;
-		if (val === null) {
-			this._autoX = null;
-			return;
-		}
-		ctl.checkAutoValue(val, this, 'autoX');
-		this._autoX = Object.assign({}, val);
-		this.autoAdjust();
+		if (this._setAutoValue(val, '_autoX', 'autoX'))
+			this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -599,15 +623,8 @@ export class Control extends Component {
 	}
 
 	set autoY(val = null) {
-		if (val === this._autoY)
-			return;
-		if (val === null) {
-			this._autoY = null;
-			return;
-		}
-		ctl.checkAutoValue(val, this, 'autoY');
-		this._autoY = Object.assign({}, val);
-		this.autoAdjust();
+		if (this._setAutoValue(val, '_autoY', 'autoY'))
+			this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -633,15 +650,8 @@ export class Control extends Component {
 	}
 
 	set autoWidth(val = null) {
-		if (val === this._autoWidth)
-			return;
-		if (val === null) {
-			this._autoWidth = null;
-			return;
-		}
-		ctl.checkAutoValue(val, this, 'autoWidth');
-		this._autoWidth = Object.assign({}, val);
-		this.autoAdjust();
+		if (this._setAutoValue(val, '_autoWidth', 'autoWidth'))
+			this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -668,15 +678,8 @@ export class Control extends Component {
 	}
 
 	set autoHeight(val = null){
-		if (val === this._autoHeight)
-			return;
-		if (val === null) {
-			this._autoHeight = null;
-			return;
-		}
-		ctl.checkAutoValue(val, this, 'autoHeight');
-		this._autoHeight = Object.assign({}, val);
-		this.autoAdjust();
+		if (this._setAutoValue(val, '_autoHeight', 'autoHeight'))
+			this.autoAdjust();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -722,7 +725,7 @@ export class Control extends Component {
 			s = 0,
 			w;
 
-		while(c instanceof Control){
+		while(c instanceof TControl){
 			w = c._width;
 			s += c._shellW;
 			if(c._autoWidth !== 'fit')
@@ -743,7 +746,7 @@ export class Control extends Component {
 			s = 0,
 			h;
 
-		while(c instanceof Control){
+		while(c instanceof TControl){
 			h = c._height;
 			s += c._shellH;
 			if(c._autoHeight !== 'fit')
@@ -758,7 +761,7 @@ export class Control extends Component {
 	  TASK: Sets width to fit the content.
 	  RETV:		: Boolean : True if width changed.
 	  INFO: This is called when autoWidth = "fit".
-			Should be overridden according to the nature of Control.
+			Should be overridden according to the nature of TControl.
 	——————————————————————————————————————————————————————————————————————————*/
 	widthToFit() {
 		var s = this._element.style,
@@ -775,7 +778,7 @@ export class Control extends Component {
 	  TASK: Sets height to fit the content.
 	  RETV: 	: Boolean : True if height changed.
 	  INFO: This is called when autoHeight = "fit".
-			Should be overridden according to the nature of Control.
+			Should be overridden according to the nature of TControl.
 	——————————————————————————————————————————————————————————————————————————*/
 	heightToFit() {
 		var s = this._element.style,
@@ -862,7 +865,7 @@ export class Control extends Component {
 			ax = false, ay = false,
 			ar = false, ab = false;
 
-		if (!(o instanceof Control))
+		if (!(o instanceof TControl))
 			return false;
 		dx = o._width - o._oldW;
 		dy = o._height - o._oldH;
@@ -907,7 +910,7 @@ export class Control extends Component {
 	relocate() {
 		var	c;
 
-		if (this._own instanceof Control)
+		if (this._own instanceof TControl)
 			this._own.doMemberRelocate(this);
 		if (this._oldW === this._width && 
 			this._oldH === this._height)
@@ -931,7 +934,7 @@ export class Control extends Component {
 		this.autoAdjust();
 		this.invalidate();
 		for(c of this._ctl){
-			if (c instanceof Control)
+			if (c instanceof TControl)
 				c.doViewportResize();
 		}
 		this._vpResize = false;
@@ -942,7 +945,7 @@ export class Control extends Component {
 	  FUNC: doMemberRelocate
 	  TASK: Flags the control that its member is resized or repositioned.
 	  ARGS: 
-		member	: Control :	Member control that is relocated.
+		member	: TControl :	Member control that is relocated.
 	  INFO: 
 		Dimensions recalculated.
 		Called from relocate() method of member.
@@ -1168,8 +1171,8 @@ export class Control extends Component {
 	  INFO:
 		*	A negative value like -1 makes control ignored as tab stop.
 		*	Effective only if :
-			Control is interactive,
-			Control is in a Container descendant.
+			TControl is interactive,
+			TControl is in a TContainer descendant.
 	——————————————————————————————————————————————————————————————————————————*/
 	get tabIndex() {
 		return(this._tabIndex);
@@ -1317,7 +1320,7 @@ export class Control extends Component {
 	——————————————————————————————————————————————————————————————————————————*/
 	get showing() {
 		var c = this;
-		while(c instanceof Control){
+		while(c instanceof TControl){
 			if(!c._visible)					// if invisible
 				return(false);
 			if (c === core.display)			// if display
@@ -1359,7 +1362,7 @@ export class Control extends Component {
 	  PROP:	canFocus : Boolean ;
 	  GET : Returns true if control is a focusable one.
 	  SET : if true flags control as focusable.
-	  INFO: Control should be on display, enabled and visible to be focusable.
+	  INFO: TControl should be on display, enabled and visible to be focusable.
 	——————————————————————————————————————————————————————————————————————————*/
 	get canFocus() {
 		return(this._canFocus);
@@ -1378,7 +1381,7 @@ export class Control extends Component {
 	  PROP:	hitOpaque : Boolean ;
 	  GET : Returns true if control can be only hit at opaque surfaces.
 	  SET : Sets if control can be only hit at opaque surfaces.
-	  INFO:	This is for controls like Image, Canvas etc.
+	  INFO:	This is for controls like TImage, Canvas etc.
 	——————————————————————————————————————————————————————————————————————————*/
 	get hitOpaque() {
 		return(this._hitOpaque);
@@ -1411,7 +1414,7 @@ export class Control extends Component {
 	get container() {
 		var o = this._own; 
 	
-		while(o instanceof Control){
+		while(o instanceof TControl){
 			if (is.container(o))
 				return(o);
 			o = o._own;
@@ -1434,7 +1437,7 @@ export class Control extends Component {
   FUNC: cascadeShowing [private].
   TASK: Sets control and sub control style visibilities.
   ARGS:
-	t 			: Control	: Control to set visibility.
+	t 			: TControl	: TControl to set visibility.
 	showing		: bool		: Visibility state.
 ——————————————————————————————————————————————————————————————————————————*/
 function cascadeShowing(t, showing = false) {
@@ -1453,7 +1456,7 @@ function cascadeShowing(t, showing = false) {
   FUNC: calcClassNameSub [private].
   TASK: Calculates control element class name.
   ARGS: 
-  	t : Control : (this) ;)
+  	t : TControl : (this) ;)
 	n : String  : Style class name or null.
   RETV:
 	  : String  : Something wicked.
@@ -1482,7 +1485,7 @@ function calcClassNameSub(t, n){
   TASK: 
 	Calculates and sets the x coordinate of control according to autoX.
   ARGS: 
-  	t 			: Control : (this).
+  	t 			: TControl : (this).
 	ownerWidth	: number  : Inner width of owner.
   RETV: 		: boolean : true if x changes.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -1520,7 +1523,7 @@ function calcAutoX(t, ownerWidth){
   TASK:
 	Calculates and sets the y coordinate of control according to autoY.
   ARGS: 
-	t			: Control : (this).
+	t			: TControl : (this).
 	ownerHeight	: number  : Inner height of owner.
   RETV: 		: boolean : true if y changes.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -1558,7 +1561,7 @@ function calcAutoY(t, ownerHeight){
   TASK: 
 	Calculates and sets the width of control according to autoWidth.
   ARGS: 
-  	t 			: Control : (this).
+  	t 			: TControl : (this).
 	ownerWidth	: number  : inner width of owner.
   RETV: 		: boolean : true if width changes.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -1582,7 +1585,7 @@ function calcAutoWidth(t, ownerWidth) {
   FUNC: calcAutoHeight [private].
   TASK: Calculates control height.
   ARGS: 
-	t			: Control : (this).
+	t			: TControl : (this).
 	ownerHeight	: number  : Inner height of owner.
   RETV: 		: boolean : true if height changes.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -1608,13 +1611,13 @@ function calcAutoHeight(t, ownerHeight){
   	Gets a property value corresponding to current viewport from a 
 	viewport values object.
   ARGS:
-	t	: Control	: Control (for exception data).
+	t	: TControl	: TControl (for exception data).
 	v	: Object	: Viewport Values object.
 	name: String	: Property name for exception message.
   RETV: : * 		: Extracted string or number.
 ——————————————————————————————————————————————————————————————————————————*/
 function viewportValue (t, v, name) {
-	var n = styler.viewportName;
+	var n = core.display.viewportName;
 
 	v = (v[n]) ? v[n] : v.df;
 	if (!v)
@@ -1622,4 +1625,4 @@ function viewportValue (t, v, name) {
 	return v;
 }
 
-sys.registerClass(Control);
+sys.registerClass(TControl);

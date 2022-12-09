@@ -3,17 +3,17 @@
 
   Version	: 	20220706
   Author	: 	İhsan V. Töre
-  About		: 	Com.js: Tore Js http client communicator component class.
+  About		: 	THttpClient.js: Tore Js http client communicator component class.
   License	:   MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
-import { Component } from "./Component.js";
-import { EventHandler } from "./EventHandler.js";
+import { TComponent } from "./TComponent.js";
+import { TEventHandler } from "./TEventHandler.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   FUNC: send.
-  TASK: Builds a Com component sets it up and sends the request.
-  ARGS: Arguments map to Com component properties, please refer there.
+  TASK: Builds a THttpClient component sets it up and sends the request.
+  ARGS: Arguments map to THttpClient component properties, please refer there.
   RETV: 	: Promise : resolve returns XMLHttpRequest object.
   INFO: On completion of communication, com component is auto destroyed.
 ————————————————————————————————————————————————————————————————————————————*/
@@ -38,7 +38,7 @@ export function send(
 // internal.
 function sendPromise(owner = null, options = null){
 	return new Promise ( (resolve, reject) => {
-		var com = new Com(null, owner, options);
+		var com = new THttpClient(null, owner, options);
 			xhr = com.xhr,
 			err = () => reject(xhr.statusText);
 
@@ -65,10 +65,10 @@ function sendPromise(owner = null, options = null){
 }
 
 /*————————————————————————————————————————————————————————————————————————————
-  CLASS: Com.
+  CLASS: THttpClient.
   TASKS:
 	Defines http client communicator class.
-	* Well writing HttpClient everywhere is long, so its name is Com.
+	* Well writing HttpClient everywhere is long, so its name is THttpClient.
 	* It is an XHR wrapper.
 	* Does not allow members.
 	* Communication is always asynchronous.
@@ -107,7 +107,7 @@ function sendPromise(owner = null, options = null){
 		owner.comLoadStart(sender, e)
 			where sender is com object and e is the event object.
 ————————————————————————————————————————————————————————————————————————————*/
-export class Com extends Component {
+export class THttpClient extends TComponent {
 	
 	static cdta = {
 		method: {value: 'POST'},
@@ -155,7 +155,7 @@ export class Com extends Component {
 	_pwd = null;				// user pass if required.
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  CTOR: Com.
+	  CTOR: THttpClient.
 	  TASK: Constructs an http communicator component.
 	  ARGS:
 		name	: String		: Name of new communicator			:DEF: null.
@@ -194,7 +194,7 @@ export class Com extends Component {
 			return;
 		for(h in OWNER_HANDLERS_LIST){	// set all available handlers to events.
 			if (is.fun(o['com' + h]))
-				this.setEvent('on' + h, new EventHandler(o, 'com' + h));
+				this.setEvent('on' + h, new TEventHandler(o, 'com' + h));
 		}
 	}
 
@@ -237,7 +237,7 @@ export class Com extends Component {
 
 	/*——————————————————————————————————————————————————————————————————————————
 
-	  Com getter-setters.
+	  THttpClient getter-setters.
 	
 	——————————————————————————————————————————————————————————————————————————*/
 
@@ -429,4 +429,4 @@ function buildHeaders(com) {
 		x.setRequestHeader(i, h[i]);	
 }
 
-sys.registerClass(Com);
+sys.registerClass(THttpClient);

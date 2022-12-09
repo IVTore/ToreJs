@@ -3,15 +3,15 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Styler.js: Tore Js control styles singleton component class.
+  About		: 	TStyler.js: Tore Js control styles singleton component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { sys, is, exc, core, Component } from "../lib/index.js";
+import { sys, is, exc, core, TComponent } from "../lib/index.js";
 import { display } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: Styler
+  CLASS: TStyler
 
   TASKS: 
 	This component class makes a singleton accesible as styler or 
@@ -26,7 +26,7 @@ import { display } from "./index.js";
 	Browser body element is represented by display singleton.
 	When the display control is initialized and whenever it is resized
 	via a browser resize, styler doViewportChange method is invoked.
-	Styler uses browser document.documentElement.clientWidth
+	TStyler uses browser document.documentElement.clientWidth
 	to calculate the viewport name. If name changes, the viewport
 	dependant values in the css are changed by styler.
 
@@ -75,7 +75,7 @@ import { display } from "./index.js";
 	their controlState.
 
 	Example: 
-	- Let panel1 a Panel control.
+	- Let panel1 a TPanel control.
 	- panel1.styleSize = "Tiny"
 	- panel1.styleColor = "Second"
 	- panel1.styleName = "Extra"
@@ -83,14 +83,14 @@ import { display } from "./index.js";
 	
 		The panel1 element class names will be:
 	
-		Panel PanelAlive
+		TPanel PanelAlive
 		Tiny TinyAlive PanelTiny PanelTinyAlive
 		Second SecondAlive PanelSecond PanelSecondAlive
 		Extra ExtraAlive PanelExtra PanelExtraAlive
 		
 		If panel1 is hovered then panel1 element class names will be:
 
-		Panel PanelHover
+		TPanel PanelHover
 		Tiny TinyHover PanelTiny PanelTinyHover
 		Second SecondHover PanelSecond PanelSecondHover
 		Extra ExtraHover PanelExtra PanelExtraHover
@@ -101,7 +101,7 @@ import { display } from "./index.js";
 	Controls assume boxSizing as borderBox and margins as 0.
 ——————————————————————————————————————————————————————————————————————————*/
 
-class Styler extends Component {
+class TStyler extends TComponent {
 
 	static allowMemberClass = null;
 	static cdta = {};
@@ -246,7 +246,7 @@ class Styler extends Component {
 
 }
 
-export const styler = new Styler();
+export const styler = new TStyler();
 
 
 // Private methods

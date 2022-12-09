@@ -1,10 +1,10 @@
 import { ctl } from "./ctl.js"
-import { styler } from "./Styler.js";
-import { Control } from "./Control.js";
-import { Container } from "./Container.js";
-import { Panel } from "./Panel.js";
-import { display } from "./Display.js";
-import { Label } from "./Label.js";
-import { Button } from "./Button.js";
+import { styler } from "./TStyler.js";
+import { TControl } from "./TControl.js";
+import { TContainer } from "./TContainer.js";
+import { TPanel } from "./TPanel.js";
+import { display } from "./TDisplay.js";
+import { TLabel } from "./TLabel.js";
+import { TButton } from "./TButton.js";
 
-export { ctl, styler, Control, Container, Panel, display, Label, Button };
+export { ctl, styler, TControl, TContainer, TPanel, display, TLabel, TButton };

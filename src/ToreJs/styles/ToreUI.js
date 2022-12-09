@@ -75,11 +75,11 @@ export function ToreUI(){
         }
     });
 
-    s.addRule("Label",{
+    s.addRule("TLabel",{
         backgroundColor: "Yellow"
     })
     
-    s.addRule("Button", {
+    s.addRule("TButton", {
         borderStyle: 'solid',
         borderWidth: '1px',
         //lineHeight: "1.4"

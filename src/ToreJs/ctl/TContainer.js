@@ -3,21 +3,21 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Container.js: Tore Js container control component class.
+  About		: 	TContainer.js: Tore Js container control component class.
   License 	:	MIT.
 ——————————————————————————————————————————————————————————————————————————*/
 
 import { is, sys, core } from "../lib/system.js";
-import { Control } from "./Control.js";
+import { TControl } from "./TControl.js";
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: Container
-  TASKS: Defines Container base control class. 
-		 Container class is the anchestor of all control classes which 
+  CLASS: TContainer
+  TASKS: Defines TContainer base control class. 
+		 TContainer class is the anchestor of all control classes which 
 		 need automatic management of focusing and tab ordering for sub 
 		 controls.
 ——————————————————————————————————————————————————————————————————————————*/
-export class Container extends Control {
+export class TContainer extends TControl {
 
 	static canFocusWhenEmpty = false;
 	static canFocusDefault = true;
@@ -35,11 +35,11 @@ export class Container extends Control {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a Container component, attaches it to its owner if any.
+	  TASK: Constructs a TContainer component, attaches it to its owner if any.
 	  ARGS: 
 		name 	: string	: Name of new control :DEF: null.
 							  if Sys.LOAD, construction is by deserialization.
-		owner	: Component	: Owner of the new container if any :DEF: null.
+		owner	: TComponent	: Owner of the new container if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
@@ -110,13 +110,13 @@ export class Container extends Control {
 		Attaches a member component to the container, if new component 
 		is a control, invalidates tab cache.
 	  ARGS:
-		component		: Component :	new member component :DEF: null.
+		component		: TComponent :	new member component :DEF: null.
 	  RETV: Boolean		: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
 		if (!super.attach(component))
 			return false;
-		if (component instanceof Control)
+		if (component instanceof TControl)
 			this._calcTabs = true;
 		return true;
 	}
@@ -127,13 +127,13 @@ export class Container extends Control {
 		Detaches a member component from the container, if removed 
 		component is a control, invalidates tab cache.
 	  ARGS:
-		component : Component	: member component to detach [d = null].
+		component : TComponent	: member component to detach [d = null].
 	  RETV:			Boolean		: True on success
 	  ——————————————————————————————————————————————————————————————————————————*/
 	detach(component){
 		if (!super.detach(component))		
 			return false;	
-		if (component instanceof Control)
+		if (component instanceof TControl)
 			this._calcTabs = true;
 		return true;
 	}
@@ -176,7 +176,7 @@ export class Container extends Control {
 		for(c of t._ctl){
 			if (!c._interact || (c._tabIndex < 0 && tabonly))
 				continue;
-			if (c instanceof Container && 
+			if (c instanceof TContainer && 
 				!c.class.canFocusWhenEmpty && 
 				c.fetchFocusChildren() === null) 
 				continue;
@@ -191,7 +191,7 @@ export class Container extends Control {
 	  ARGS:	
 		backward : Boolean :	Find in backwards direction.
 	  RETV:
-				 : Control :	Next control to key focus in container.
+				 : TControl :	Next control to key focus in container.
 								if null, container has no focusable control.
 								or tabsLoop is false and focus is out.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -241,17 +241,17 @@ export class Container extends Control {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: focusable
 	  TASK: Discover if a control is focusable within the container.
-	  ARGS: c : Control	: The control to check focusability.
+	  ARGS: c : TControl	: The control to check focusability.
 	  RETV:		Boolean	: true if control is focusable.
 	——————————————————————————————————————————————————————————————————————————*/
 	focusable(c = null) {
-		return (c instanceof Control && c._interact && c.container === this);
+		return (c instanceof TControl && c._interact && c.container === this);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: validFocus
 	  TASK: Finds the valid focus control in container.
-	  RETV:   : Control : valid focus control, or null, if there is none.
+	  RETV:   : TControl : valid focus control, or null, if there is none.
 	——————————————————————————————————————————————————————————————————————————*/
 	validFocus() {
 		var c;
@@ -265,11 +265,11 @@ export class Container extends Control {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	 	Container get sets
+	 	TContainer get sets
 	——————————————————————————————————————————————————————————————————————————*/
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	focus : Control.
+	  PROP:	focus : TControl.
 	  GET : Returns current control that has focus in the container.
 	  SET : Sets the focus to a control in the container.
 	  WARN: 
@@ -293,7 +293,7 @@ export class Container extends Control {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	defaultControl : Control.
+	  PROP:	defaultControl : TControl.
 	  GET : Returns the control to activate when enter key is pressed.
 	  SET : Sets    the control to activate when enter key is pressed.
   ——————————————————————————————————————————————————————————————————————————*/
@@ -307,7 +307,7 @@ export class Container extends Control {
 		this._defFocus = val;
 	}
 }
-// Control class needs this, to avoid disrupting module hierarchy.
-is.container = function(x) {return(x instanceof Container);} 
+// TControl class needs this, to avoid disrupting module hierarchy.
+is.container = function(x) {return(x instanceof TContainer);} 
 
-sys.registerClass(Container);
+sys.registerClass(TContainer);

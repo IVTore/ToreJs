@@ -3,55 +3,54 @@
 
   Version	: 20220706
   Author	: IVT : İhsan V. Töre
-  About		: Image.js: 
+  About		: TImage.js: 
 				Tore Js image visual control class.
   License	: MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { exc } from "../lib/index.js";
+import { exc, sys } from "../lib/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: Image
-  TASKS: Defines behaviours of Tore JS Image controls.
+  CLASS: TImage
+  TASKS: Defines behaviours of Tore JS TImage controls.
 ————————————————————————————————————————————————————————————————————————————*/
 
-export class Image extends Control {
+export class TImage extends TControl {
 
     static elementTag = 'image';	
 	static canFocusDefault = false;	
 
     static cdta = {
 		source:			{value: null},
-        loader:         {value: defaultImageLoader},
+        loader:         {value: "default"},
 		onProgress:	    {event: true},
         onLoaded:	    {event: true},
 		onError:		{event: true}
 	}
 
-	_source = null;		// source definition.
-    _loader = null;     // loader method.Default is defaultImageLoader.
-    _active = false;    // loading in progress.
+	_source = null;			// source definition.
+    _loader = "default";    // loader method. Default is default.
+    _active = false;    	// loading in progress.
 	
 	
 	/*——————————————————————————————————————————————————————————————————————————
       CTOR: constructor.
-      TASK: Constructs an Image component, attaches it to its owner if any.
+      TASK: Constructs an TImage component, attaches it to its owner if any.
       ARGS: 
         name    : string    : Name of new panel :DEF: null.
                               if sys.LOAD, construction is by deserialization.
-        owner   : Component : Owner of the new button if any :DEF: null.
+        owner   : TComponent : Owner of the new button if any :DEF: null.
         data    : Object    : An object containing instance data :DEF: null.
 		init	: boolean	: If true, initialize control here. 
     ——————————————————————————————————————————————————————————————————————————*/
     constructor(name = null, owner = null, data = null, init = true) {
         super(name, null, null, false);
-        loader = defaultImageLoader;
         this._initControl(name, owner, data, init);
     }
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy.
-	  TASK: Destroys the Image instance.
+	  TASK: Destroys the TImage instance.
 	————————————————————————————————————————————————————————————————————————————*/
 	destroy() {
 		if (!this._sta)
@@ -106,19 +105,8 @@ export class Image extends Control {
 	}
 
 	set source(val = null) {
-        if (val === this._source)
-            return;
-        while (true) {    
-		    if (typeof val === 'string' || val === null) { 
-			    this._source = val;
-                break;
-            }
-		    if (is.vpObj(val)){
-			    this._source = Object.assign({}, r);
-                break;
-            }
-        }
-        this.contentChanged();
+        if (this._setAutoValue(val, '_source', 'source', false) || val === null)
+        	this.contentChanged();
 	}
 	
 
@@ -127,9 +115,13 @@ export class Image extends Control {
 
 }
 
-export function defaultImageLoader(img = null) {
-    if (!(img instanceof Image))
-        exc('E_INV_ARG', 'img !Image');
-    
+export const imageLoaders = {
+	
+	defaultImageLoader: function(img = null) {
+    	if (!(img instanceof TImage))
+        	exc('E_INV_ARG', 'img !TImage');
+	}
 
 }
+
+sys.registerClass(TImage);

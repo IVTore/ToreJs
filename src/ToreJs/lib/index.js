@@ -1,8 +1,8 @@
 import { sys, is, exc, core } from "./system.js";
 import { TObject } from "./TObject.js";
-import { Component } from "./Component.js";
-import { EventHandler } from "./EventHandler.js";
-import { i18n, Language } from "./I18n.js";
-import { Com, send } from "./Com.js";
+import { TComponent } from "./TComponent.js";
+import { TEventHandler } from "./TEventHandler.js";
+import { i18n, TLanguage } from "./TI18n.js";
+import { THttpClient, send } from "./THttpClient.js";
 
-export {sys, is, exc, core, TObject, Component, EventHandler, Language, i18n, Com, send};
+export {sys, is, exc, core, TObject, TComponent, TEventHandler, TLanguage, i18n, THttpClient, send};

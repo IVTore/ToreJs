@@ -3,17 +3,17 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Panel.js: Tore Js Panel control component class.
+  About		: 	TPanel.js: Tore Js TPanel control component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { is, sys } from "../lib/index.js";
-import { ctl, Control, Container } from "./index.js";
+import { ctl, TControl, TContainer } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: Panel
+  CLASS: TPanel
   TASKS: 
-	Panel is a container supporting automatic layout of sub controls.
+	TPanel is a container supporting automatic layout of sub controls.
   	
 	Sub control layout is interdependant on:
 		
@@ -64,7 +64,7 @@ import { ctl, Control, Container } from "./index.js";
 				height of panel becomes dependant to both content and 
 				its containers
 ——————————————————————————————————————————————————————————————————————————*/
-export class Panel extends Container {
+export class TPanel extends TContainer {
 
 	static canFocusWhenEmpty = false;
 	static canFocusDefault = true;
@@ -91,11 +91,11 @@ export class Panel extends Container {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a Panel component, attaches it to its owner if any.
+	  TASK: Constructs a TPanel component, attaches it to its owner if any.
 	  ARGS: 
 		name 	: string	: Name of new panel :DEF: null.
 							  if Sys.LOAD, construction is by deserialization.
-		owner	: Component	: Owner of the new panel if any :DEF: null.
+		owner	: TComponent	: Owner of the new panel if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
@@ -123,14 +123,14 @@ export class Panel extends Container {
 		Attaches a member component to the panel, if new component 
 		is a control and sequence is true it added to layout sequence.
 	  ARGS:
-		component	: Component : New member component :DEF: null.
+		component	: TComponent : New member component :DEF: null.
 		sequence	: boolean	: Add to layout sequence if true. :DEF: false.
 	  RETV: Boolean	: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null, sequence = false) {
 		if (!super.attach(component))
 			return false;
-		if (!(component instanceof Control))
+		if (!(component instanceof TControl))
 			return true;
 		if (sequence) {
 			this._sequence = this._sequence || [];
@@ -146,7 +146,7 @@ export class Panel extends Container {
 		Detaches a member component from the panel, if removed 
 		component is a control, it is removed from sequence also.
 	  ARGS:
-		component : Component	: member component to detach :DEF: null.
+		component : TComponent	: member component to detach :DEF: null.
 	  RETV:			Boolean		: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null){
@@ -154,7 +154,7 @@ export class Panel extends Container {
 
 		if (!super.detach(component))
 			return false;
-		if (!(component instanceof Control))
+		if (!(component instanceof TControl))
 			return true;
 		i = this.sequenceIdx(component);
 		if (i !== -1)
@@ -165,9 +165,9 @@ export class Panel extends Container {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doMemberRelocate[override].
-	  TASK: Flags the  Panel that its member is resized or repositioned.
+	  TASK: Flags the  TPanel that its member is resized or repositioned.
 	  ARGS: 
-		member	: Control :	Member control that is relocated.
+		member	: TControl :	Member control that is relocated.
 	  INFO: 
 		Dimensions recalculated.
 		Called from relocate() method of member.
@@ -183,7 +183,7 @@ export class Panel extends Container {
 		
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: autoAdjust [override].
-	  TASK: Changes the size and position of Panel according to properties.
+	  TASK: Changes the size and position of TPanel according to properties.
 	  RETV: 	: Boolean : true if adjust done, false if not required.
 	  INFO: Tricky.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -248,7 +248,7 @@ export class Panel extends Container {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: sequenceIdx [override].
 	  TASK: Finds the index of control in panel layout sequence.
-	  ARGS: member	: Control : The member control to search.
+	  ARGS: member	: TControl : The member control to search.
 	  RETV: 		: number  : The member index in sequence or -1 if 
 	  							there is no sequence or
 	  							member is not a control or
@@ -256,13 +256,13 @@ export class Panel extends Container {
 								member is not sequenced.
 	——————————————————————————————————————————————————————————————————————————*/
 	sequenceIdx(member = null){
-		if (this._sequence === null || !(member instanceof Control))
+		if (this._sequence === null || !(member instanceof TControl))
 			return -1;
 		return this._sequence.indexOf(member.name);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-		Panel get sets
+		TPanel get sets
 	——————————————————————————————————————————————————————————————————————————*/
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -375,7 +375,7 @@ export class Panel extends Container {
 			return;
 		}
 		for(c in val){
-			if (!(this._mem[val[c]] instanceof Control))
+			if (!(this._mem[val[c]] instanceof TControl))
 				continue;
 			sys.addUnique(n, val[c]);
 		}
@@ -430,7 +430,7 @@ export class Panel extends Container {
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorLinearWidth
   TASK: Calculates inner width for horizontal linear layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   RETV: 	: number : inner width.
   INFO: This is required when rtl = true and autoWidth = "fit".
@@ -462,7 +462,7 @@ function calcHorLinearWidth(pnl, seq){
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcMinWidth
   TASK: Calculates minimum inner width for vertical linear layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   RETV: 	: number : minimum possible inner width.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -485,7 +485,7 @@ function calcMinWidth(pnl, seq){
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcMinHeight
   TASK: Calculates minimum inner height for horizontal linear layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   RETV: 	: number : minimum possible inner height.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -508,7 +508,7 @@ function calcMinHeight(pnl, seq){
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: commonWrapped
   TASK: Executes final common code for wrapped layouts. 
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   RETV: 	: number : minimum possible inner width.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -552,7 +552,7 @@ function commonWrapped(pnl, seq, nsx, nsy, wid){
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorWrapped
   TASK: Calculates subcontrol positions for wrapped horizontal layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   INFO: When wrapped, contentAlign has no meaning.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -591,7 +591,7 @@ function calcHorWrapped(pnl, seq) {
   FUNC: calcVerWrapped
   TASK: This utterly unnecessary function calculates subcontrol positions 
 		for wrapped vertical layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   INFO: When wrapped, contentAlign has no meaning.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -628,7 +628,7 @@ function calcVerWrapped(pnl, seq) {
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorLinear [private].
   TASK: Calculates subcontrol positions for linear horizontal layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   INFO: contentAlign property defines vertical alignment for subcontrols.
 		"center", centers, "bottom" aligns bottom, any other value is top.
@@ -670,7 +670,7 @@ function calcHorLinear(pnl, seq) {
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcVerLinear
   TASK: Calculates subcontrol positions for linear vertical layout.
-  ARGS:	pnl	: Panel	 : Panel.
+  ARGS:	pnl	: TPanel	 : TPanel.
 		seq	: Array	 : Array of visible controls in sequence.
   INFO: 
   	*	contentAlign property defines horizontal alignment for subcontrols.
@@ -728,4 +728,4 @@ function fetchSequenced(t) {
 	return (r.length) ? r : null;
 }
 
-sys.registerClass(Panel);
+sys.registerClass(TPanel);

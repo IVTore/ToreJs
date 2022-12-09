@@ -3,15 +3,15 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Display.js: Tore Js Display control component class.
+  About		: 	TDisplay.js: Tore Js display control component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { TObject, Component, sys, is, exc, core } from "../lib/index.js";
-import { ctl, Control, Container, Panel, styler } from "../ctl/index.js";
+import { TObject, TComponent, sys, is, exc, core } from "../lib/index.js";
+import { ctl, TControl, TContainer, TPanel, styler } from "../ctl/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: Display
+  CLASS: TDisplay
   TASKS:
 	This class generates a singleton control display or core.display. 
 	It represents the display area of the browser, borrowing 
@@ -22,12 +22,12 @@ import { ctl, Control, Container, Panel, styler } from "../ctl/index.js";
 	3) Mouse (and TODO: Touch) events.
 ————————————————————————————————————————————————————————————————————————————*/
 
-class Display extends Panel {
+class TDisplay extends TPanel {
 
-	// Display does not make an element but binds to body.
+	// TDisplay does not make an element but binds to body.
 	static elementTag = 'body';
 
-	// Display special events and handler names.
+	// TDisplay special events and handler names.
 	static displayEvents = {
 		touchstart: 'handleTouchStart',
 		touchmove:	'handleTouchMove',
@@ -124,12 +124,12 @@ class Display extends Panel {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addRenderQueue
 	  TASK: Adds invalidated control to queue.
-	  ARGS: control : Control : Control to add to queue.
+	  ARGS: control : TControl : TControl to add to queue.
 	——————————————————————————————————————————————————————————————————————————*/
 	addRenderQueue(control = null){
 		var t = this;
 
-		if (!(control instanceof Control) || t._renLst.indexOf(control) > -1)
+		if (!(control instanceof TControl) || t._renLst.indexOf(control) > -1)
 			return;
 		t._renLst.push(control);
 		if (t._renFrm)
@@ -190,12 +190,12 @@ class Display extends Panel {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: relocate [override].
 	  TASK: Notifies member controls that display is resized.
-	  INFO: Redundant in Display.
+	  INFO: Redundant in TDisplay.
 	—————————————————————————————————————————————————————————————————————————*/
 	relocate() { }
 
 	/*————————————————————————————————————————————————————————————————————————————
-		Application Focus Control.
+		Application Focus TControl.
 		This subsystem works in coherence with focusing and tabbing
 		mechanisms of containers and controls.
 		Hit means any pointer hit, regardless of mouse or touch.
@@ -206,9 +206,9 @@ class Display extends Panel {
 		Double hit checking function. Issues hit and sets timer for
 		double hit capture.
 	  ARGS:
-		n	: Control 	: (newly) hit target control.
-		x	: number	: Control relative click x coordinate 
-		y	: number	: Control relative click y coordinate
+		n	: TControl 	: (newly) hit target control.
+		x	: number	: TControl relative click x coordinate 
+		y	: number	: TControl relative click y coordinate
 		e	: UIEvent	: Original javascript event coming from DOM.
 	——————————————————————————————————————————————————————————————————————————*/
 	hitChk(n, x, y, e) {
@@ -506,7 +506,7 @@ class Display extends Panel {
 	  PROC: handleDragStart
 	  TASK: Initiates control dragging.
 	  ARGS:
-		c	: Control to drag.
+		c	: TControl to drag.
 		x	: Pointer x on the control (Global).
 		y	: Pointer y on the control (Global).
 	  INFO:
@@ -642,7 +642,7 @@ class Display extends Panel {
 		var t = this,
 			i;
 
-		if (!(c instanceof Control) || !c._interact || c === t._curCtl){
+		if (!(c instanceof TControl) || !c._interact || c === t._curCtl){
 			t.reFocus(); 
 			return;
 		}
@@ -658,7 +658,7 @@ class Display extends Panel {
 			c		= i;
 			i		= c.container;
 		}
-		if (t._curCtl instanceof Container)
+		if (t._curCtl instanceof TContainer)
 			t.currentControl = t._curCtl.validFocus();
 	}
 
@@ -788,7 +788,7 @@ function calculateViewportName(w = null) {
   TASK:	
   	Convert global (body) mouse event to local (control) mouse event.
   ARGS:
-	control	: Control		: Control to fetch local event. 
+	control	: TControl		: TControl to fetch local event. 
 	event	: MouseEvent 	: Incoming global event.
   RETV:		: MouseEvent	: Localized event.
 ——————————————————————————————————————————————————————————————————————————*/
@@ -810,10 +810,10 @@ function localMouseEvent(control, event){
 	event	: MouseEvent 	: incoming event.
   RETV:		: Object		: 
   				{	
-					c: Control at topmost hit through transparencies,
+					c: TControl at topmost hit through transparencies,
 					   or null if no eligible target,
-					x: Control local offsetX,
-					y: Control local offsetY
+					x: TControl local offsetX,
+					y: TControl local offsetY
 				}
 ——————————————————————————————————————————————————————————————————————————*/
 function handleMouseEvent(event) {
@@ -832,10 +832,10 @@ function handleMouseEvent(event) {
 	event	: MouseEvent	: Incoming mouseEvent.
   RETV:		: Object		: 
   				{	
-					c: Control at topmost hit through transparencies,
+					c: TControl at topmost hit through transparencies,
 					   or null if no eligible target,
-					x: Control local offsetX,
-					y: Control local offsetY
+					x: TControl local offsetX,
+					y: TControl local offsetY
 				}
 ——————————————————————————————————————————————————————————————————————————*/
 function findOpaque(event) {
@@ -867,5 +867,5 @@ function findOpaque(event) {
 	return ret;
 }
 
-export const display = new Display();
+export const display = new TDisplay();
 display.doViewportResize();

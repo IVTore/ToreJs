@@ -3,20 +3,20 @@
 
   Version	: 20220706
   Author	: IVT : İhsan V. Töre
-  About		: Button.js: Tore Js Button control component class.
+  About		: TButton.js: Tore Js TButton control component class.
   License : MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys } from "../lib/system.js";
-import { Control } from "./Control.js";
-import { Panel } from "./Panel.js";
+import { TControl } from "./TControl.js";
+import { TPanel } from "./TPanel.js";
 
 
 /*————————————————————————————————————————————————————————————————————————————
-  CLASS: Button
+  CLASS: TButton
   TASKS: Defines base control for button classes.
 ————————————————————————————————————————————————————————————————————————————*/
-export class Button extends Panel {
+export class TButton extends TPanel {
 
     static canFocusWhenEmpty = true;
     static canFocusDefault = true;
@@ -40,11 +40,11 @@ export class Button extends Panel {
 
     /*——————————————————————————————————————————————————————————————————————————
       CTOR: constructor.
-      TASK: Constructs a Button component, attaches it to its owner if any.
+      TASK: Constructs a TButton component, attaches it to its owner if any.
       ARGS: 
         name    : string    : Name of new panel :DEF: null.
                               if Sys.LOAD, construction is by deserialization.
-        owner   : Component : Owner of the new button if any :DEF: null.
+        owner   : TComponent : Owner of the new button if any :DEF: null.
         data    : Object    : An object containing instance data :DEF: null.
     ——————————————————————————————————————————————————————————————————————————*/
     constructor(name = null, owner = null, data = null, init = true) {
@@ -64,13 +64,13 @@ export class Button extends Panel {
 			yielding focus to the button,
 			adds it to layout sequence.
 	  ARGS:
-		component		: Component :	new member component :DEF: null.
+		component		: TComponent :	new member component :DEF: null.
 	  RETV: Boolean		: True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
 		if (!super.attach(component, true))
 			return false;
-		if (!(component instanceof Control))
+		if (!(component instanceof TControl))
 			return true;
 		component.canFocus = false;
         component.yieldFocus = true;
@@ -87,7 +87,7 @@ export class Button extends Panel {
         if (this._toggleMode || this._group){
             if (this._group) {
                 if (!this._selected){
-                    l = this._own.members(Button, {group: this._group});
+                    l = this._own.members(TButton, {group: this._group});
                     for(c in l)
                         l[c].selected = !!(l[c] === this);
                 } else {
@@ -101,7 +101,7 @@ export class Button extends Panel {
     }
 
     /*————————————————————————————————————————————————————————————————————————————
-      Button get sets
+      TButton get sets
     ————————————————————————————————————————————————————————————————————————————*/
     /*——————————————————————————————————————————————————————————————————————————
       PROP:	controlState : int [override]
@@ -115,7 +115,7 @@ export class Button extends Panel {
         super.controlState = val;
         if (i === this._ctlState)
             return;
-        l = this.members(Control, {canFocus: false});
+        l = this.members(TControl, {canFocus: false});
         for(i in l)
             l[i].controlState = val;
     }
@@ -160,7 +160,7 @@ export class Button extends Panel {
         this._group = value;
         if (!this._own)
             return;
-        l = this._own.members(Button, {group: value});
+        l = this._own.members(TButton, {group: value});
         if (l.length > 0)		// set allowAllUp
             this._allowAllUp = l[0]._allowAllUp;
     }
@@ -184,10 +184,10 @@ export class Button extends Panel {
         this._allowAllUp = val;
         if (!this._own)
             return;
-        l = this._own.members(Button, {group: t._group});
+        l = this._own.members(TButton, {group: t._group});
         for(c in l)
             l[c]._allowAllUp = val;
     }
 } 
 
-sys.registerClass(Button);
+sys.registerClass(TButton);

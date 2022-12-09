@@ -3,19 +3,19 @@
 
   Version	: 	20220706
   Author	: 	IVT : İhsan V. Töre
-  About		: 	Label.js: Tore Js Label control component class.
+  About		: 	TLabel.js: Tore Js TLabel control component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { core, is, sys } from "../lib/index.js";
 import { ctl } from "../ctl/index.js";
-import { Control, display } from "../ctl/index.js";
+import { TControl, display } from "../ctl/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: Label
-  TASKS: Label is a control for displaying texts.
+  CLASS: TLabel
+  TASKS: TLabel is a control for displaying texts.
 ——————————————————————————————————————————————————————————————————————————*/
-export class Label extends Control {
+export class TLabel extends TControl {
 
 	static allowMemberClass = null;		// no members allowed.
 
@@ -34,11 +34,11 @@ export class Label extends Control {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
-	  TASK: Constructs a Label component, attaches it to its owner if any.
+	  TASK: Constructs a TLabel component, attaches it to its owner if any.
 	  ARGS: 
 		name 	: string	: Name of new control :DEF: null.
 							  if Sys.LOAD, construction is by deserialization.
-		owner	: Component	: Owner of the new control if any :DEF: null.
+		owner	: TComponent	: Owner of the new control if any :DEF: null.
 		data	: Object	: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
@@ -261,4 +261,4 @@ function initCalc(){
 var textCalc = initCalc(),
 	textCtxt = textCalc.getContext("2d");
 
-sys.registerClass(Label);
+sys.registerClass(TLabel);

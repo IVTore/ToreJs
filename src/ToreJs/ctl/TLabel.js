@@ -8,8 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { core, is, sys } from "../lib/index.js";
-import { ctl } from "../ctl/index.js";
-import { TControl, display } from "../ctl/index.js";
+import { TControl } from "../ctl/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TLabel

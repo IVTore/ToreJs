@@ -19,16 +19,16 @@ import { TEventHandler } from "../lib/TEventHandler.js";
   INFO: If err is an Error exception is not raised but just processed.
 ———————————————————————————————————————————————————————————————————————————*/
 function exc(tag = "E_NO_TAG", inf = "", err = null) {
-var asg = (is.asg(err) && err instanceof Error),
+var asg = err instanceof Error,
 	cex = asg ? err : new Error(tag),
 	dta = {
 		exc: cex.name, 
 		tag: tag,
-		inf: is.arr(inf) ? inf.join("\n") : inf,
+		inf: Array.isArray(inf) ? inf.join("\n") : inf,
 		msg: cex.message
 	};
 
-	if (is.fun(sys.excInterceptor)) 
+	if (typeof sys.excInterceptor === 'function') 
 		sys.excInterceptor(dta, err);
 
 	if (sys.excConsoleLog) {
@@ -40,6 +40,20 @@ var asg = (is.asg(err) && err instanceof Error),
 
 	if (!asg)
 		throw new Error(tag);
+}
+
+
+// Precompiled identifier regexp values.
+const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
+const WHITESPACE_REGEXP = new RegExp(/^\s*$/);
+
+const is = {
+                                                                    // Checks if argument is a plain object: {}.
+	plain: x => x !== undefined && (x.__proto__ === null || x.__proto__ === Object.prototype), 
+	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
+	class: x =>	isClass(x),											// Checks if argument is a class.
+	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
+	component: x => (x !== undefined && x instanceof TComponent)
 }
 
 const sys = {
@@ -56,12 +70,34 @@ const sys = {
 
 	registerClass: registerClass,
 	
+
+	/*———————————————————————————————————————————————————————————————————————————
+	  FUNC: chk.                                      
+	  TASK:                                                     
+		Checks argument and raises exception if it is null 
+		or empty.                                               
+	  ARGS:                                                     
+		arg : object        : Argument to check validity.       
+		inf : string        : Exception info if arg invalid.    
+		tag : string        : Exception tag if arg invalid.
+										:DEF: "E_INV_ARG".          
+	  INFO:                                                     
+		In case of strings, white spaces are not welcome.       
+	————————————————————————————————————————————————————————————————————————————*/
+	chk: function(arg = null, inf = null, tag = "E_INV_ARG") {
+		var t = typeof arg;
+
+		if (arg === null ||	(t === 'string' && (arg.length === 0 || WHITESPACE_REGEXP.test(arg))))
+			exc(tag, inf);
+	},
+
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	classByName
-	  TASK:	Tries to fetch a constructor of a class with given name.
-	  		class constructor must be registered before.
+	  TASK:	
+	  	Tries to fetch a constructor of a class with given name.
+	  	class constructor must be registered before.
 	  ARGS:	
-		name : String		: Class name.
+		name : string		: Class name.
 	  RETV:	 : Constructor 	: If registered the class constructor else null.
 	———————————————————————————————————————————————————————————————————————————*/
 	classByName: function(name = null) {
@@ -104,13 +140,13 @@ const sys = {
 	  RETV:			: Object 	: fetched object.
 	———————————————————————————————————————————————————————————————————————————*/
 	fetchObject: function(namePath = "", fromObject = null){
-	var	v = (fromObject) ? fromObject : window,
-		p,
-		i;
+		var	v = (fromObject) ? fromObject : window,
+			p,
+			i;
 		
 		p = (namePath instanceof Array) ? 
-					 namePath : 
-					(namePath === '') ? [] : namePath.split('.');
+				 namePath : 
+				(namePath === '') ? [] : namePath.split('.');
 		try {								
 			for(i in p)				// try fetching by names
 				v = v[p[i]]; 
@@ -138,7 +174,7 @@ const sys = {
 			exc('E_ARG_INV', 'target');
 		if(typeof handler !== 'string')
 			exc('E_ARG_INV', 'handler');
-		if(!is.fun(target[handler]))
+		if(!typeof target[handler] === 'function')
 			exc('E_HANDLER_INV', target.name + "." + handler);
 		return(function(e){target[handler](e);});
 	},
@@ -192,7 +228,7 @@ const sys = {
 				t[e] = i;						// set directly
 				continue;
 			}
-			// Tricky object designator string value evaluator.
+			// Tricky object designator string value evaluator, abracadabra...
 			if (typeof i === 'string' && i.startsWith('__') && (i.length === 3 || i[3] === '.')) {
 				d = i.substring(4);
 				switch(i.substring(0, 3)) { 
@@ -241,24 +277,6 @@ const sys = {
 	}
 };
 
-// Precompiled identifier regexp.
-const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
-
-const is = {
-	def: x => x !== undefined,										// Checks if argument is defined.
-	asg: x => x !== undefined && x !== null,						// Checks if argument is assigned.
-	num: x => typeof(x) === "number",								// Checks if argument is a number.
-	arr: x => Array.isArray(x),										// Checks if argument is an array.
-	fun: x => typeof(x) === "function",								// Checks if argument is a function.
-                                                                    // Checks if argument is a plain object: {}.
-	plain: x => is.asg(x) && (x.__proto__ === null || x.__proto__ === Object.prototype), 
-	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
-	class: x =>	isClass(x),											// Checks if argument is a class.
-	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
-	component: x => (x !== undefined && x instanceof TComponent)
-}
-
-
 var classes = {
 	Object: Object,
 	Array: Array
@@ -269,7 +287,7 @@ function registerClass(ctor = null) {
 
 	if (!isClass(ctor))
 		return;
-	console.log("Registering "+ctor.name+".");
+	console.log("Registering " + ctor.name + ".");
 	if (!isSuper(TObject, ctor)) {
 		classes[ctor.name] = ctor;
 		return;

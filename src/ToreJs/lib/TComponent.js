@@ -403,6 +403,16 @@ export class TComponent extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC:	doResourcelinkRemoved
+	  TASK:	Signals component that a resource with name is no more linked.
+	  ARGS:	name : string	: resource name.
+	  INFO: This is to be overridden.
+	——————————————————————————————————————————————————————————————————————————*/
+	doResourceLinkRemoved(name = null) {
+		
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	name : String;
 	  GET : Returns component name.
 	  SET : Checks name validity, then sets the name of the component.

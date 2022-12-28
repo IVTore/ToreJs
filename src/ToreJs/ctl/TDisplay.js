@@ -8,7 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { TObject, TComponent, sys, is, exc, core } from "../lib/index.js";
-import { ctl, TControl, TContainer, TPanel, styler } from "../ctl/index.js";
+import { TCtl, TControl, TContainer, TPanel, styler } from "../ctl/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TDisplay
@@ -770,7 +770,7 @@ class TDisplay extends TPanel {
   RETV:		: string : viewport size name.
 —————————————————————————————————————————————————————————————————————————*/
 function calculateViewportName(w = null) {
-    var s = ctl.viewportSizes,
+    var s = TCtl.viewportSizes,
         i,
         l = s.length;
 
@@ -780,7 +780,7 @@ function calculateViewportName(w = null) {
         if (w < s[i])
             break;
     }
-    return ctl.viewportNames[i];
+    return TCtl.viewportNames[i];
 }
 
 /*——————————————————————————————————————————————————————————————————————————

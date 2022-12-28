@@ -8,7 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { is, sys } from "../lib/index.js";
-import { ctl, TControl, TContainer } from "./index.js";
+import { TControl, TContainer } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TPanel
@@ -395,12 +395,12 @@ export class TPanel extends TContainer {
 		return this._splitX;
 	}
 
-	set splitX(value = 0) {
-		if (!is.num(value) || value < 0)
-			value = 0;
-		if (this._splitX == value) 
+	set splitX(val = 0) {
+		if (typeof val !== 'number' || val < 0)
+			val = 0;
+		if (this._splitX == val) 
 			return;
-		this._splitX = value;
+		this._splitX = val;
 		this.contentChanged();
 	}
 
@@ -414,12 +414,12 @@ export class TPanel extends TContainer {
 		return this._splitY;
 	}
 
-	set splitY(value = 0) {
-		if (!is.num(value) || value < 0)
-			value = 0;
-		if (this._splitY == value) 
+	set splitY(val = 0) {
+		if (typeof val !== 'number' || val < 0)
+			val = 0;
+		if (this._splitY == val) 
 			return;
-		this._splitY = value;
+		this._splitY = val;
 		this.contentChanged();
 	}
 
@@ -437,23 +437,23 @@ export class TPanel extends TContainer {
 ——————————————————————————————————————————————————————————————————————————*/
 function calcHorLinearWidth(pnl, seq){
 	var arr = pnl._ctl,
-		ctl,
+		ctr,
 		wid,
 		cto = 0,
 		tot = 0;
 	
-	for(ctl of arr) {
-		if (!ctl.visible)
+	for(ctr of arr) {
+		if (!ctr.visible)
 			continue;
-		if (seq.indexOf(ctl) > -1) {
-			tot += ctl._width;
+		if (seq.indexOf(ctr) > -1) {
+			tot += ctr._width;
 		} else {
-			wid = ctl._x + ctl._width;
+			wid = ctr._x + ctr._width;
 			if (wid > cto)
 				cto = wid;
 		}
 	}
-	tot += (ctl.length - 1) * pnl._splitX;
+	tot += (ctr.length - 1) * pnl._splitX;
 	if (tot < cto)
 		tot = cto;
 	return tot;
@@ -468,14 +468,14 @@ function calcHorLinearWidth(pnl, seq){
 ——————————————————————————————————————————————————————————————————————————*/
 function calcMinWidth(pnl, seq){
 	var arr = pnl._ctl,
-		ctl,
+		ctr,
 		wid,
 		min = 0;
 	
-	for(ctl of arr) {
-		if (!ctl.visible)
+	for(ctr of arr) {
+		if (!ctr.visible)
 			continue;
-		wid = (seq.indexOf(ctl) > -1) ? ctl._width: ctl._x + ctl._width;
+		wid = (seq.indexOf(ctr) > -1) ? ctr._width: ctr._x + ctr._width;
 		if (min < wid)
 			min = wid;
 	}
@@ -491,14 +491,14 @@ function calcMinWidth(pnl, seq){
 ——————————————————————————————————————————————————————————————————————————*/
 function calcMinHeight(pnl, seq){
 	var arr = pnl._ctl,
-		ctl,
+		ctr,
 		hei,
 		min = 0;
 	
-	for(ctl of arr) {
-		if (!ctl.visible)
+	for(ctr of arr) {
+		if (!ctr.visible)
 			continue;
-		hei = (seq.indexOf(ctl) > -1) ? ctl._height : ctl._y + ctl._height;
+		hei = (seq.indexOf(ctr) > -1) ? ctr._height : ctr._y + ctr._height;
 		if (min < hei)
 			min = hei;
 	}

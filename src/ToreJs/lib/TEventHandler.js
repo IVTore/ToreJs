@@ -256,7 +256,7 @@ function checkTEventHandlerTarget(handler) {
 // private.
 // Checks the target handler component method assignment.
 function checkTEventHandlerMethod(handler) {
-	if (is.fun(handler._tar[handler._met])) 
+	if (typeof handler._tar[handler._met] === 'function') 
 		return;
 	handler._met = null;
 	exc("E_INV_VAL", "method");

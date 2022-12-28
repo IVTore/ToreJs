@@ -8,7 +8,7 @@
   License	: MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { exc, sys } from "../lib/index.js";
+import { exc, is, sys, resources } from "../lib/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TImage
@@ -65,8 +65,7 @@ export class TImage extends TControl {
 	  ARGS: e   : progress event.
 	——————————————————————————————————————————————————————————————————————————*/
     doProgress(e = null) {
-
-    }
+	}
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doLoaded
@@ -115,13 +114,55 @@ export class TImage extends TControl {
 
 }
 
-export const imageLoaders = {
-	
-	defaultImageLoader: function(img = null) {
-    	if (!(img instanceof TImage))
-        	exc('E_INV_ARG', 'img !TImage');
-	}
+function defaultImageLoader(image, forceViewport = null) {
 
 }
+
+
+/*————————————————————————————————————————————————————————————————————————————
+  CLASS: TImageLoader [static]
+  TASKS: Manages image loader methods. 
+————————————————————————————————————————————————————————————————————————————*/
+export const TImageLoader = {
+
+	register: function(loaderName = null, loaderFunc = null) {
+		if (!is.ident(loaderName))
+			exc('E_INV_ARG', 'loaderName');
+		if (loaderName === 'default')
+			exc('E_INV_ARG', 'loaderName');
+		if (typeof loaderFunc !== 'function')
+			exc('E_INV_ARG', 'loaderFunc');
+		imageLoaders[loaderName] = loaderFunc;
+	},
+
+	remove: function(loaderName = null) {
+		if (!is.ident(loaderName))
+			exc('E_INV_ARG', 'loaderName');
+		if (loaderName === 'default')
+			exc('E_INV_ARG', 'loaderName');
+		delete imageLoaders[loaderName];
+	},
+
+	fetch: function(loaderName = null) {
+		var f;
+
+		if (!is.ident(loaderName))
+			return defaultImageLoader;
+		f = imageLoaders[loaderName];
+		if (typeof f !== 'function')
+			f = defaultImageLoader;
+		return f;
+	},
+
+	has: function(loaderName = null) {
+		return is.ident(loaderName) && imageLoaders[loaderName] !== undefined;
+	} 
+
+}
+
+// This is where the loader methods are kept by TImageLoader privately.
+const imageLoaders = {default: defaultImageLoader};
+
+Object.freeze(TImageLoader);
 
 sys.registerClass(TImage);

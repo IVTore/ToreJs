@@ -97,7 +97,7 @@ export class TContainer extends TControl {
 
 		if (!e)
 			return;
-		if (is.asg(e.ToreJS_Control))
+		if (typeof e.ToreJS_Control !== 'undefined')
 			delete(e.ToreJS_Control);	
 		if (e.parentNode)
 			e.parentNode.removeChild(e);

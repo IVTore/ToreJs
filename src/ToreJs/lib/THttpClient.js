@@ -193,7 +193,7 @@ export class THttpClient extends TComponent {
 		if (!o)
 			return;
 		for(h in OWNER_HANDLERS_LIST){	// set all available handlers to events.
-			if (is.fun(o['com' + h]))
+			if (typeof o['com' + h] === 'function')
 				this.setEvent('on' + h, new TEventHandler(o, 'com' + h));
 		}
 	}
@@ -331,9 +331,9 @@ export class THttpClient extends TComponent {
 		return this._qry;
 	}
 
-	set query(value = null) {
-		valid = typeof(value) === "object" && !is.arr(value);
-		checkSet(this, '_qry', value, "query", valid);
+	set query(val = null) {
+		valid = typeof val === "object" && !Array.isArray(val);
+		checkSet(this, '_qry', val, "query", valid);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -345,9 +345,9 @@ export class THttpClient extends TComponent {
 		return this._hdr;
 	}
 
-	set headers(value = null) {
-		valid = typeof(value)==="object" &&	!is.arr(value);
-		checkSet(this, '_hdr', value, "headers", valid);
+	set headers(val = null) {
+		valid = typeof val ==="object" & !Array.isArray(val);
+		checkSet(this, '_hdr', val, "headers", valid);
 	}
 }
 

@@ -33,7 +33,7 @@ var p1 = new TPanel("p1", display, {
 	},
 	hndVpTtl: function (sender) {
 		var style = getComputedStyle(sender._element);
-		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + styler.viewportName;
+		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + display.viewportName;
 	},
 	lv: { _new_: TLabel, styleSize: 'Medium', height: 40, autoWidth: "fit", onViewportResize: { _new_: TEventHandler, target: '__p.owner', method: 'hndVpTtl' } },
 	l1: { _new_: TLabel, styleSize: 'Huge', ...labelProps },
@@ -63,4 +63,7 @@ var p1 = new TPanel("p1", display, {
 });
 
 p1.sequence = ["lv", "l1", "l2", "l3", "l4", "l5", "l6", "b1"];
+
 display.doViewportResize();
+
+

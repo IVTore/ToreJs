@@ -8,7 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys, is, core, TComponent, exc } from "../lib/index.js";
-import { ctl } from "../ctl/ctl.js";
+import { TCtl } from "../ctl/TCtl.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TControl
@@ -56,7 +56,7 @@ export class TControl extends TComponent {
 		styleExtra		: {value: null},
 		styleColor		: {value: null},
 		styleSize		: {value: null},	
-		controlState	: {value: ctl.ALIVE},
+		controlState	: {value: TCtl.ALIVE},
 		visible			: {value: true},
 		canFocus		: {value: false},
 		hitOpaque		: {value: false},
@@ -176,7 +176,7 @@ export class TControl extends TComponent {
 	_initControl(name = null, owner = null, data = null, init = true) {
 		if (name === sys.LOAD || !init)
 			return;
-		this.controlState = ctl.ALIVE;
+		this.controlState = TCtl.ALIVE;
 		this._blockValidate = true;
 		if (owner)
 			owner.attach(this);
@@ -194,7 +194,7 @@ export class TControl extends TComponent {
 	destroy() {
 		if (!this._sta)
 			return;
-		this.controlState = ctl.DYING;
+		this.controlState = TCtl.DYING;
 		super.destroy();		// inherited destroy
 		this._ctl = null;
 		this.killElement();
@@ -223,7 +223,7 @@ export class TControl extends TComponent {
 
 		if (!e)
 			return;
-		if (is.asg(e.ToreJS_Control))
+		if (typeof e.ToreJS_Control !== 'undefined')
 			delete(e.ToreJS_Control);	
 		if (e !== document.body){ 
 			if (e.parentNode)
@@ -993,7 +993,7 @@ export class TControl extends TComponent {
 			return;
 		b =(this._visible && 
 			this._ctlState && 
-			this._ctlState !== ctl.SLEEP &&
+			this._ctlState !== TCtl.SLEEP &&
 			this._canFocus);
 		this._element.style.pointerEvents = (b) ? 'auto': 'none';
 		if (b == this._interact)			// if no change in interactivity
@@ -1010,7 +1010,7 @@ export class TControl extends TComponent {
 	doHit(x, y, e) {
 		var eve = this._eve.onHit;
 		
-		if (this._ctlState != ctl.FOCUS)
+		if (this._ctlState != TCtl.FOCUS)
 			return null;
 		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
@@ -1022,7 +1022,7 @@ export class TControl extends TComponent {
 	doDoubleHit(x, y, e) {
 		var eve = this._eve.onDoubleHit;
 		
-		if (this._ctlState != ctl.FOCUS)
+		if (this._ctlState != TCtl.FOCUS)
 			return null;
 		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
 	}
@@ -1067,8 +1067,8 @@ export class TControl extends TComponent {
 	var e = this._eve.onPointerOver;					// fetch event to relay
 	
 		this._ptrOver = true;							// flag pointer over
-		if (this._ctlState === ctl.ALIVE)				// if state is ALIVE 
-			this.controlState = ctl.HOVER;				// set it to HOVER
+		if (this._ctlState === TCtl.ALIVE)				// if state is ALIVE 
+			this.controlState = TCtl.HOVER;				// set it to HOVER
 		return ((e) ? e.dispatch([this, x, y]) : null);	// dispatch it
 	}
 
@@ -1080,8 +1080,8 @@ export class TControl extends TComponent {
 	var e = this._eve.onPointerOut;					// fetch event to relay
 	
 		this._ptrOver = false;						// not any more.
-		if (this._ctlState === ctl.HOVER)
-			this.controlState = ctl.ALIVE;
+		if (this._ctlState === TCtl.HOVER)
+			this.controlState = TCtl.ALIVE;
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
 	}
 	
@@ -1092,7 +1092,7 @@ export class TControl extends TComponent {
 	doFocusIn() {
 		var e = this._eve.onFocusIn;				// fetch event
 	
-		this.controlState = ctl.FOCUS;
+		this.controlState = TCtl.FOCUS;
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
 	}
 
@@ -1103,10 +1103,10 @@ export class TControl extends TComponent {
 	doFocusOut() {
 		var e = this._eve.onFocusOut;				// fetch event
 	
-		if (this._ctlState == ctl.SLEEP)
+		if (this._ctlState == TCtl.SLEEP)
 			return null;
-		if (this._ctlState == ctl.FOCUS)
-			this.controlState = (this._ptrOver ? ctl.HOVER : ctl.ALIVE);
+		if (this._ctlState == TCtl.FOCUS)
+			this.controlState = (this._ptrOver ? TCtl.HOVER : TCtl.ALIVE);
 		return ((e) ? e.dispatch([this]) : null);	// dispatch it
 	}
 	
@@ -1214,7 +1214,7 @@ export class TControl extends TComponent {
 	set styleColor(val) {
 		if ((val !== null && typeof val !== "string") || this._styleColor === val)
 			return;
-		if (val && !ctl.COLORS[val])
+		if (val && !TCtl.COLORS[val])
 			return;
 		this._styleColor = val;
 		this._sColor = calcClassNameSub(this, this._styleColor);
@@ -1233,7 +1233,7 @@ export class TControl extends TComponent {
 	set styleSize(val = null) {
 		if ((typeof val !== "string" && val !== null) || this._styleSize === val)
 			return;
-		if (val && !ctl.SIZES[val])
+		if (val && !TCtl.SIZES[val])
 			return;
 		this._styleSize = val;		// set style size name
 		this._sSize = calcClassNameSub(this, this._styleSize);
@@ -1247,7 +1247,7 @@ export class TControl extends TComponent {
 	——————————————————————————————————————————————————————————————————————————*/
 	calcAllClassNames() {
 		var c = this.class.name + ((this._styleRoot !== null) ? this._styleRoot : ''),
-			s = ctl.SUFFIX[this._ctlState];
+			s = TCtl.SUFFIX[this._ctlState];
 		
 		function calcSub(n){
 			if (typeof n === 'string') 
@@ -1270,14 +1270,14 @@ export class TControl extends TComponent {
 	——————————————————————————————————————————————————————————————————————————*/
 	get controlState() {
 		if (this._sta == sys.SAVE)
-			return((this._ctlState == ctl.SLEEP) ? ctl.SLEEP : ctl.ALIVE);
+			return((this._ctlState == TCtl.SLEEP) ? TCtl.SLEEP : TCtl.ALIVE);
 		return(this._ctlState);
 	}
 		
 	set controlState(val = 0){
-		if (!is.num(val) || 
-			val < ctl.DYING ||
-			val > ctl.SLEEP || 
+		if (typeof val !== 'number' || 
+			val < TCtl.DYING ||
+			val > TCtl.SLEEP || 
 			val === this._ctlState)
 			return;
 		this._ctlState = val;
@@ -1344,16 +1344,16 @@ export class TControl extends TComponent {
 	  SET : Sets the control enabled state.
 	——————————————————————————————————————————————————————————————————————————*/
 	get enabled() {
-		return this._ctlState != ctl.SLEEP;
+		return this._ctlState != TCtl.SLEEP;
 	}
 
 	set enabled(value = true) {
 		var c;
 
 		value = !!value;
-		if (value === (this._ctlState != ctl.SLEEP))
+		if (value === (this._ctlState != TCtl.SLEEP))
 			return;
-		this.controlState = (value) ? ctl.ALIVE : ctl.SLEEP;
+		this.controlState = (value) ? TCtl.ALIVE : TCtl.SLEEP;
 		for(c of this._ctl)
 			c.enabled = value;
 	}
@@ -1463,7 +1463,7 @@ function cascadeShowing(t, showing = false) {
 ——————————————————————————————————————————————————————————————————————————*/
 function calcClassNameSub(t, n){
 	var c = t.class.name+ ((t._styleRoot !== null) ? t._styleRoot : ''),
-		s = ctl.SUFFIX[t._ctlState];
+		s = TCtl.SUFFIX[t._ctlState];
 
 	if (typeof n === "string")
 		return ' ' + n + ' ' + n + s + ' ' + c + n + ' ' + c + n + s;
@@ -1493,7 +1493,7 @@ function calcAutoX(t, ownerWidth){
 	var val = t._autoX;
 
 	if (val.constructor === Object)
-		val = viewportValue(t, val, "autoX");
+		val = TCtl.viewportValue(t, val, "autoX");
 	if (val === null)
 		return false;
 	switch(typeof val){
@@ -1531,7 +1531,7 @@ function calcAutoY(t, ownerHeight){
 	var val = t._autoY;
 
 	if (val.constructor === Object)
-		val = viewportValue(t, val, "autoY");
+		val = TCtl.viewportValue(t, val, "autoY");
 	if (val === null)
 		return;
 	switch(typeof val) {
@@ -1569,7 +1569,7 @@ function calcAutoWidth(t, ownerWidth) {
 	var val = t._autoWidth; 
 
 	if (val.constructor === Object) 
-		val = viewportValue(t, val, "autoWidth");
+		val = TCtl.viewportValue(t, val, "autoWidth");
 	if (val === null)
 		return false;
 	switch(typeof val){
@@ -1593,7 +1593,7 @@ function calcAutoHeight(t, ownerHeight){
 	var val = t._autoHeight;
 
 	if (val.constructor === Object) 
-		val = viewportValue(t, val, "autoHeight");
+		val = TCtl.viewportValue(t, val, "autoHeight");
 	if (val === null)
 		return false;
 	switch(typeof val) {
@@ -1605,24 +1605,6 @@ function calcAutoHeight(t, ownerHeight){
 	return false;
 }
 
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: viewportValue [private].
-  TASK: 
-  	Gets a property value corresponding to current viewport from a 
-	viewport values object.
-  ARGS:
-	t	: TControl	: TControl (for exception data).
-	v	: Object	: Viewport Values object.
-	name: String	: Property name for exception message.
-  RETV: : * 		: Extracted string or number.
-——————————————————————————————————————————————————————————————————————————*/
-function viewportValue (t, v, name) {
-	var n = core.display.viewportName;
 
-	v = (v[n]) ? v[n] : v.df;
-	if (!v)
-		exc('E_CTL_VP_VAL', t.namePath+'.'+name + ':{'+ n +': ?, df: ?}');
-	return v;
-}
 
 sys.registerClass(TControl);

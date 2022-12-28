@@ -85,15 +85,15 @@ export function ToreUI(){
         //lineHeight: "1.4"
     });
 
-    s.addRule("ButtonTiny", {
+    s.addRule("TButtonTiny", {
         padding: '0.4375rem'
     });
 
-    s.addRule("ButtonSmall", {
+    s.addRule("TButtonSmall", {
         padding: '0.5rem'
     });
 
-    s.addRule("ButtonMedium", {
+    s.addRule("TButtonMedium", {
         padding: {
             xs: '0.5625rem',
             df: 'calc(0.52rem + 0.12vw)',

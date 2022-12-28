@@ -30,9 +30,9 @@ import { display } from "./index.js";
 	to calculate the viewport name. If name changes, the viewport
 	dependant values in the css are changed by styler.
 
-	The viewport sizes are defined in ctl.js as :
-	ctl.viewportSizes = [ 576, 768, 992, 1200, 1400];
-	ctl.viewportNames = ['xs','sm','md','lg','xl','xxl'];
+	The viewport sizes are defined in TCtl.js as :
+	TCtl.viewportSizes = [ 576, 768, 992, 1200, 1400];
+	TCtl.viewportNames = ['xs','sm','md','lg','xl','xxl'];
     	
 	To define a viewport dependant rule, a simple object is sufficient,
 	such as the padding in the rule definition below:
@@ -79,7 +79,7 @@ import { display } from "./index.js";
 	- panel1.styleSize = "Tiny"
 	- panel1.styleColor = "Second"
 	- panel1.styleName = "Extra"
-	- panel1.controlState = ctl.ALIVE.
+	- panel1.controlState = TCtl.ALIVE.
 	
 		The panel1 element class names will be:
 	

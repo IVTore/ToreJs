@@ -165,7 +165,7 @@ class TI18n extends TComponent {
 		return t._seq.concat();
 	}
 
-	set sequence(value = null) {
+	set sequence(val = null) {
 		var t = this,
 			a = [],
 			i,
@@ -173,12 +173,12 @@ class TI18n extends TComponent {
 			s;
 
 		t.checkDead();
-		if (!is.arr(value))
+		if (!Array.isArray(val))
 			exc("E_INV_ARG", "value");
-		for(i in value){
-			if (!t._mem[value[i]])		// if no such language,
+		for(i in val){
+			if (!t._mem[val[i]])		// if no such language,
 				continue;				// skip.
-			a.push(value[i]);
+			a.push(val[i]);
 		}
 		for(i in t._seq){
 			s = t._seq[i];

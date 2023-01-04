@@ -32,10 +32,6 @@ class TI18n extends TComponent {
 
 	static allowMemberClass = TLanguage;
 
-	static cdta = {
-		sequence: {value: null}
-	}
-	
 	_seq = []; 			// language sequence
 	
 	/*——————————————————————————————————————————————————————————————————————————

@@ -10,6 +10,11 @@ import { TObject } from "../lib/TObject.js";
 import { TComponent } from "../lib/TComponent.js";
 import { TEventHandler } from "../lib/TEventHandler.js";
 
+
+// Precompiled identifier regexp values.
+const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
+const WHITESPACE_REGEXP = new RegExp(/^\s*$/);
+
 /*———————————————————————————————————————————————————————————————————————————
   PROC: exc 
   TASK: Raises an exception with appropriate message.
@@ -42,10 +47,29 @@ var asg = err instanceof Error,
 		throw new Error(tag);
 }
 
-
-// Precompiled identifier regexp values.
-const IDENTIFIER_REGEXP = new RegExp(/^[_a-z][_a-z0-9٠]{0,63}$/i);
-const WHITESPACE_REGEXP = new RegExp(/^\s*$/);
+/*———————————————————————————————————————————————————————————————————————————
+  FUNC: chk.                                      
+  TASK:                                                     
+	Checks argument and 
+	if it is null or empty / whitespace string or empty array then:
+		if inf =  null : returns false
+		if inf = !null : raises exception with tag.  
+	otherwise returns true.                                               
+  ARGS:                                                     
+	arg : object        : Argument to check validity.   :DEF: null.     
+	inf : string        : Exception info if arg invalid.:DEF: null.   
+	tag : string        : Exception tag if arg invalid.	:DEF: "E_INV_ARG".
+————————————————————————————————————————————————————————————————————————————*/
+function chk(arg = null, inf = null, tag = "E_INV_ARG") {
+	if ((arg === undefined || arg === null)  ||
+		(typeof arg === 'string' && (arg.length === 0 || WHITESPACE_REGEXP.test(arg))) ||
+		(Array.isArray(arg) && arg.length === 0) ) {
+		if (!inf)
+			return false;
+		exc(tag, inf);
+	}
+	return true;		
+}
 
 const is = {
                                                                     // Checks if argument is a plain object: {}.
@@ -70,27 +94,6 @@ const sys = {
 
 	registerClass: registerClass,
 	
-
-	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC: chk.                                      
-	  TASK:                                                     
-		Checks argument and raises exception if it is null 
-		or empty.                                               
-	  ARGS:                                                     
-		arg : object        : Argument to check validity.       
-		inf : string        : Exception info if arg invalid.    
-		tag : string        : Exception tag if arg invalid.
-										:DEF: "E_INV_ARG".          
-	  INFO:                                                     
-		In case of strings, white spaces are not welcome.       
-	————————————————————————————————————————————————————————————————————————————*/
-	chk: function(arg = null, inf = null, tag = "E_INV_ARG") {
-		var t = typeof arg;
-
-		if (arg === null ||	(t === 'string' && (arg.length === 0 || WHITESPACE_REGEXP.test(arg))))
-			exc(tag, inf);
-	},
-
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	classByName
 	  TASK:	
@@ -122,7 +125,7 @@ const sys = {
 	addUnique: function(array = null, item = null) {
 		var i;
 
-		if (!Array.isArray(array))
+		if (!array || Array.isArray(array))
 			exc('E_INV_ARG', 'array');
 		i = array.indexOf(item);
 		if (i > -1)
@@ -171,9 +174,9 @@ const sys = {
 	———————————————————————————————————————————————————————————————————————————*/
 	bindHandler: function(target = null, handler = null) {
 		if(!is.component(target))
-			exc('E_ARG_INV', 'target');
+			exc('E_INV_ARG', 'target');
 		if(typeof handler !== 'string')
-			exc('E_ARG_INV', 'handler');
+			exc('E_INV_ARG', 'handler');
 		if(!typeof target[handler] === 'function')
 			exc('E_HANDLER_INV', target.name + "." + handler);
 		return(function(e){target[handler](e);});
@@ -218,8 +221,8 @@ const sys = {
 	propSet: function(t, s, p = null){  
 	var i,	c,o,d,e;
 	
-		if ((!t) || (!s))						// invalid arguments
-			exc('E_ARG_INV');
+		chk(t);
+		chk(s);
 		for(e in s){							// iterate source elements
 			if (e === '_new_' || e === '_var_')	// those keys are processed
 				continue;
@@ -426,4 +429,4 @@ registerClass(TEventHandler);
 const core = new TComponent('core');
 window.core = core;
 
-export {sys, is, exc, core};
+export {sys, is, exc, chk, core};

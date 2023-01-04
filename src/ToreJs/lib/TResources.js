@@ -7,7 +7,7 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys, core, exc, TComponent } from "../lib/index.js";
+import { is, sys, core, exc, chk, TComponent } from "../lib/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TResources
@@ -71,8 +71,8 @@ class TResources extends TComponent {
 	add(name = null, data = null, keep = false) {
 		var i;
 
-		sys.chk(name, 'name');
-		sys.chk(data, 'data');
+		chk(name, 'name');
+		chk(data, 'data');
 		if (this._name.indexOf(_name) > -1)
 			exc('E_RES_OVR', name);
 		i = this._data.indexOf(data);
@@ -175,28 +175,25 @@ class TResources extends TComponent {
 		if (this._link[i].length === 0)
 			this.remove(name);
 	}
-
-	
-
 }
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: check.
-	  TASK: Checks name, target parameters and returns index of named resource.
-	  ARGS: 
-	  	name	: string	 : Resource name such as an url. 	:DEF: null.
-		target  : TComponent : TComponent     				   	:DEF: null.
-	  INFO: 
-		If name is missing or target is not a TComponent raises 'E_INV_ARG'. 
-	  	If a resource with the name doesn't exists it returns -1.
-		Otherwise returns the index of resource.
-	——————————————————————————————————————————————————————————————————————————*/
-	function check(name = null, target = null) {
-		sys.chk(name, 'name');
-		if (!(target instanceof TComponent))
-			exc('E_INV_ARG', 'target');
-		return core.resources._name.indexOf(name);
-	}
+/*——————————————————————————————————————————————————————————————————————————
+  FUNC: check [private].
+  TASK: Checks name, target parameters and returns index of named resource.
+  ARGS: 
+  	name	: string	 : Resource name such as an url. 	:DEF: null.
+	target  : TComponent : TComponent     				   	:DEF: null.
+  INFO: 
+	If name is missing or target is not a TComponent raises 'E_INV_ARG'. 
+  	If a resource with the name doesn't exists it returns -1.
+	Otherwise returns the index of resource.
+——————————————————————————————————————————————————————————————————————————*/
+function check(name = null, target = null) {
+	chk(name, 'name');
+	if (!(target instanceof TComponent))
+		exc('E_INV_ARG', 'target');
+	return core.resources._name.indexOf(name);
+}
  
 
 export const resources = new TResources();

@@ -222,7 +222,7 @@ export class TEventHandler extends TObject {
 // private.
 // Controls the target handler component assignment.
 function setTEventHandlerTarget(handler, target) {
-	if (target === null)
+	if (target === handler._tar)
 		return;
 	if (handler._tar !== null)
 		exc("E_SET_ONCE_ONLY", "target");
@@ -235,7 +235,7 @@ function setTEventHandlerTarget(handler, target) {
 // private.
 // Controls the target handler component method name assignment.
 function setTEventHandlerMethod(handler, method) {
-	if (method === null)
+	if (method === handler._met)
 		return;
 	if (handler._met !== null)
 		exc("E_SET_ONCE_ONLY", "method");

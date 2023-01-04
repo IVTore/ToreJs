@@ -35,10 +35,10 @@ export class TLabel extends TControl {
 	  CTOR: constructor.
 	  TASK: Constructs a TLabel component, attaches it to its owner if any.
 	  ARGS: 
-		name 	: string	: Name of new control :DEF: null.
+		name  : string		: Name of new control :DEF: null.
 							  if Sys.LOAD, construction is by deserialization.
-		owner	: TComponent	: Owner of the new control if any :DEF: null.
-		data	: Object	: An object containing instance data :DEF: null.
+		owner : TComponent	: Owner of the new control if any :DEF: null.
+		data  : Object		: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null, init = true) {
 		super(name, null, null, false);

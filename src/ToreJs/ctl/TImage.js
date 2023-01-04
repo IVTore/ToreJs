@@ -9,6 +9,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { exc, is, sys, resources } from "../lib/index.js";
+import { TCtl } from "./TCtl.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TImage
@@ -59,6 +60,17 @@ export class TImage extends TControl {
 		super.destroy();		// inherited destroy
 	}
 
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: load
+	  TASK: Tries to load the image.
+	——————————————————————————————————————————————————————————————————————————*/
+	load() {
+
+	}
+
+
+
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doProgress
 	  TASK: Flags the image control that image load is progressing.
@@ -108,61 +120,25 @@ export class TImage extends TControl {
         	this.contentChanged();
 	}
 	
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP: currentSource : string.
+	  GET : Returns the name of source that must be current.
+	  INFO: current source name can change according to source definition and
+	  		viewport size. This returns the name of the source that *must*
+			be current.
+	——————————————————————————————————————————————————————————————————————————*/
+	get currentSource() {
+		if (this._source === null)
+			return null;
+		if (typeof this._source === 'string')
+			return this._source;
+		return this._setAutoValue
+
+	}
 
 
 
 
 }
-
-function defaultImageLoader(image, forceViewport = null) {
-
-}
-
-
-/*————————————————————————————————————————————————————————————————————————————
-  CLASS: TImageLoader [static]
-  TASKS: Manages image loader methods. 
-————————————————————————————————————————————————————————————————————————————*/
-export const TImageLoader = {
-
-	register: function(loaderName = null, loaderFunc = null) {
-		if (!is.ident(loaderName))
-			exc('E_INV_ARG', 'loaderName');
-		if (loaderName === 'default')
-			exc('E_INV_ARG', 'loaderName');
-		if (typeof loaderFunc !== 'function')
-			exc('E_INV_ARG', 'loaderFunc');
-		imageLoaders[loaderName] = loaderFunc;
-	},
-
-	remove: function(loaderName = null) {
-		if (!is.ident(loaderName))
-			exc('E_INV_ARG', 'loaderName');
-		if (loaderName === 'default')
-			exc('E_INV_ARG', 'loaderName');
-		delete imageLoaders[loaderName];
-	},
-
-	fetch: function(loaderName = null) {
-		var f;
-
-		if (!is.ident(loaderName))
-			return defaultImageLoader;
-		f = imageLoaders[loaderName];
-		if (typeof f !== 'function')
-			f = defaultImageLoader;
-		return f;
-	},
-
-	has: function(loaderName = null) {
-		return is.ident(loaderName) && imageLoaders[loaderName] !== undefined;
-	} 
-
-}
-
-// This is where the loader methods are kept by TImageLoader privately.
-const imageLoaders = {default: defaultImageLoader};
-
-Object.freeze(TImageLoader);
 
 sys.registerClass(TImage);

@@ -213,7 +213,7 @@ export class TComponent extends TObject {
 		
 		this.checkDead();
 		if (!(c instanceof TComponent))		// if not a component exception
-			exc('E_ARG_INV','component');
+			exc('E_INV_ARG','component');
 		if (c._own !== this)				// if barking at the wrong tree
 			return false;
 		if (event)							// dispatch if event exists

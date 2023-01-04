@@ -540,7 +540,7 @@ export class TControl extends TComponent {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _setAutoVal [protected].
+	  FUNC: _setAutoValue [protected].
 	  TASK: 
 		Sets automatic values to automatic properties.
 	  ARGS:

@@ -15,7 +15,8 @@ import { TEventHandler } from "./TEventHandler.js";
   TASK: Builds a THttpClient component sets it up and sends the request.
   ARGS: Arguments map to THttpClient component properties, please refer there.
   RETV: 	: Promise : resolve returns XMLHttpRequest object.
-  INFO: On completion of communication, com component is auto destroyed.
+  INFO: On completion of communication, THttpClient component is destroyed.
+		THttpClient instances are nicknamed as 'com'.
 ————————————————————————————————————————————————————————————————————————————*/
 
 export function send(
@@ -68,7 +69,6 @@ function sendPromise(owner = null, options = null){
   CLASS: THttpClient.
   TASKS:
 	Defines http client communicator class.
-	* Well writing HttpClient everywhere is long, so its name is THttpClient.
 	* It is an XHR wrapper.
 	* Does not allow members.
 	* Communication is always asynchronous.

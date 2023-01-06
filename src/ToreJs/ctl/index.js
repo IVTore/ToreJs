@@ -6,7 +6,7 @@ import { TPanel } from "./TPanel.js";
 import { display } from "./TDisplay.js";
 import { TLabel } from "./TLabel.js";
 import { TButton } from "./TButton.js";
-import { resources } from "../lib/TResources.js";
-import { TImageLoader, imageLoaders } from "./TımageLoaders.js";
+import { TImage } from "./TImage.js";
+import { TImageLoader, imageLoaders } from "./TImageLoaders.js";
 
-export { TCtl, styler, display, imageLoaders, resources, TControl, TContainer, TPanel,  TLabel, TButton, TImage, TImageLoader };
+export { TCtl, styler, display, imageLoaders, TControl, TContainer, TPanel,  TLabel, TButton, TImage, TImageLoader };

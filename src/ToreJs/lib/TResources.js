@@ -7,7 +7,7 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys, core, exc, chk, TComponent } from "../lib/index.js";
+import { is, sys, core, exc, chkStr, chkNul, TComponent } from "../lib/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TResources
@@ -71,9 +71,9 @@ class TResources extends TComponent {
 	add(name = null, data = null, keep = false) {
 		var i;
 
-		chk(name, 'name');
-		chk(data, 'data');
-		if (this._name.indexOf(_name) > -1)
+		chkStr(name, 'name');
+		chkNul(data, 'data');
+		if (this._name.indexOf(name) > -1)
 			exc('E_RES_OVR', name);
 		i = this._data.indexOf(data);
 		if (i > -1)
@@ -189,7 +189,7 @@ class TResources extends TComponent {
 	Otherwise returns the index of resource.
 ——————————————————————————————————————————————————————————————————————————*/
 function check(name = null, target = null) {
-	chk(name, 'name');
+	chkStr(name, 'name');
 	if (!(target instanceof TComponent))
 		exc('E_INV_ARG', 'target');
 	return core.resources._name.indexOf(name);

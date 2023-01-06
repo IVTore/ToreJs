@@ -104,7 +104,7 @@ class TI18n extends TComponent {
 	find(selector = null, language = null) {
 		var	r,
 			i,
-			s = (is.str(language)) ? language : this._seq[0];
+			s = (typeof language === string) ? language : this._seq[0];
 		
 		if (typeof selector !== 'string')
 			exc("E_INV_ARG", "selector");

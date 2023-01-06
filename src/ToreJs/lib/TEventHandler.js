@@ -7,6 +7,7 @@
   License 	: 	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
+import { TComponent } from "./TComponent.js";
 import { TObject } from "./TObject.js";
 
 /*——————————————————————————————————————————————————————————————————————————— 
@@ -197,7 +198,7 @@ export class TEventHandler extends TObject {
 			return;
 		checkTEventHandlerTarget(this);
 		checkTEventHandlerMethod(this);
-		if (!is.component(source))
+		if (!(source instanceof TComponent))
 			exc('E_INV_ARG', "source");
 		if (typeof eventName !== 'string')
 			exc('E_INV_ARG', 'eventName');
@@ -247,7 +248,7 @@ function setTEventHandlerMethod(handler, method) {
 // private.
 // Checks the target handler component assignment.
 function checkTEventHandlerTarget(handler) {
-	if (is.component(handler._tar)) 
+	if (handler._tar instanceof TComponent) 
 		return;
 	handler._tar = null;
 	exc("E_INV_VAL", "target != TComponent");

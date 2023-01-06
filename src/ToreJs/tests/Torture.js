@@ -1,5 +1,7 @@
+// inspect in browser and change browser window size, see the torture.
+
 import { TEventHandler } from "../lib/index.js";
-import { styler, display, TPanel, TLabel, TButton } from "../ctl/index.js";
+import { styler, display, TPanel, TLabel, TButton, TImage } from "../ctl/index.js";
 import { ToreUI } from "../styles/ToreUI.js";
 
 ToreUI();
@@ -42,6 +44,7 @@ var p1 = new TPanel("p1", display, {
 	l4: { _new_: TLabel, styleSize: 'Medium', ...labelProps },
 	l5: { _new_: TLabel, styleSize: 'Small', ...labelProps },
 	l6: { _new_: TLabel, styleSize: 'Tiny', ...labelProps },
+	i1: { _new_: TImage, width: 300, height: 200, source: '../src/ToreJs/tests/images/ist.png'},
 	b1: {
 		_new_: TButton,
 		styleSize: 'Medium',
@@ -59,11 +62,12 @@ var p1 = new TPanel("p1", display, {
 			console.log(this.contentAlign, this._computed.paddingLeft, this.label.x, this.label.y);
 		},
 		onHit: { _new_: TEventHandler, target: '__p', method: 'hndHit' }
-	}
+	}	
 });
 
-p1.sequence = ["lv", "l1", "l2", "l3", "l4", "l5", "l6", "b1"];
+p1.sequence = ["lv", "l1", "l2", "l3", "l4", "l5", "l6", "b1", "i1"];
 
 display.doViewportResize();
+p1.i1.load();
 
 

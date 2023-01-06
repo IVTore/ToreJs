@@ -7,7 +7,7 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { sys, is, exc, core, TComponent } from "../lib/index.js";
+import { sys, is, exc, chkStr, core, TComponent } from "../lib/index.js";
 import { display } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
@@ -155,8 +155,9 @@ class TStyler extends TComponent {
 			s,
 			r;
 
-		if (typeof name !== 'string' || !is.plain(rule))
-			return;
+		chkStr(name, 'name');
+		if (!is.plain(rule))
+			exc('E_INV_ARG', 'rule');
 		if (asClass)
 			name = "." + name;
 		i = t._rls.indexOf(name);
@@ -200,6 +201,7 @@ class TStyler extends TComponent {
 	delRule(name = null, asClass = true) {
 		var i;
 
+		chkStr(name, 'name');
 		if (asClass)
 			name = "."+name;
 		i = this._rls.indexOf(name);

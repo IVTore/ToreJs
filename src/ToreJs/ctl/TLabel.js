@@ -138,14 +138,14 @@ export class TLabel extends TControl {
 	}
 
 	set tag(val = null) {
-		if (!is.str(val)){
+		if (typeof val !== 'string') {
 			if (val !== null)
 				return;
 		}
-		if (this._tag == val)
+		if (this._tag === val)
 			return;
 		this._tag = val;
-		calcOut(this, (val == null) ? this._text : core.i18n.find(val));
+		calcOut(this, (val === null) ? this._text : core.i18n.find(val));
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————

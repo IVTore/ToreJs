@@ -48,36 +48,65 @@ var asg = err instanceof Error,
 }
 
 /*———————————————————————————————————————————————————————————————————————————
-  FUNC: chk.                                      
+  FUNC: chkNul.                                      
   TASK:                                                     
-	Checks argument and 
-	if it is null or empty / whitespace string or empty array then:
+	Checks argument and if it is null then:
 		if inf =  null : returns false
 		if inf = !null : raises exception with tag.  
 	otherwise returns true.                                               
   ARGS:                                                     
 	arg : object        : Argument to check validity.   :DEF: null.     
 	inf : string        : Exception info if arg invalid.:DEF: null.   
-	tag : string        : Exception tag if arg invalid.	:DEF: "E_INV_ARG".
+	tag : string        : Exception tag if arg invalid.	
+						  :DEF: null => 'E_INV_ARG'.
 ————————————————————————————————————————————————————————————————————————————*/
-function chk(arg = null, inf = null, tag = "E_INV_ARG") {
-	if ((arg === undefined || arg === null)  ||
-		(typeof arg === 'string' && (arg.length === 0 || WHITESPACE_REGEXP.test(arg))) ||
-		(Array.isArray(arg) && arg.length === 0) ) {
+function chkNul(arg = null, inf = null, tag = null) {
+	if (arg === undefined || arg === null) {
 		if (!inf)
 			return false;
+		if (tag === null)
+			tag = 'E_INV_ARG';
 		exc(tag, inf);
 	}
 	return true;		
 }
 
-const is = {
-                                                                    // Checks if argument is a plain object: {}.
-	plain: x => x !== undefined && (x.__proto__ === null || x.__proto__ === Object.prototype), 
+/*———————————————————————————————————————————————————————————————————————————
+  FUNC: chkStr.                                      
+  TASK:                                                     
+	Checks argument and 
+	if it is null or empty / whitespace string then:
+		if inf =  null : returns false
+		if inf = !null : raises exception with tag and inf.  
+	otherwise returns true.                                               
+  ARGS:                                                     
+	arg : string        : Argument to check validity.   :DEF: null.     
+	inf : string        : Exception info if arg invalid.:DEF: null.   
+	tag : string        : Exception tag if arg invalid.	
+						  :DEF: null => 'E_INV_ARG'.
+————————————————————————————————————————————————————————————————————————————*/
+function chkStr(arg = null, inf = null, tag = null) {
+	if (arg === undefined || 
+		arg === null ||
+		typeof arg !== 'string' ||
+		arg.length === 0 ||
+		WHITESPACE_REGEXP.test(arg)) {
+			if (!inf)
+				return false;
+			if (tag === null)
+				tag = 'E_INV_ARG',
+			exc(tag, inf);
+	}
+	return true;		
+}
+
+const is = {                                                                    
+	plain: x => x !== undefined &&									// Checks if argument is a plain object: {}.
+				x !== null && 
+				(x.__proto__ === null || x.__proto__ === Object.prototype), 
 	ident: x => typeof x === 'string' && IDENTIFIER_REGEXP.test(x),	// Checks if argument is identifier.
 	class: x =>	isClass(x),											// Checks if argument is a class.
 	super: (sup, des) => isSuper(sup, des),							// Checks if sup is super or same of des class.
-	component: x => (x !== undefined && x instanceof TComponent)
 }
 
 const sys = {
@@ -125,7 +154,7 @@ const sys = {
 	addUnique: function(array = null, item = null) {
 		var i;
 
-		if (!array || Array.isArray(array))
+		if (!array || !Array.isArray(array))
 			exc('E_INV_ARG', 'array');
 		i = array.indexOf(item);
 		if (i > -1)
@@ -173,7 +202,7 @@ const sys = {
 	  		addEventListener() method to the source.
 	———————————————————————————————————————————————————————————————————————————*/
 	bindHandler: function(target = null, handler = null) {
-		if(!is.component(target))
+		if(!(target instanceof TComponent))
 			exc('E_INV_ARG', 'target');
 		if(typeof handler !== 'string')
 			exc('E_INV_ARG', 'handler');
@@ -186,8 +215,11 @@ const sys = {
 	  PROC:	propSet
 	  TASK:	Assigns a group of properties from an object to another.
 	  ARGS:	
-		t :  Object : target object to feed the properties
-		s :  Object : source object containing property data[d=NULL].
+		t :  Object : target object to feed the properties.		:DEF: null. 
+		s :  Object : source object containing property data.	:DEF: null.
+		p :  Object : target parent (automatic).				:DEF: null.
+					  p is used during recursive descent assignments for 
+					  "__p." definitions automatically.
 	  INFO:
 		If t has properties which are also sub objects it is possible to 
 		set their properties in a single call. Requirements are as follows:
@@ -202,7 +234,7 @@ const sys = {
 			<subObjectName>: {	_new_: <subObject className or class>,
 								_var_: <true if to be added as variable>,
 								<prop>: <value>, <prop: value>...}   
-		_new_ can be the class object or a string having class name.
+		_new_ can be the class constructor or a string having class name.
 		_var_ is only for components.
 		When set to false it means the sub object will be added as
 		a member component. 
@@ -218,11 +250,12 @@ const sys = {
 			propName: 	"__p." will fetch from parent of "this" and assign.
 			propName: 	"__c." will fetch from core and assign.
 	———————————————————————————————————————————————————————————————————————————*/
-	propSet: function(t, s, p = null){  
+	propSet: function(t = null, s = null, p = null){  
 	var i,	c,o,d,e;
 	
-		chk(t);
-		chk(s);
+		chkNul(t);
+		chkNul(s);
+
 		for(e in s){							// iterate source elements
 			if (e === '_new_' || e === '_var_')	// those keys are processed
 				continue;
@@ -281,8 +314,8 @@ const sys = {
 };
 
 var classes = {
-	Object: Object,
-	Array: Array
+	"Object": Object,
+	"Array": Array
 };
 
 function registerClass(ctor = null) {
@@ -429,4 +462,4 @@ registerClass(TEventHandler);
 const core = new TComponent('core');
 window.core = core;
 
-export {sys, is, exc, chk, core};
+export {sys, is, exc, chkNul, chkStr, core};

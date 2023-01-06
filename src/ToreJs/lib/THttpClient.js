@@ -8,7 +8,6 @@
 ————————————————————————————————————————————————————————————————————————————*/
 import { sys, is, exc } from "./system.js";
 import { TComponent } from "./TComponent.js";
-import { TEventHandler } from "./TEventHandler.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   FUNC: send.
@@ -19,7 +18,7 @@ import { TEventHandler } from "./TEventHandler.js";
 		THttpClient instances are nicknamed as 'com'.
 ————————————————————————————————————————————————————————————————————————————*/
 
-export function send(
+export function send (
 		owner = null,
 		method = 'POST',
 		url = '',
@@ -39,7 +38,7 @@ export function send(
 // internal.
 function sendPromise(owner = null, options = null){
 	return new Promise ( (resolve, reject) => {
-		var com = new THttpClient(null, owner, options);
+		var com = new THttpClient(null, owner, options),
 			xhr = com.xhr,
 			err = () => reject(xhr.statusText);
 
@@ -95,17 +94,17 @@ function sendPromise(owner = null, options = null){
 
 	* If an owner is given;
 
-	comLoadStart, comProgress, comAbort, comTimeout,
-	comError, comLoad, comLoadEnd,
-	comUploadStart, comUploadProgress, comUploadAbort,	comUploadTimeout,
-	comUploadError, comUpload, comUploadEnd
+	doLoadStart, doProgress, doAbort, doTimeout,
+	doError, doLoad, doLoadEnd,
+	doUploadStart, doUploadProgress, doUploadAbort,	doUploadTimeout,
+	doUploadError, doUpload, doUploadEnd
 
-	handler methods are sought in the owner, and the existing ones are
-	bound to their respective events automagically.
+	handler methods are *sought* in the owner, and the existing ones are
+	bound to their respective events auto*magic*ally.
 
 	Handler method signature example: 
-		owner.comLoadStart(sender, e)
-			where sender is com object and e is the event object.
+		owner.doLoadStart(e)
+			where e is the event object.
 ————————————————————————————————————————————————————————————————————————————*/
 export class THttpClient extends TComponent {
 	
@@ -149,10 +148,11 @@ export class THttpClient extends TComponent {
 	_typ = 'blob';				// response type.
 	_qry = null;				// query.
 	_hdr = null;				// headers.
-	_pfx = null;				// owner handlers prefix.
 	
 	_usr = null;				// user name if required.
 	_pwd = null;				// user pass if required.
+
+	_bnd = null;				// bound functions list.
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: THttpClient.
@@ -166,7 +166,7 @@ export class THttpClient extends TComponent {
 		super(name);
 		this._xhr = new XMLHttpRequest();
 		this._upl = this._xhr.upload;
-		if (is.component(owner))
+		if (owner instanceof TComponent)
 			owner.attach(this);
 		if (data)
 			sys.propSet(this, data);
@@ -176,25 +176,36 @@ export class THttpClient extends TComponent {
 	  DTOR: destroy [override].
 	  TASK: Destroys the http communicator component.
 	——————————————————————————————————————————————————————————————————————————*/
-	destroy(){
+	destroy() {
+		if (this._own)					// Unbinding has priority (doDetached).
+			this._own.detach(this);
 		this._xhr = null;
 		super.destroy();
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	doAttached [override].
-	  TASK:	Seeks for com<event> handler methods* in new owner and binds them.
-	  INFO: * Methods like: owner.comOnLoad(this, e) etc.
+	  TASK:	Seeks for do<event> handler methods* in new owner and binds them.
+	  INFO: * Methods like: owner.doLoad(e) etc.
 	———————————————————————————————————————————————————————————————————————————*/
 	doAttached() {
-		var o = this._own,
-			h;
+		var own = this._own,
+			nam,
+			dta,
+			hnd;
 
-		if (!o)
+		if (!own)
 			return;
-		for(h in OWNER_HANDLERS_LIST){	// set all available handlers to events.
-			if (typeof o['com' + h] === 'function')
-				this.setEvent('on' + h, new TEventHandler(o, 'com' + h));
+
+		this._bnd = {};
+		// Automatic event routing: set all available handlers to events.
+		for(nam in EVENT_INFO) {
+			dta = EVENT_INFO[nam];
+			if (typeof own[nam] !== 'function')
+				continue;
+			hnd = sys.bindHandler(own, nam);
+			this[dta.src].addEventListener(dta.typ, hnd);
+			this._bnd[nam] = hnd;
 		}
 	}
 
@@ -203,15 +214,22 @@ export class THttpClient extends TComponent {
 	  TASK:	Seeks for bound handler methods* to old owner and unbinds them.
 	  ARGS:
 	  	exOwner	: TComponent : owner that "this" is detached from. :DEF: null
-	  INFO: * Methods like: exOwner.comOnLoad(this, e) etc.
+	  INFO: * Methods like: exOwner.doLoad(e) etc.
 	———————————————————————————————————————————————————————————————————————————*/
 	doDetached(exOwner = null) {
+		var nam,
+			dta;
+
 		if (!exOwner)
 			return;
-		for(e in this._eve) { 		// Clear all events targeting ex owner.
-			if (this._eve[e].target === exOwner)
-				this.setEvent(e, null);
+		for(nam in this._bnd) { 		// Clear all events targeting ex owner.
+			dta = EVENT_INFO[nam];
+			if (!dta)
+				continue;
+			this[dta.src].removeEventListener(dta.typ, this._bnd[nam]);
+			delete this._bnd[nam];
 		}
+		this._bnd = null;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -277,7 +295,7 @@ export class THttpClient extends TComponent {
 	}
 	
 	set method(value) {
-		valid = is.str(value);
+		const valid = (typeof value === 'string');
 		value = valid ? value.toUpperCase() : null;
 		checkSet(this, '_met', value, "method", valid); 
 	}
@@ -292,7 +310,7 @@ export class THttpClient extends TComponent {
 	}
 	
 	set url(value) { 
-		checkSet(this, '_url', value, "url", is.str(value)); 
+		checkSet(this, '_url', value, "url", typeof value === 'string'); 
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -318,7 +336,8 @@ export class THttpClient extends TComponent {
 	}
 
 	set responseType(value = 'blob') {
-		valid = (value) && (RESPONSE_TYPES.indexOf(value) > -1);
+		const valid = (typeof value === 'string') && (RESPONSE_TYPES.indexOf(value) > -1);
+		value = valid ? value : 'blob';
 		checkSet(this, '_typ', value, "responseType", valid);
 	}
 
@@ -331,9 +350,9 @@ export class THttpClient extends TComponent {
 		return this._qry;
 	}
 
-	set query(val = null) {
-		valid = typeof val === "object" && !Array.isArray(val);
-		checkSet(this, '_qry', val, "query", valid);
+	set query(value = null) {
+		const valid = value === null || is.plain(value);
+		checkSet(this, '_qry', value, "query", valid);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -345,9 +364,9 @@ export class THttpClient extends TComponent {
 		return this._hdr;
 	}
 
-	set headers(val = null) {
-		valid = typeof val ==="object" & !Array.isArray(val);
-		checkSet(this, '_hdr', val, "headers", valid);
+	set headers(value = null) {
+		const valid = value === null || is.plain(value);
+		checkSet(this, '_hdr', value, "headers", valid);
 	}
 }
 
@@ -360,29 +379,30 @@ const RESPONSE_TYPES = [
 	"text"
 ];
 
-const OWNER_HANDLERS_LIST = [
-	"LoadStart",
-	"Progress",
-	"Abort",
-	"Timeout",
-	"Error",
-	"Load",
-	"LoadEnd",
+const EVENT_INFO = { 
+	doLoadStart: 		{typ: 'loadstart', src: '_xhr'},
+	doProgress: 		{typ: 'progress', src: '_xhr'},
+	doAbort: 			{typ: 'abort', src: '_xhr'},
+	doTimeout: 			{typ: 'timeout', src: '_xhr'},
+	doError: 			{typ: 'error', src: '_xhr'},
+	doLoad: 			{typ: 'load', src: '_xhr'},
+	doLoadEnd: 			{typ: 'loadend', src: '_xhr'},
 
-	"UploadStart",
-	"UploadProgress",
-	"UploadAbort",
-	"UploadTimeout",
-	"UploadError",
-	"Upload",
-	"UploadEnd"
-];
+	doUploadStart: 		{typ: 'loadstart', src: '_upl'},
+	doUploadProgress: 	{typ: 'progress', src: '_upl'},
+	doUploadAbort: 		{typ: 'abort', src: '_upl'},
+	doUploadTimeout: 	{typ: 'timeout', src: '_upl'},
+	doUploadError: 		{typ: 'error', src: '_upl'},
+	doUpload: 			{typ: 'load', src: '_upl'},
+	doUploadEnd: 		{typ: 'loadend', src: '_upl'}
+}
+
 
 // private.
 function checkSet(com, varName, value, propName, valid = true) {
 	if (!valid)
 		exc('E_INV_ARG', propName);
-	if (com[varName] == value)
+	if (com[varName] === value)
 		return;
 	if (com._xhr.readyState > XMLHttpRequest.OPENED)
 		exc('E_COM_RUN', propName);
@@ -393,11 +413,11 @@ function checkSet(com, varName, value, propName, valid = true) {
 //private.
 function setup(com) {
 	var t = com,
-		q = buildQuery(t._qry),
+		q = buildQuery(t),
 		u = t._url + (q ? '?'+q : '');
 
 	t._xhr.open(t._met, u, true, t._usr, t._pwd);
-	buildHeaders(com);
+	buildHeaders(t);
 	t._xhr.responseType = t._typ;
 	t._xhr.timeout = t._tim;
 }

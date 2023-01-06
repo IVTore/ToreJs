@@ -62,7 +62,7 @@ export class TComponent extends TObject {
 		super();
 		if (name)
 			this.name = name;
-		if (is.component(owner)) 
+		if (owner instanceof TComponent) 
 			owner.attach(this);
 		if (data)
 			sys.propSet(data);

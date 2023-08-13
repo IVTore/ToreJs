@@ -1,12 +1,12 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230301
   Author	: 	IVT : İhsan V. Töre
   About		: 	TComponent.js: Tore Js base component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc } from "./system.js";
+import { sys, exc } from "./TSystem.js";
 import { TObject } from "./TObject.js";
 import { TEventHandler } from "./TEventHandler.js";
 
@@ -20,13 +20,24 @@ import { TEventHandler } from "./TEventHandler.js";
 export class TComponent extends TObject {
 
 	/*——————————————————————————————————————————————————————————————————————————
-		static allowMemberClass		: (used in attach method).
-			The allowed anchestor class of member.
+		static allowMemberClass		: 
+			Used in attach method.
+			The allowed anchestor class for member.
 			When null component is not allowed to have members.
 	——————————————————————————————————————————————————————————————————————————*/
 	static allowMemberClass = TComponent;
+
 	/*——————————————————————————————————————————————————————————————————————————
-		static allowMemberOverwrite	: (used in attach method).
+		static avoidMemberClass		: 
+			Used in attach method.
+			The avoided anchestor class for member.
+			When null, ignored.
+	——————————————————————————————————————————————————————————————————————————*/
+    static avoidMemberClass = null;
+	
+    /*——————————————————————————————————————————————————————————————————————————
+		static allowMemberOverwrite	: 
+            Used in attach method
 			When the name of new member clashes	with an existing member name.
 			true	:	Old member is destroyed first, new member is added.
 			false	:	Raises exception.
@@ -51,10 +62,10 @@ export class TComponent extends TObject {
 	  CTOR: constructor.
 	  TASK: Constructs a TComponent object, attaches it to its owner if any.
 	  ARGS: 
-		name 	: string	: Name of new component :DEF: null.
-							  if Sys.LOAD construction is by deserialization.
-		owner	: TComponent	: Owner of the new component if any :DEF: null.
-		data	: Object	: An object containing instance data:DEF: null.
+		name  : string	  : Name of new component :DEF: null.
+							if Sys.LOAD construction is by deserialization.
+		owner : TComponent: Owner of the new component if any :DEF: null.
+		data  : Object	  : An object containing instance data:DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
 		if (name === sys.LOAD && super(sys.LOAD))
@@ -134,11 +145,10 @@ export class TComponent extends TObject {
 			A getter for this.memberName is defined.
 	——————————————————————————————————————————————————————————————————————————*/
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	attach
+	  FUNC:	attach.
 	  TASK:	Attaches a member component to the component.
-	  ARGS:
-		component	: TComponent	: new member component.
-	  RETV: 		: Boolean	: True on success
+	  ARGS:	component	: TComponent	: new member component.
+	  RETV:      		: Boolean	    : True on success
 	  INFO:	
 		Member components are added to _mem object and a getter
 		is constructed for the this.<memberName> getting member component.
@@ -153,12 +163,13 @@ export class TComponent extends TObject {
 			false	:	Raises exception.
 	——————————————————————————————————————————————————————————————————————————*/
 	attach(component = null) {
-	var allow = this.class.allowMemberClass,
-		write = this.class.allowMemberOverwrite,
-		event = this.onAttach,
-		c = component,
-		o,
-		n;
+        var allow = this.class.allowMemberClass,
+            avoid = this.class.avoidMemberClass,
+            write = this.class.allowMemberOverwrite,
+            event = this.onAttach,
+            c = component,
+            o,
+            n;
 		
 		this.checkDead();
 		if (!c)
@@ -167,6 +178,8 @@ export class TComponent extends TObject {
 			exc('E_MEM_NOT_ALLOWED', this.class.name);
 		if (!(c instanceof allow))			// if c is not permitted
 			exc('E_MEM_RESTRICTED', 'component: ! '+ allow.class.name);
+		if (avoid && c instanceof avoid)
+			exc('E_MEM_RESTRICTED', 'component: ! '+ avoid.class.name);
 		if (c._own === this)				// if already attached to this
 			return(false);
 		o = this;
@@ -199,7 +212,7 @@ export class TComponent extends TObject {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	detach
+	  FUNC:	detach.
 	  TASK:	Detaches a member component from the component.
 	  ARGS:	
 	  	component	: TComponent : member component to detach.
@@ -208,8 +221,8 @@ export class TComponent extends TObject {
 	  RETV: 		: Boolean	 : True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
-	var c = component,
-		event = this._eve.onDetach;
+	    var c = component,
+		    event = this._eve.onDetach;
 		
 		this.checkDead();
 		if (!(c instanceof TComponent))		// if not a component exception
@@ -242,7 +255,7 @@ export class TComponent extends TObject {
 	doDetached(exOwner = null) {}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	members
+	  FUNC:	members.
 	  TASK:	Returns an array filled with member components.
 	  ARGS:
 	  	ofClass	: Object : class filter (ctor) 	:DEF: TComponent.
@@ -308,7 +321,7 @@ export class TComponent extends TObject {
 	——————————————————————————————————————————————————————————————————————————*/
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: setEvent
+	  FUNC: setEvent.
 	  TASK:	Event assignment procedure.
 	  ARGS:	
 		name	: String		: name of the event.
@@ -333,14 +346,14 @@ export class TComponent extends TObject {
 		if (h)								// if assigned, clear
 			h.destroy();
 		if (hndNul)							// if handler null,
-			return;							// we just clear.
+			return;							// we just cleared.
 		if (handler.source) 				// if handler is in use, clone it.
 			handler = new TEventHandler(handler.target, handler.method); 
 		handler.assign(this, name);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: getEvent
+	  PROC: getEvent.
 	  TASK:	Returns the event handler assigned to an event if any.
 	  ARGS:	
 		name	: String		: name of the event.
@@ -355,7 +368,7 @@ export class TComponent extends TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	saveState 
+	  FUNC:	saveState. 
 	  TASK:	Saves published and dynamic properties to a generic object.
 	  RETV:		: Object 
 	  INFO:	Published properties with the default values are not saved.
@@ -377,7 +390,7 @@ export class TComponent extends TObject {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	doLoadComplete
+	  FUNC:	doLoadComplete.
 	  TASK:	Signals component that loading (deserialization) is complete.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete() {
@@ -389,7 +402,7 @@ export class TComponent extends TObject {
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	doLanguageChange
+	  FUNC:	doLanguageChange.
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange() {
@@ -403,7 +416,7 @@ export class TComponent extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	doResourcelinkRemoved
+	  FUNC:	doResourcelinkRemoved.
 	  TASK:	Signals component that a resource with name is no more linked.
 	  ARGS:	name : string	: resource name.
 	  INFO: This is to be overridden.
@@ -413,7 +426,7 @@ export class TComponent extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	name : String;
+	  PROP:	name : string.
 	  GET : Returns component name.
 	  SET : Checks name validity, then sets the name of the component.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -424,7 +437,7 @@ export class TComponent extends TObject {
 	set name(val) {
 		if (val == this._nam)
 			return;
-		if (!is.ident(val))
+		if (!sys.isIdent(val))
 			exc('E_NAME_SYNTAX', val);
 		if (this._own){
 			if (val in this._own)
@@ -443,14 +456,15 @@ export class TComponent extends TObject {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	namePath : String 
+	  PROP:	namePath : string. 
 	  GET : Returns the global component name path string.
 	————————————————————————————————————————————————————————————————————————————*/
 	get namePath(){
 		return((this._own ? this._own.namePath + '.' : '') + this._nam);
 	}
+    
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP: owner
+	  PROP: owner : TComponent.
 	  GET : Get owner of the component.
 	 ———————————————————————————————————————————————————————————————————————————*/
 	get owner(){

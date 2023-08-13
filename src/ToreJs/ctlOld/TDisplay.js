@@ -154,7 +154,7 @@ class TDisplay extends TPanel {
 			r = t._renLst;
 			t._renLst = [];
 			l = r.length;
-			console.log("render:", l, r);
+			console.log("render:", l) //, r);
 			for(i = 0; i < l; i++)
 				r[i].render();
 			t._rcaLst = r;

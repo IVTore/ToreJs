@@ -42,21 +42,18 @@ export class TImageLoader extends TComponent {
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	load.
-	  TASK:	
-		Loads an image for TImage control given.
-	  ARGS:
-		image   : TImage    : TImage control, requesting load :DEF: null.
-	  RETV: 
-                : Image	    : A js native Image object containing image loaded.
-      INFO: 
-            If loading method supports progress 
+	  TASK:	Loads an image for TImage control given.
+	  ARGS:	image : TImage : TImage control, requesting load :DEF: null.
+	  INFO: This method returns nothing, loader function must directly
+	  		manipulate TImage instance. See defaultImageLoader function
+			defined below.
 	——————————————————————————————————————————————————————————————————————————*/
     load(image = null) {
 		if (!this._func)
         	exc('E_FUNC_NULL', this.namePath+'.loaderFunction');
 		if (!(image instanceof TImage))
 			exc('E_INV_ARG', 'image');
-		return this._func.apply(null,[image]);
+		this._func.apply(null,[image]);
     }
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -126,7 +123,7 @@ function defaultImageLoader(image = null) {
 			img = new Image();
 			img.src = URL.createObjectURL(xhr.response);
 			resources.add(src, img);
-			image._element.src = resources.addLink(src, image).src;
+			image.assign(src);
 		},
 		(error) => {
 			console.log('promise error', error, image.namePath, src);

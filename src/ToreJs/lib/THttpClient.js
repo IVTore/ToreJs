@@ -1,33 +1,32 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230301
   Author	: 	İhsan V. Töre
-  About		: 	THttpClient.js: Tore Js http client communicator component class.
+  About		: 	THttpClient.js: Tore Js http client component class.
   License	:   MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc } from "./system.js";
+import { sys, exc } from "./TSystem.js";
 import { TComponent } from "./TComponent.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   FUNC: send.
   TASK: Builds a THttpClient component sets it up and sends the request.
-  ARGS: Arguments map to THttpClient component properties, please refer there.
+  ARGS: Arguments map to THttpClient component properties.
   RETV: 	: Promise : resolve returns XMLHttpRequest object.
   INFO: On completion of communication, THttpClient component is destroyed.
-		THttpClient instances are nicknamed as 'com'.
 ————————————————————————————————————————————————————————————————————————————*/
-
 export function send (
-		owner = null,
-		method = 'POST',
-		url = '',
-		content = null,
-		responseType = 'blob',
-		query = null,
-		headers = null,
-		user = null,
-		pass = null) {
+        owner = null, 
+        method = 'POST', 
+        url = '', 
+        content = null, 
+        responseType = 'blob', 
+        query = null, 
+        headers = null, 
+        user = null, 
+        pass = null
+    ) {
 
 	var o = {method: method, url: url, content: content, 
 		responseType: responseType,	query: query,
@@ -156,7 +155,7 @@ export class THttpClient extends TComponent {
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  CTOR: THttpClient.
-	  TASK: Constructs an http communicator component.
+	  TASK: Constructs an http client component.
 	  ARGS:
 		name	: String		: Name of new communicator			:DEF: null.
 		owner	: TComponent	: Owner component.					:DEF: null.
@@ -239,7 +238,7 @@ export class THttpClient extends TComponent {
 	send() {
 		var t = this;
 		if (t._xhr.readyState > XMLHttpRequest.OPENED)
-			exc('E_COM_RUN', propName);
+			exc('E_CLIENT_RUN', propName);
 		setup(t);
 		t._xhr.send(t._cnt);
 		return t;
@@ -277,8 +276,9 @@ export class THttpClient extends TComponent {
 	}
 
 	set timeout(value = 0) {
-		if (typeof(value)==="number")
-			this._xhr.timeout = value;
+		if (typeof value !== 'number')
+            exc('E_INV_VAL', 'timeout');
+		this._xhr.timeout = value;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -350,9 +350,9 @@ export class THttpClient extends TComponent {
 		return this._qry;
 	}
 
-	set query(value = null) {
-		const valid = value === null || is.plain(value);
-		checkSet(this, '_qry', value, "query", valid);
+	set query(val = null) {
+		const valid = val === null || sys.isPlain(val);
+		checkSet(this, '_qry', val, "query", valid);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -364,9 +364,9 @@ export class THttpClient extends TComponent {
 		return this._hdr;
 	}
 
-	set headers(value = null) {
-		const valid = value === null || is.plain(value);
-		checkSet(this, '_hdr', value, "headers", valid);
+	set headers(val = null) {
+		const valid = val === null || sys.isPlain(val);
+		checkSet(this, '_hdr', val, "headers", valid);
 	}
 }
 
@@ -399,20 +399,20 @@ const EVENT_INFO = {
 
 
 // private.
-function checkSet(com, varName, value, propName, valid = true) {
+function checkSet(client, varName, value, propName, valid = true) {
 	if (!valid)
 		exc('E_INV_ARG', propName);
-	if (com[varName] === value)
+	if (client[varName] === value)
 		return;
-	if (com._xhr.readyState > XMLHttpRequest.OPENED)
-		exc('E_COM_RUN', propName);
-	com[varName] = value;
+	if (client._xhr.readyState > XMLHttpRequest.OPENED)
+		exc('E_CLIENT_RUN', propName);
+	client[varName] = value;
 }
 
 
 //private.
-function setup(com) {
-	var t = com,
+function setup(client) {
+	var t = client,
 		q = buildQuery(t),
 		u = t._url + (q ? '?'+q : '');
 
@@ -423,9 +423,9 @@ function setup(com) {
 }
 
 // private.
-function buildQuery(com) {
+function buildQuery(client) {
 	var s = '',
-		q = com._qry;
+		q = client._qry;
 
 	if (!q )
 		return null;
@@ -438,10 +438,10 @@ function buildQuery(com) {
 }
 
 // private.
-function buildHeaders(com) {
+function buildHeaders(client) {
 	var s = '',
-		x = com._xhr,
-		h = com._hdr;
+		x = client._xhr,
+		h = client._hdr;
 
 	if (!h )
 		return;

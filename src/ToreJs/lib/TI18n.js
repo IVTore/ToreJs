@@ -1,16 +1,16 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230301
   Author	: 	İhsan V. Töre
   About		: 	TI18n.js: Tore Js internationalization class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc, core } from "./system.js"
+import { sys, exc, core } from "./TSystem.js"
 import { TComponent } from "./TComponent.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
-  CLASS: TLanguage
+  CLASS: TLanguage.
   TASKS: 
 	Stores text and other specific data for a language.
 	Designed as member of core.i18n component.
@@ -19,11 +19,13 @@ import { TComponent } from "./TComponent.js";
 	To take effect it must be attached to core.i18n singleton.
 ————————————————————————————————————————————————————————————————————————————*/
 export class TLanguage extends TComponent {
-	static allowMemberClass = null;		// no members allowed.
+
+	static allowMemberClass = null;		// Members not allowed.
+
 }
 
 /*——————————————————————————————————————————————————————————————————————————— 
-  CLASS: TI18n
+  CLASS: TI18n.
   TASKS: Internationalization singleton component.
   		 TI18n instance is core.i18n singleton.
   NOTES: It only accepts TLanguage components as members.
@@ -45,7 +47,7 @@ class TI18n extends TComponent {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  DTOR: destructor.
+	  DTOR: destroy.
 	  TASK: Destroys i18n singleton component.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy(){
@@ -54,7 +56,7 @@ class TI18n extends TComponent {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	attach [override]
+	  FUNC:	attach [override].
 	  TASK:	Modifies member attachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	attach(component = null){
@@ -66,7 +68,7 @@ class TI18n extends TComponent {
 	}
 	
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	detach [override]
+	  FUNC:	detach [override].
 	  TASK:	Modifies member detachment logic to check language sequencing.
 	———————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
@@ -86,7 +88,7 @@ class TI18n extends TComponent {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC: find 
+	  FUNC: find. 
 	  TASK: Tries to find a specific data by data selector and language.
 	  ARGS:
 		selector	: String : The data identifier name.
@@ -120,7 +122,7 @@ class TI18n extends TComponent {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	language : string
+	  PROP:	language : string.
 	  GET : Gets the name of active language.
 	  SET : Sets the active language by name.
 	  INFO: Active language is the first language at sequence.
@@ -144,7 +146,7 @@ class TI18n extends TComponent {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	sequence : Array;
+	  PROP:	sequence : Array.
 	  GET : Returns an array of language names as the search sequence.
 	  SET : Checks validity, sets language search sequence array.
 	  INFO: 

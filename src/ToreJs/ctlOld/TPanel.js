@@ -524,20 +524,19 @@ function commonWrapped(pnl, seq, nsx, nsy, wid){
 	len = seq.length;
 	if (rtl && pnl._autoWidth === "fit") {
 		wid = 0;
-		for (idx = 0; idx < len; idx++) {
-			tmp = nsx[idx] + seq[idx]._width;
-			if (wid < tmp)
-				wid = tmp;
-		}
-		for(sub of pnl._ctl) {
+		for(sub of pnl._ctl) {					// Iterate non-sequenced.
 			if (seq.indexOf(sub) > -1)
 				continue;
 			tmp = sub._x + sub._width;
 			if (wid < tmp)
 				wid = tmp;
 		}
+		for (idx = 0; idx < len; idx++) {		// Iterate sequenced.
+			tmp = nsx[idx] + seq[idx]._width;
+			if (wid < tmp)
+				wid = tmp;
+		}		
 	}
-
 	for(idx = 0; idx < len; idx++){
 		sub = seq[idx];
 		chx = sub._setX((rtl) ? (wid - (nsx[idx] + sub._width)) : nsx[idx]);

@@ -65,44 +65,7 @@ export class TContainer extends TControl {
 		super.destroy();		// inherited destroy
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: makeElement [override].
-	  TASK: Builds and binds a document object model element to control.
-			Containers are made of two divs.
-			Outer div is absolute positioned.
-			Inner div is relative positioned and is a wrapper.
-			This way the coordinate consistency is preserved.
-	——————————————————————————————————————————————————————————————————————————*/
-	makeElement() {
-		var s;
-
-		super.makeElement();
-		if (this._wrapper !== this._element)
-			return;
-		this._wrapper = document.createElement('div');
-		this._wrapper.ToreJS_Control = this;
-		this._element.appendChild(this._wrapper);	
-		s = this._wrapper.style;
-		s.position = "relative";
-		s.width = "auto";
-		s.height = "auto";
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: killElement [override].
-	  TASK: Frees container from its DOM elements.
-	——————————————————————————————————————————————————————————————————————————*/
-	killElement() {
-		var e = this._wrapper;
-
-		if (!e)
-			return;
-		if (typeof e.ToreJS_Control !== 'undefined')
-			delete(e.ToreJS_Control);	
-		if (e.parentNode)
-			e.parentNode.removeChild(e);
-		super.killElement();
-	}
+	
 	
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	attach [override].

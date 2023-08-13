@@ -1,18 +1,18 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230301
   Author	: 	İhsan V. Töre
   About		: 	TObject.js: Tore Js base object class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc} from "./system.js"
+import { sys, exc} from "./TSystem.js"
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CLASS: TObject
   TASKS: This is the Tore Js base object class.
 ———————————————————————————————————————————————————————————————————————————*/
-export class TObject {
+export class TObject extends Object{
 
 	static get class() { return this;}
 
@@ -24,6 +24,7 @@ export class TObject {
 					   if == Sys.LOAD construction is by deserialization.
 	———————————————————————————————————————————————————————————————————————————*/
 	constructor(data = null) {
+        super();
 		//—————————————————————————————————————————————————————————————————————
 		this._sta = sys.LIVE;
 		//—————————————————————————————————————————————————————————————————————
@@ -36,7 +37,7 @@ export class TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  DTOR: destroy
+	  DTOR: destroy.
 	  TASK: Destroys the object logically.
 	  INFO:	A destroy() call destroys the object logically setting the object 
 			state to DEAD. Every descendant should define destroy and call
@@ -57,7 +58,7 @@ export class TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	saveState 
+	  FUNC:	saveState. 
 	  TASK:	Saves published and dynamic properties to a generic Array.
 	  RETV:		: Object 
 	  INFO:	Published properties with the default values are not saved.
@@ -94,8 +95,9 @@ export class TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	doLoadComplete
+	  FUNC:	doLoadComplete.
 	  TASK:	Used to signal object that loading is complete.
+      INFO: This is called when sys.deserialize or sys.propSet is completed.
 	———————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete(){
 		if (this._sta == sys.LOAD)
@@ -103,7 +105,7 @@ export class TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	checkDead
+	  FUNC:	checkDead.
 	  TASK:	Raises exception if object is logically dead.
 	———————————————————————————————————————————————————————————————————————————*/
 	checkDead(){
@@ -112,7 +114,7 @@ export class TObject {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	class
+	  PROP:	class.
 	  TASK:	GET : Returns object class (constructor).
 	————————————————————————————————————————————————————————————————————————————*/
 	get class(){
@@ -120,7 +122,7 @@ export class TObject {
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	state
+	  PROP:	state.
 	  TASK:	GET : Returns object state.
 	————————————————————————————————————————————————————————————————————————————*/
 	get state() {

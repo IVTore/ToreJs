@@ -7,21 +7,16 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { is, sys, core, exc, chkStr, chkNul, TComponent } from "../lib/index.js";
+import { sys, core, exc, TComponent } from "../lib/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
-  CLASS: TResources
+  CLASS: TResources.
   TASKS: TResources class instance resources is a singleton component 
   		 which manages application assets.
 ——————————————————————————————————————————————————————————————————————————*/
 class TResources extends TComponent {
 
-	/*——————————————————————————————————————————————————————————————————————————
-		static allowMemberClass		: (used in attach method).
-			The allowed anchestor class of member.
-			When null component is not allowed to have members.
-	——————————————————————————————————————————————————————————————————————————*/
-	static allowMemberClass = null;
+	static allowMemberClass = null; // Members not allowed.
 
 	_name = [];
 	_link = [];
@@ -71,8 +66,8 @@ class TResources extends TComponent {
 	add(name = null, data = null, keep = false) {
 		var i;
 
-		chkStr(name, 'name');
-		chkNul(data, 'data');
+		sys.str(name, 'name');
+        sys.chk(data, 'data');
 		if (this._name.indexOf(name) > -1)
 			exc('E_RES_OVR', name);
 		i = this._data.indexOf(data);
@@ -110,7 +105,7 @@ class TResources extends TComponent {
 		l = this._link[i];
 		for(t in l) {
 			if (t.state)
-				t.doResourceDetached(name);
+				t.doResourceLinkRemoved(name);
 		}
 		this._name[i] = null;
 		this._data[i] = null;
@@ -170,12 +165,14 @@ class TResources extends TComponent {
 		if (l < 0)
 			return;
 		this._link[i].splice(l, 1);
-		if (target.state)
-			target.doResourceDetached(name);		
+		if (target && target.state)
+			target.doResourceLinkRemoved(name);		
 		if (this._link[i].length === 0)
 			this.remove(name);
 	}
 }
+
+export const resources = new TResources();
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: check [private].
@@ -189,11 +186,10 @@ class TResources extends TComponent {
 	Otherwise returns the index of resource.
 ——————————————————————————————————————————————————————————————————————————*/
 function check(name = null, target = null) {
-	chkStr(name, 'name');
+	sys.str(name, 'name');
 	if (!(target instanceof TComponent))
 		exc('E_INV_ARG', 'target');
-	return core.resources._name.indexOf(name);
+	return resources._name.indexOf(name);
 }
  
 
-export const resources = new TResources();

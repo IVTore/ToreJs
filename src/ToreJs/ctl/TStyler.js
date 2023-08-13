@@ -1,14 +1,14 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230302
   Author	: 	IVT : İhsan V. Töre
   About		: 	TStyler.js: Tore Js control styles singleton component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { sys, is, exc, chkStr, core, TComponent } from "../lib/index.js";
-import { display } from "./index.js";
+import { sys, exc, core, TComponent } from "../lib/index.js";
+//import { display } from "./index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TStyler
@@ -26,11 +26,11 @@ import { display } from "./index.js";
 	Browser body element is represented by display singleton.
 	When the display control is initialized and whenever it is resized
 	via a browser resize, styler doViewportChange method is invoked.
-	TStyler uses browser document.documentElement.clientWidth
+	display control uses browser document.documentElement.clientWidth
 	to calculate the viewport name. If name changes, the viewport
 	dependant values in the css are changed by styler.
 
-	The viewport sizes are defined in TCtl.js as :
+	The viewport sizes are defined in TCtlSys.js as :
 	TCtl.viewportSizes = [ 576, 768, 992, 1200, 1400];
 	TCtl.viewportNames = ['xs','sm','md','lg','xl','xxl'];
     	
@@ -79,7 +79,7 @@ import { display } from "./index.js";
 	- panel1.styleSize = "Tiny"
 	- panel1.styleColor = "Second"
 	- panel1.styleName = "Extra"
-	- panel1.controlState = TCtl.ALIVE.
+	- panel1.controlState = cts.ALIVE.
 	
 		The panel1 element class names will be:
 	
@@ -105,7 +105,8 @@ class TStyler extends TComponent {
 
 	static allowMemberClass = null;
 	static cdta = {};
-	
+	_tmn = null;            // Current theme name.
+    _thr = null;            // Current theme rules name list.
 	_css = null;			// document.styleSheets[0].
 	_rls = null;			// Rules list.
 	_pxr = 0;				// Pixels in 1rem.
@@ -155,8 +156,8 @@ class TStyler extends TComponent {
 			s,
 			r;
 
-		chkStr(name, 'name');
-		if (!is.plain(rule))
+		sys.str(name, 'name');
+		if (!sys.isPlain(rule))
 			exc('E_INV_ARG', 'rule');
 		if (asClass)
 			name = "." + name;
@@ -174,7 +175,7 @@ class TStyler extends TComponent {
 				s[i] = r;
 				continue;
 			}
-			if (!is.vpObj(r))
+			if (!cts.isVpObj(r))
                 exc('E_INV_RULE_VAL', name + '.' + i);
 			if (!t._dyn[name])
 				t._dyn[name] = {};
@@ -201,7 +202,7 @@ class TStyler extends TComponent {
 	delRule(name = null, asClass = true) {
 		var i;
 
-		chkStr(name, 'name');
+		sys.str(name, 'name');
 		if (asClass)
 			name = "."+name;
 		i = this._rls.indexOf(name);

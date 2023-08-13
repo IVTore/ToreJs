@@ -1,17 +1,18 @@
 /*————————————————————————————————————————————————————————————————————————————
   Tore Js
 
-  Version	: 	20220706
+  Version	: 	20230301
   Author	: 	İhsan V. Töre
   About		: 	TEventHandler.js: Tore Js event handler object class.
   License 	: 	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, is, exc } from "./system.js";
-import { TComponent } from "./TComponent.js";
+import { sys, exc } from "./TSystem.js";
 import { TObject } from "./TObject.js";
+import { TComponent } from "./TComponent.js";
+
 
 /*——————————————————————————————————————————————————————————————————————————— 
-  CLASS: TEventHandler
+  CLASS: TEventHandler.
   TASKS:
   	Event handler class defines the handler target call information.
 	An Event handler instance can be used only for one event.
@@ -59,27 +60,26 @@ export class TEventHandler extends TObject {
 	  TASK: Destroys the TEventHandler instance.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy(){
-	var t = this,
-		i,
-		src = t._src,
-		tar = t._tar;
+	var	i,
+		src = this._src,
+		tar = this._tar;
 
-		if (t._rdy) {					// If assigned,
-			delete src._eve[t._nam];	// Detach from event source.
-			i = tar._hdt.indexOf(t);	// Kill back hook.
+		if (this._rdy) {					// If assigned,
+			delete src._eve[this._nam];	    // Detach from event source.
+			i = tar._hdt.indexOf(this);	    // Kill back hook.
 			if (i > -1)
 				tar._hdt.splice(i, 1);
-			if (t._fun)					// Remove bound function.
-				src[t._def.src].removeEventListener(t._def.typ, t._fun);
-			t._fun = null;
+			if (this._fun)					// Remove bound function.
+				src[this._def.src].removeEventListener(this._def.typ, this._fun);
+			this._fun = null;
 		}
-		t._rdy = false;					// Release all data for GC.
-		t._nam = null;
-		t._src = null;
-		t._tar = null;
-		t._def = null;
-		t._met = null;
-		super.destroy();				// Logical destruction.
+		this._rdy = false;					// Release all data for GC.
+		this._nam = null;
+		this._src = null;
+		this._tar = null;
+		this._def = null;
+		this._met = null;
+		super.destroy();				    // Logical destruction.
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -104,7 +104,7 @@ export class TEventHandler extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	target : TComponent or string;
+	  PROP:	target : TComponent or string.
 	  GET : Returns target handler component.
 	  SET : Sets target handler component.
 	  INFO: Target component can only be set once.
@@ -120,7 +120,7 @@ export class TEventHandler extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	method : string;
+	  PROP:	method : string.
 	  GET : Returns target handler component method name.
 	  SET : Sets target handler component method name.
 	  INFO: Method name can only be set once.
@@ -137,7 +137,7 @@ export class TEventHandler extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	name : string;
+	  PROP:	name : string.
 	  GET : Returns event name at source (like 'onAttach' etc.).
 	  INFO: This property is valid after assignment.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -146,7 +146,7 @@ export class TEventHandler extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	source : TComponent;
+	  PROP:	source : TComponent.
 	  GET : Returns event source component.
 	  INFO: This property is valid after assignment.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -155,7 +155,7 @@ export class TEventHandler extends TObject {
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	doLoadComplete
+	  FUNC:	doLoadComplete.
 	  TASK:	Used to signal event handler that loading (deserialization) is 
 			complete.
 	———————————————————————————————————————————————————————————————————————————*/
@@ -191,10 +191,9 @@ export class TEventHandler extends TObject {
 		Throws exception for invalid definitions.
 	——————————————————————————————————————————————————————————————————————————*/
 	assign(source = null, eventName = null){
-	var t = this,
-		d;
+	    var def;
 
-		if (t._rdy)
+		if (this._rdy)
 			return;
 		checkTEventHandlerTarget(this);
 		checkTEventHandlerMethod(this);
@@ -202,21 +201,23 @@ export class TEventHandler extends TObject {
 			exc('E_INV_ARG', "source");
 		if (typeof eventName !== 'string')
 			exc('E_INV_ARG', 'eventName');
-		d = source.class.cdta[eventName];
-		if (!d || !d.event)
+		def = source.class.cdta[eventName];
+		if (!def || !def.event)
 			exc('E_INV_ARG', 'eventName');
-		t._rdy = true;
-		t._src = source;
-		t._nam = eventName;
-		t._def = d;
-		t._src._eve[t._nam] = t;
-		t._tar._hdt.push(t);
-		if (!t._def.src)
-			return;
-		t._fun = function(e) { 
-			return t.dispatch([t._src, e]); 
-		}
-		t._src[t._def.src].addEventListener(t._def.typ, t._fun, false);
+				this._src = source;
+		this._nam = eventName;
+		this._def = def;
+		this._src._eve[this._nam] = this;
+		this._tar._hdt.push(this);
+		if (this._def.src) {    // if native.
+			if (!this._src[this._def.src])
+                exc('E_EVENT_SRC', this._src.name + '.' + this._def.src);
+		    this._fun = function(e) { 
+			    return this.dispatch([this._src, e]); 
+		    }
+		    this._src[this._def.src].addEventListener(this._def.typ, this._fun, false);
+        }
+        this._rdy = true;
 	}
 }
 
@@ -260,5 +261,5 @@ function checkTEventHandlerMethod(handler) {
 	if (typeof handler._tar[handler._met] === 'function') 
 		return;
 	handler._met = null;
-	exc("E_INV_VAL", "method");
+	exc("E_INV_VAL", "method != function");
 }

@@ -54,10 +54,12 @@ var asg = err instanceof Error,
         excInterceptor(dta, err);
 
     if (excLogToConsole) {
+        console.log("———————————————————————————————————————————————————————————————————————————");
         console.log("EXC: ", dta.exc);
         console.log("TAG: ", dta.tag);
         console.log("INF: ", dta.inf);
         console.log("MSG: ", dta.msg);
+        console.log("———————————————————————————————————————————————————————————————————————————");
     }
     if (!asg)
         throw cex;
@@ -215,9 +217,7 @@ const sys = {
     ———————————————————————————————————————————————————————————————————————————*/
     isPlain(obj) {
         return (
-            obj !== undefined &&
-			obj !== null && 
-			(obj.__proto__ === null || obj.__proto__ === Object.prototype)
+            (!!obj) && (obj.__proto__ === null || obj.__proto__ === Object.prototype)
         );
     },
     
@@ -328,7 +328,7 @@ const sys = {
 		s :  Object : source object containing property data.	:DEF: null.
 		p :  Object : target parent (automatic).				:DEF: null.
 					  p is used during recursive descent assignments for 
-					  "__p." definitions automatically.
+					  ".prnt." definitions automatically.
 	  INFO:
 		If t has properties which are also sub objects it is possible to 
 		set their properties in a single call. Requirements are as follows:
@@ -355,9 +355,9 @@ const sys = {
 		When _var_ defaults to true, it is not overridable.
 
 		Tricky object designator string values:
-			propName: 	".this."   will fetch from "this" and assign.
-			propName: 	".prnt."   will fetch from parent of "this" and assign.
-			propName: 	".core."   will fetch from core and assign.
+			propName: 	".t."   will fetch from "this" and assign.
+			propName: 	".p."   will fetch from parent of "this" and assign.
+			propName: 	".c."   will fetch from core and assign.
 	———————————————————————————————————————————————————————————————————————————*/
 	propSet: function(t = null, s = null, p = null){  
         var i,	c,o,d,e;
@@ -366,6 +366,7 @@ const sys = {
             exc('E_INV_ARG', 't');
         if (s === null)
             exc('E_INV_ARG', 's');
+        
         for(e in s){							// iterate source elements
             if (e === '_new_' || e === '_var_')	// those keys are processed
                 continue;
@@ -375,21 +376,21 @@ const sys = {
                 continue;
             }
             // Tricky object designator string value evaluator, abracadabra...
-            if (typeof i === 'string' && i[0] === '.' && i[5] === '.') {
-                d = i.substring(6);
-                switch(i.substring(1, 5)) { 
-                case 'this':
+            if (typeof i === 'string' && i[0] === '.' ) {
+                d = i.substring(3);
+                switch(i[1]) { 
+                case 't':                       
                     t[e] = sys.fetchObject(d, t);
                     continue;
-                case 'core' :
+                case 'c' :
                     t[e] = sys.fetchObject(d, core);
                     continue;
-                case 'prnt':
+                case 'p':
                     if (p !== null) {
                         t[e] = sys.fetchObject(d, p);
                         continue;
                     }
-                    exc('E_NO_PARENT', 	((t._nam) ? t._nam : '?') + '.' + e + ' = ".prnt."');
+                    exc('E_NO_PARENT', 	((t._nam) ? t._nam : '?') + '.' + e + ' = ".p."');
                     break;
                 }
             }
@@ -401,7 +402,7 @@ const sys = {
                 sys.propSet(t[e], i, t);		// transfer values
                 continue;
             }									// target is null...
-            if(!i._new_){						// if not a new sub object
+            if(!i._new_) {						// if not a new sub object
                 t[e] = {};						// so it is a generic one
                 sys.propSet(t[e], i, t);		// transfer values
                 continue;
@@ -411,14 +412,18 @@ const sys = {
                 c = sys.classByName(c);			// try fetching class
             if (!sys.isClass(c))				// if failed to fetch, exception
                 exc('E_CLASS_INV', (i._new_) ? 'null' : i._new_);
-            d = sys.isSuper(TComponent, c);
-            o = d ? new c(e) : new c();
-            d = d && t instanceof TComponent && !i._var_ ; 
-            if (d) 
-                t.attach(o);
-            sys.propSet(o, i, t);				// set the contents
-            if (!d) 
-                t[e] = o;
+            if (sys.isSuper(TComponent, c) ) {
+                o = new c( 
+                        (i.name) ? i.name: e,
+                        (i._var_) ? null : t, 
+                        i);
+                if (i._var_)
+                    t[e] = o;
+                continue;
+            }
+            o = new c();
+            sys.propSet(o, i, t);
+            t[e] = o;
         }
     }
 }

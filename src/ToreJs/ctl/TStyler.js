@@ -8,7 +8,9 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys, exc, core, TComponent } from "../lib/index.js";
-//import { display } from "./index.js";
+import { TCtl } from "./TCtlSys.js";
+import { TControl } from "./TControl.js";
+import { display } from "./TDisplay.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TStyler
@@ -31,13 +33,12 @@ import { sys, exc, core, TComponent } from "../lib/index.js";
 	dependant values in the css are changed by styler.
 
 	The viewport sizes are defined in TCtlSys.js as :
-	TCtl.viewportSizes = [ 576, 768, 992, 1200, 1400];
-	TCtl.viewportNames = ['xs','sm','md','lg','xl','xxl'];
-    	
+	TCtl.vpInfo: = {xs: 576, sm: 768, md: 992, lg: 1200, xl: 1400, xxl:null};
+	    	
 	To define a viewport dependant rule, a simple object is sufficient,
 	such as the padding in the rule definition below:
 
-	styler.addRule("anExample", {
+	styler.addRule("TButtonMedium", {
 		backgroundColor: '#EEEEEE',
 		color:'#000000',
 		padding: {
@@ -47,7 +48,7 @@ import { sys, exc, core, TComponent } from "../lib/index.js";
         }
 	});
 
-	This creates a dynamic css rule registered as anExample.padding.
+	This creates a dynamic css rule registered as TButtonMedium.padding.
 	If viewport is extra small (xs) the padding will be '0.5625rem',
 	If viewport is extra extra large (xxl) it will be '0.625rem',
 	on other viewport states, default (df) it will be 'calc(0.52rem + 0.12vw)'.
@@ -57,15 +58,20 @@ import { sys, exc, core, TComponent } from "../lib/index.js";
 	The rules are always class level, unless stated otherwise 
 	(internally prepended with a '.').
 	
+    Various rules may be set directly on element style by the control: 
+	top, left, right, bottom, width, height, zIndex, visibility, opacity.
+	
+	Controls assume boxSizing as borderBox and margins as 0.
+
 	For convenience of use there are predefined sub-rule names:
 
-	control.styleSize rule names : 
+	control.styleSize rule prefixes : 
 		Tiny, Small, Medium, Big, Large, Huge
 
-	control.styleColor rule names : 
+	control.styleColor rule prefixes : 
 		First, Second, Done, Fail, Warn, Info, Light, Dark, Link.
 
-	control state postfixes :
+	control state postfixes (Defined in TCtlSys as Control state names):
 		Alive: Normal		state
 		Hover: Pointer Over	state
 		Focus: Focused		state
@@ -75,36 +81,75 @@ import { sys, exc, core, TComponent } from "../lib/index.js";
 	their controlState.
 
 	Example: 
-	- Let panel1 a TPanel control.
-	- panel1.styleSize = "Tiny"
-	- panel1.styleColor = "Second"
-	- panel1.styleName = "Extra"
-	- panel1.controlState = cts.ALIVE.
-	
-		The panel1 element class names will be:
-	
-		TPanel PanelAlive
-		Tiny TinyAlive PanelTiny PanelTinyAlive
-		Second SecondAlive PanelSecond PanelSecondAlive
-		Extra ExtraAlive PanelExtra PanelExtraAlive
-		
-		If panel1 is hovered then panel1 element class names will be:
+    - Let btn be a normal TButton.
 
-		TPanel PanelHover
-		Tiny TinyHover PanelTiny PanelTinyHover
-		Second SecondHover PanelSecond PanelSecondHover
-		Extra ExtraHover PanelExtra PanelExtraHover
+    The defaults will be:
 
-	Various rules may be set directly on element style by the control: 
-	top, left, right, bottom, width, height, zIndex, visibility, opacity.
+        btn.styleRoot = null;
+	    btn.styleSize = "Medium";
+	    btn.styleColor = "First";
+	    btn.styleExtra = null;
+
+        The btn element class names will be:
+
+    TButton TButtonAlive
+    Medium MediumAlive TButtonMedium TButtonMediumAlive
+    First FirstAlive TButtonFirst TButtonFirstAlive
+    
+	- Let btn be a TButton control with a quirk of an image and some extra 
+      styling.
+
+    if :
+        btn.styleRoot = "Img";
+	    btn.styleSize = "Medium";
+	    btn.styleColor = "Second";
+	    btn.styleExtra = "Stunning";
 	
-	Controls assume boxSizing as borderBox and margins as 0.
+    The btn element class names will be:
+
+    TButtonImg TButtonImgAlive
+    Tiny TinyAlive TButtonImgTiny TButtonImgTinyAlive
+    Second SecondAlive TButtonImgSecond TButtonImgSecondAlive
+    Stunning StunningAlive TButtonImgStunning TButtonImgStunningAlive
+    
+    If it is hovered then btn element class names will be:
+
+    TButtonImg TButtonImgHover
+    Tiny TinyHover TButtonImgTiny TButtonImgTinyHover
+    Second SecondHover TButtonImgSecond TButtonImgSecondHover
+    Stunning StunningHover TButtonImgStunning TButtonImgStunningHover
+	
 ——————————————————————————————————————————————————————————————————————————*/
+
+// TControl size style class prefixes
+var sizes = {
+    Tiny: 1,
+    Small: 1,
+    Medium: 1,
+    Big: 1,
+    Large: 1,
+    Huge: 1
+};
+
+// TControl color style class prefixes
+var colors = {
+    First: 1,
+    Second: 1,
+    Done: 1,
+    Fail: 1, 
+    Warn: 1, 
+    Info: 1, 
+    Light: 1,
+    Dark: 1, 
+    Link: 1
+};
+
 
 class TStyler extends TComponent {
 
 	static allowMemberClass = null;
 	static cdta = {};
+
 	_tmn = null;            // Current theme name.
     _thr = null;            // Current theme rules name list.
 	_css = null;			// document.styleSheets[0].
@@ -125,7 +170,6 @@ class TStyler extends TComponent {
 		s = window.getComputedStyle(document.documentElement);
 		this._pxr = parseInt(s.fontSize, 10);
 		setupStyleSheet(this);
-		captureCssRules(this);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -140,7 +184,7 @@ class TStyler extends TComponent {
 		super.destroy();
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
+    /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addRule
 	  TASK: Sets the contents of a rule with the given name and properties.
 	  ARGS:
@@ -175,7 +219,7 @@ class TStyler extends TComponent {
 				s[i] = r;
 				continue;
 			}
-			if (!cts.isVpObj(r))
+			if (!TCtl.vpCheck(r))
                 exc('E_INV_RULE_VAL', name + '.' + i);
 			if (!t._dyn[name])
 				t._dyn[name] = {};
@@ -184,10 +228,8 @@ class TStyler extends TComponent {
 				s[i] = r[t._vnm];
 				continue;
 			}
-			if (typeof r.df === 'string'){
+			if (typeof r.df === 'string') 
 				s[i] = r.df;
-				continue;
-			}
 		}
 	}
 
@@ -239,12 +281,30 @@ class TStyler extends TComponent {
                     style[n] = r[vpnam];
                     continue;
                 }
-                if (typeof r.df === 'string'){
+                if (typeof r.df === 'string')
                     style[n] = r.df;
-                    continue;
-                }
             }
         }
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: isColorStyleName
+	  TASK: Checks if given value is a string and it is a Color style name.
+      ARGS: colorName   : string  : Color style name to check.
+      RETV:             : boolean : True if a Color style name.
+	——————————————————————————————————————————————————————————————————————————*/
+    isColorStyleName(colorName = null) {
+        return (sys.str(colorName) && colors[colorName] === 1);
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: isSizeStyleName
+	  TASK: Checks if given value is a string and it is a Size style name.
+      ARGS: sizeName    : string  : Size style name to check.
+      RETV:             : boolean : True if a Size style name.
+	——————————————————————————————————————————————————————————————————————————*/
+    isSizeStyleName(sizeName = null) {
+        return (sys.str(sizeName) && sizes[sizeName] === 1);
     }
 
 }
@@ -256,20 +316,19 @@ export const styler = new TStyler();
 
 // Captures all rule selectors in document.styleSheets[0].
 function captureCssRules(t) {
-	var lst = t._css.cssRules,
+	var r = t._css.cssRules,
 		i,
-		l = lst.length;
+		l = r.length;
 
 	t._rls = [];
 	for(i = 0; i < l; i++)
-		t._rls.push(lst[i].selectorText);
+		t._rls.push(r[i].selectorText);
 }
 
 // Sets up the base styles of ToreJS
 function setupStyleSheet(t) {
 	var s;
 
-	t._rls = [];
 	if (!document.styleSheets[0]){
 		s = document.createElement('style');
 		s.type = 'text/css';
@@ -277,19 +336,26 @@ function setupStyleSheet(t) {
 	}
 	t._css = document.styleSheets[0];
 
-	t.addRule("*",{ 
+    captureCssRules(t);
+	
+    // these are also Control initial values.
+    t.addRule("*",{ 
 		boxSizing: 'border-box',
 		position: 'absolute',
 		overflow: 'hidden',
 		border: '0px',
 		margin: '0px',
-		padding: '0px'
+		padding: '0px',
+        left:"0px",                 
+        top:'0px',
+        width:'32px',
+        height:'32px'
 	}, false);
 	
 	t.addRule("html",{
 		display: 'block',
-		backgroundColor: '#EEEEEE',
-		color:'#000000',
+		backgroundColor: '#FFFFFF',
+		color:'#EEEEEE',
 
 		fontFamily: "'system-ui', sans-serif",	/* Text defaults */
 		fontSize: '1rem',

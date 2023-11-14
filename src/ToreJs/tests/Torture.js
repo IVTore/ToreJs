@@ -1,73 +1,86 @@
 // inspect in browser and change browser window size, see the torture.
 
 import { TEventHandler } from "../lib/index.js";
-import { styler, display, TPanel, TLabel, TButton, TImage } from "../ctl/index.js";
+import { styler, display, TPanel, TLabel, TButton } from "../ctl/index.js";
 import { ToreUI } from "../styles/ToreUI.js";
 
 ToreUI();
 
-styler.addRule("P1Ext", {
-	backgroundColor: "Turquoise",
-	padding: "5px"
+styler.addRule("PanExt", {
+	padding: "10px"
 });
 
+new TLabel('lblVpTitle', display, { 
+    styleSize: 'Medium',
+    y: 10,
+    autoX: 'center',  
+    wrap: true,
+    hndVpTtl: function (sender) {
+        var style = getComputedStyle(sender._element);
+        sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + display.viewportName;
+    },
+    onViewportResize: { 
+        _new_: TEventHandler, 
+        target: '.p', 
+        method: 'hndVpTtl' 
+    }
+});
+
+var pan = new TPanel('pan', display, {
+    layout: 'vertical',
+    wrap: false,
+    autoX: 'center', 
+    autoY: 'center', 
+    autoW: 0.5, 
+    autoH: 0.5, 
+    splitX: 5,
+    splitY: 5,
+    styleExtra: 'PanExt',
+    hndVpRes: function (sender) {
+        var style = getComputedStyle(sender._element);
+        sender.text = "[Hello World!] [" + sender._styleSize + "] " + style.fontSize;
+    }
+});
 
 var labelProps = {
-	autoWidth: "fit",
-	autoHeight: "fit",
 	wrap: true,
-	onViewportResize: { _new_: TEventHandler, target: '.prnt.owner', method: 'hndVpRes' }
+    canFocus: true,
+    onViewportResize: { _new_: TEventHandler, target: '.p.owner', method: 'hndVpRes' }
 };
 
-var p1 = new TPanel("p1", display, {
-	layout: "vertical",
-	contentAlign: 'center',
-	autoX: "center",
-	autoY: "center",
-	autoWidth: "fit",
-	autoHeight: "fit",
-	splitX: 1,
-	splitY: 1,
-	styleExtra: "P1Ext",
-	hndVpRes: function (sender) {
-		var style = getComputedStyle(sender._element);
-		sender.text = "[Hello World!]... " + style.fontSize + " st: [" + sender._styleSize + "]";
-	},
-	hndVpTtl: function (sender) {
-		var style = getComputedStyle(sender._element);
-		sender.text = "Viewport Width: " + document.documentElement.clientWidth + ", Viewport Size Name: " + display.viewportName;
-	},
-	lv: { _new_: TLabel, styleSize: 'Medium', height: 40, autoWidth: "fit", onViewportResize: { _new_: TEventHandler, target: '.prnt.owner', method: 'hndVpTtl' } },
-	l1: { _new_: TLabel, styleSize: 'Huge', ...labelProps },
-	l2: { _new_: TLabel, styleSize: 'Large', ...labelProps },
-	l3: { _new_: TLabel, styleSize: 'Big', ...labelProps },
-	l4: { _new_: TLabel, styleSize: 'Medium', ...labelProps },
-	l5: { _new_: TLabel, styleSize: 'Small', ...labelProps },
-	l6: { _new_: TLabel, styleSize: 'Tiny', ...labelProps },
-	i1: { _new_: TImage, zIndex: -1, autoX: "center", source: '../src/ToreJs/tests/images/ist.png'},	
-	b1: {
-		_new_: TButton,
-		styleSize: 'Medium',
-		autoWidth: "fit",
-		autoHeight: 'fit',
-		label: { _new_: TLabel, name: "label", styleSize: 'Medium', text: 'Align Right', autoWidth: "fit", autoHeight: "fit" },
-		hndHit: function (sender) {
-			if (p1.contentAlign === 'center') {
-				p1.contentAlign = 'right';
-				this.label.text = "Align Center";
-			} else {
-				p1.contentAlign = 'center';
-				this.label.text = "Align Right";
-			}
-			console.log(this.contentAlign, this._computed.paddingLeft, this.label.x, this.label.y);
-		},
-		onHit: { _new_: TEventHandler, target: '.prnt.', method: 'hndHit' }
-	}	
+new TLabel('l1',pan,{ styleSize: 'Huge', ...labelProps });
+/*
+new TLabel('l2',pan,{ styleSize: 'Large', ...labelProps });
+new TLabel('l3',pan,{ styleSize: 'Big', ...labelProps });
+new TLabel('l4',pan,{ styleSize: 'Medium', ...labelProps });
+new TLabel('l5',pan,{ styleSize: 'Small', ...labelProps });
+new TLabel('l6',pan,{ styleSize: 'Tiny', ...labelProps });
+
+new TButton('b1', pan, {
+    styleSize: 'Medium',
+    label: { _new_: TLabel, name: "label", styleSize: 'Medium', text: 'Align Center'},
+    hndHit: function (sender) {
+        switch (pan.contentAlign) {
+        case 'left' :
+            pan.contentAlign = 'center';
+            this.label.text = "Align Right";
+            break;
+        case 'center':
+            pan.contentAlign = 'right';
+            this.label.text = "Align Left";
+            break;
+        case 'right':    
+            pan.contentAlign = 'left';
+            this.label.text = "Align Center";
+        }        
+        console.log(pan.contentAlign);
+    },
+    onHit: { _new_: TEventHandler, target: '.p.', method: 'hndHit' }
 });
+*/	
+pan.sequence = ['l1','l2','l3','l4','l5','l6', 'b1'];
 
-p1.sequence = ["lv", "l1", "l2", "l3", "l4", "l5", "l6", "b1"];
+display.refresh();
 
-display.doViewportResize();
-p1.i1.load();
 
 

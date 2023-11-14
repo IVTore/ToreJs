@@ -46,6 +46,7 @@ export class TComponent extends TObject {
 
 	static cdta = {
 		name: {value:''},
+        owner: {value: null},
 		onAttach: {event: true},
 		onDetach: {event: true},
 		onLoadComplete: {event: true},
@@ -76,7 +77,7 @@ export class TComponent extends TObject {
 		if (owner instanceof TComponent) 
 			owner.attach(this);
 		if (data)
-			sys.propSet(data);
+			sys.propSet(this, data, owner);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -117,7 +118,10 @@ export class TComponent extends TObject {
 
 		if (!ownerCandidate)
 			return;
-		n = this.class.name.toLowerCase();
+        n = this.class.name;
+        if (n[0] === 'T')
+            n = n.substring(1);
+		n = n.toLowerCase();
 		while(true) {
 			if (!ownerCandidate[ n + i ]) {
 				this.name = n + i;
@@ -361,7 +365,8 @@ export class TComponent extends TObject {
 	——————————————————————————————————————————————————————————————————————————*/
 	getEvent(name = null) {
 		var r;
-		if (typeof name !== 'string')
+		
+        if (typeof name !== 'string')
 			return null;
 		r = this._eve[name];
 		return (r) ? r : null;
@@ -382,7 +387,7 @@ export class TComponent extends TObject {
 			}
 	———————————————————————————————————————————————————————————————————————————*/
 	saveState() {
-	var r = super.saveState(); 	// call inherited
+	    var r = super.saveState(); 	// call inherited
 		
 		r['m'] = this._mem;
 		r['e'] = this._eve;
@@ -394,10 +399,10 @@ export class TComponent extends TObject {
 	  TASK:	Signals component that loading (deserialization) is complete.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete() {
-	var d = this.onLoadComplete;
+	    var eve = this.onLoadComplete;
 		
-		if (d)
-			d.dispatch([this]);
+		if (eve)
+			eve.dispatch([this]);
 		super.doLoadComplete();
 	}
 	
@@ -406,11 +411,11 @@ export class TComponent extends TObject {
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange() {
-	var event = this.onLanguageChange,
+	var eve = this.onLanguageChange,
 		n;
 
-		if (event)
-			event.dispatch([this]);
+		if (eve)
+			eve.dispatch([this]);
 		for(n in this._mem)					// propagate to members
 			this._mem[n].doLanguageChange();
 	}
@@ -459,15 +464,20 @@ export class TComponent extends TObject {
 	  PROP:	namePath : string. 
 	  GET : Returns the global component name path string.
 	————————————————————————————————————————————————————————————————————————————*/
-	get namePath(){
+	get namePath() {
 		return((this._own ? this._own.namePath + '.' : '') + this._nam);
 	}
     
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP: owner : TComponent.
 	  GET : Get owner of the component.
+      SET : Set owner of the component. -> for the sake of serialization.
 	 ———————————————————————————————————————————————————————————————————————————*/
-	get owner(){
+	get owner() {
 		return(this._own);
 	}
+
+    set owner(val = null) {
+        this.attach(val);
+    }
 }

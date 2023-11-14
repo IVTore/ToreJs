@@ -1,5 +1,6 @@
 {
 	"typescript.disableAutomaticTypeAcquisition": true,
 	"npm.fetchOnlinePackageInfo": false,
-	"liveServer.settings.port": 5536
+    "liveServer.settings.port": 5536,
+    "editor.fontSize": 16
 }

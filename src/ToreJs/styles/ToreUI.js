@@ -75,13 +75,34 @@ export function ToreUI(){
         }
     });
 
-    s.addRule("TLabel",{
-        backgroundColor: "Yellow"
-    })
+    s.addRule("TDisplayFirst", {
+        backgroundColor: 'rgb(20,20,20)'
+    });
+
+    s.addRule("TLabelFirst", {
+        backgroundColor: 'rgb(50,50,50)',
+        color: 'White'
+    });
+    
+    s.addRule("TLabelFirstHover", {
+        backgroundColor: 'rgb(50,150,50)',
+        color: 'White'
+    });
+
+    s.addRule("TPanelFirst",{
+        backgroundColor: 'rgb(30,30,30)',
+        color: 'White'
+    });
+
+    s.addRule("TPanelFirstHover", {
+        backgroundColor: 'rgb(180,50,50)',
+        color: 'White'
+    });
     
     s.addRule("TButton", {
         borderStyle: 'solid',
         borderWidth: '1px',
+        borderRadius: '4px'
         //lineHeight: "1.4"
     });
 

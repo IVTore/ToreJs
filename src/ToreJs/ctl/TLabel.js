@@ -7,24 +7,31 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { core, is, sys } from "../lib/index.js";
+import { sys, i18n } from "../lib/index.js";
 import { TControl } from "../ctl/index.js";
 
 /*——————————————————————————————————————————————————————————————————————————
   CLASS: TLabel
-  TASKS: TLabel is a control for displaying texts.
+  TASKS: TLabel is a control for displaying simple text.
 ——————————————————————————————————————————————————————————————————————————*/
 export class TLabel extends TControl {
 
 	static allowMemberClass = null;		// no members allowed.
+    static defaultCanFocus = false;     // Not focusable by default.
 
-	static cdta = {
+    static cdta = {
+        autoW: {value: 'fit'},
+        autoH: {value: 'fit'},
 		tag: {value: null},
 		text: {value: null},
 		textAlign: {value: "left"},
 		wrap: {value: false}
 	}
 
+    static initialStyle = {whiteSpace: "pre", textAlign: "left" };
+
+    _autoW = 'fit'; // override
+    _autoH = 'max'; // override
 	_tag = null;
 	_out = null;
 	_wrap = false;
@@ -40,14 +47,11 @@ export class TLabel extends TControl {
 		owner : TComponent	: Owner of the new control if any :DEF: null.
 		data  : Object		: An object containing instance data :DEF: null.
 	——————————————————————————————————————————————————————————————————————————*/
-	constructor(name = null, owner = null, data = null, init = true) {
-		super(name, null, null, false);
-		this._shade.whiteSpace = "pre";
-		this._shade.textAlign = "left";
-		this._autosize = true;
-		if (name !== sys.LOAD)
+	constructor(name = null, owner = null, data = null) {
+		super(name);
+        this.initControl(name, owner, data);
+		if (this._out === null)
 			this.text = this._nam;
-		this._initControl(name, owner, data, init);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -67,60 +71,118 @@ export class TLabel extends TControl {
 		super.recalculate();
 	}
 	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: widthToFit
-	  TASK: Sets width to fit the content.
-	  RETV: 	: Boolean : True if width changed.
-	  INFO: This is called when autoWidth = "fit".
-	  		Active at recalculation frame, causes reflow. 
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _maxW [protected] [override].
+      TASK: This finds the maximum control width required for the content.
+      RETV:     : number : maximum control width for the content.
+      INFO: 
+        *   Called by autoFitW or autoMaxW in TLabel. 
+        *   When autoW is "fit" or "max", tries to find maximum label
+            width required for contents ignoring any boundaries.
+        *   This maximum is according to the content.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _maxW() {
+    	return measureText(this).width + this._shellW + 1;         
+    }
+
+        
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoFitW [protected] [override].
+	  TASK:	Adjusts the width of control regarding its owner and its content.
+	  RETV:     : boolean	: true if width change is in shadowed style.
+      INFO: 
+        *   This is called from private calcAutoW() method which is 
+            called by t.autoAdjust() when autoW resolves to "fit".
+        *   This is the overridden algorithm for TLabel.
+        *   Calculations done directly by setting css. 
+        *   During adjusting, setting width is prioritized over height.
 	——————————————————————————————————————————————————————————————————————————*/
-	widthToFit() {
-		var s = this._element.style,
-			w = this.maxAllowedInnerWidth() + this._shellW,
-			m;
-		
-		s.width = 'max-content';
-		m = parseFloat(this._computed.width || '0');
-		if (m <= w)
-			w = m; 
-		if (w === this._width) {
-			s.width = '' + this._width + 'px';
+	_autoFitW() {   
+        var t = this,
+            n,      // max needed width. 
+            p,      // max possible width.
+            r;      // resultant width to set.
+
+		if (t._caW !== "fit")
 			return false;
-		}
-		return this._setW(w);
+        n = t._maxW();
+        p = t.maxContainableInnerW() + t._shellW;
+        r = (n > p) ? p : n;
+        if (r === t._w)                         // need nothing.
+            return false;
+        t._element.style.width = '' + r + 'px'; // set directly over css.
+        t._w = r;
+        return true;
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: heightToFit
-	  TASK: Sets height to fit the content.
-	  RETV: 	: Boolean : True if height changed.
-	  INFO: This is called when autoHeight = "fit".
-	  		Active at recalculation frame, causes reflow. 
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoFitH [protected].
+	  TASK:	Adjusts the height of control regarding its owner and its content.
+	  RETV:     : boolean	: true if height change is in shadow style.
+      INFO: 
+        *   This is called from private calcAutoH() method which is 
+            called by t.autoAdjust() when autoH resolves to "fit".
+        *   This is the overridden algorithm for TLabel.
+        *   Calculations done directly by setting css. 
+        *   During adjusting, setting width is prioritized over height.
 	——————————————————————————————————————————————————————————————————————————*/
-	/*
-	heightToFit() {
-		var s = this._element.style,
-			h = this.maxAllowedInnerHeight() + this._shellH,
-			m;
-		
-		s.height = 'max-content';
-		m = parseFloat(this._computed.height || '0');
-		if (m <= h)
-			h = m; 
-		if (h === this._height) {
-			s.height = '' + this._height + 'px';
+	_autoFitH() {
+		var t = this,
+            n,      // max needed height. 
+            p,      // max possible height.
+            r;      // resultant height to set.
+
+		if (t._caH !== "fit")
 			return false;
-		}
-		return this._setH(h);
+        t._element.style.height = 'fit-content';    // reflow to compute.
+        n = parseFloat(t._computed.height || '0');
+        p = this.maxContainableInnerH()+ t._shellH;
+        r = (n > p) ? p : n;
+        if ((r === n) && (r === t._h))              // need nothing.
+            return false;
+        t._element.style.height = '' + r + 'px';    // reflow
+        if (r === t._h)
+            return false;
+        t._h = r;
+        return true;    
 	}
-	*/
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoMaxH [protected].
+	  TASK:	Tries to fit height of control.
+	  RETV:     : boolean	: true if height change is in shadow style.
+      INFO: 
+        *   This is called from private calcAutoH() method which is 
+            called by t.autoAdjust().
+        *   Controls override this according to their way of calculating
+            their maximum height.
+        *   Calculations may be done directly by setting css.
+            In that case width must be obtained via this._computed then
+            function must set this._h if it changes and return true.  
+        *   During adjusting, setting width is prioritized over height.
+	——————————————————————————————————————————————————————————————————————————*/
+	_autoMaxH() {
+		var t = this,
+            r;
+
+		if (t._caH !== "max")
+			return false;
+        t._element.style.height = "max-content";
+        r = parseFloat(t._computed.height || '0');
+        if (r === t._h)
+            return false;
+        t._h = r;
+        return true;
+	}
+
+
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	doLanguageChange
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange() {
 		if (this._tag)
-			calcOut(this, core.i18n.find(v));
+			calcOut(this, i18n.find(v));
 		super.doLanguageChange();
 	}
 
@@ -145,7 +207,7 @@ export class TLabel extends TControl {
 		if (this._tag === val)
 			return;
 		this._tag = val;
-		calcOut(this, (val === null) ? this._text : core.i18n.find(val));
+		calcOut(this, (val === null) ? this._text : i18n.find(val));
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -181,7 +243,7 @@ export class TLabel extends TControl {
 	set textAlign(val = null) {
 		if (!val || this._textAlign == val || alignVals.indexOf(val) == -1)
 			return;
-		this._shade.textAlign = val;
+		this._shadowed.textAlign = val;
 		this.invalidate();
 	}
 	/*————————————————————————————————————————————————————————————————————————————
@@ -197,7 +259,7 @@ export class TLabel extends TControl {
 		val = !!val;
 		if (this._wrap != val)
 			this._wrap = val;
-		this._shade.whiteSpace = (this._wrap ? "pre-wrap" : "pre");
+		this._shadowed.whiteSpace = (this._wrap ? "pre-wrap" : "pre");
 		this.invalidate();
 	}
 
@@ -234,27 +296,20 @@ function calcOut(t, data = null) {
 	}
 }
 
-function calcTextWidth(t) {
+function measureText(t) {
 	var ctx = textCtxt,
 		sty = t._computed,
-		txt = t._out,
-		wid;
+		txt = t._out;
 
 	if (!txt || txt === "")
 		return 0;
-	wid = (txt.length * (parseFloat(sty.fontSize) || 12) * 0.5);
-	if (wid > screen.availWidth)		// very long text, will always need calculation.
-		return screen.availWidth;		// so no need to calculate actual width.
-    ctx.style = t._computed;
-	//ctx.font = (sty.fontWeight || '400') + ' ' + (sty.fontSize || '16px') + ' ' +	(sty.fontFamily || 'system-ui'); 
-	return ctx.measureText(txt).width;
+    ctx.font = (sty.fontWeight || '400') + ' ' + (sty.fontSize || '16px') + ' ' +	(sty.fontFamily || 'system-ui'); 
+	return ctx.measureText(txt);
 }
 
 function initCalc(){
 	var c = document.createElement("canvas");
 	c.id = 'TextCalculator';
-	c.style = "visibility:hidden;"
-	//core.display._element.appendChild(c);
 	return c;
 }
 

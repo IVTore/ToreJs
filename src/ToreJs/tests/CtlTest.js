@@ -1,11 +1,20 @@
-import {cts, styler} from "../ctl/index.js";
+import {TCtl, styler} from "../ctl/index.js";
 
-console.log('\n———————————————————————————————————————————————————');
-console.log('CtlTest.js: Beginning testing library. /ToreJs/ctl.');
-
-cts.viewportInfo = { md: 992, sm: 768, xs: 576, lg: 1200, xl: 1400, xxl: null};
-console.table(cts.viewportInfo);
-console.log(cts.viewportSizes, cts.viewportNames);
-
-console.log('CtlTest.js: Completed testing library. /ToreJs/ctl.');
-console.log('———————————————————————————————————————————————————');
+const c = console;
+c.log('\n———————————————————————————————————————————————————');
+c.log('CtlTest.js: Beginning testing library. /ToreJs/ctl.');
+c.log('');
+c.log('TCtl viewport info tests.');
+c.log('');
+c.log('TCtl.vpInfo = { md: 992, sm: 768, xs: 576, lg: 1200, xl: 1400, xxl: null};')
+TCtl.vpInfo = { md: 992, sm: 768, xs: 576, lg: 1200, xl: 1400, xxl: null};
+c.log('Result:');
+c.table(TCtl.vpInfo);
+c.log('TCtl.vpSizes = ', TCtl.vpSizes);
+c.log('TCtl.vpNames = ', TCtl.vpNames);
+c.log('');
+c.log('styler:');
+c.log(styler);
+c.log('');
+c.log('CtlTest.js: Completed testing library. /ToreJs/ctl.');
+c.log('———————————————————————————————————————————————————');

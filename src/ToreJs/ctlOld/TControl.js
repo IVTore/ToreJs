@@ -213,7 +213,7 @@ export class TControl extends TComponent {
 	  INFO: Invalidates the control.
 	——————————————————————————————————————————————————————————————————————————*/
 	calcAllClassNames() {
-		var c = this.class.name + ((this._styleRoot !== null) ? this._styleRoot : ''),
+		var c = this.class.name + ((this._sRoot !== null) ? this._sRoot : ''),
 			s = TCtl.SUFFIX[this._ctlState];
 		
 		function calcSub(n){

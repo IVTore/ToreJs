@@ -8,6 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { sys }          from "../lib/index.js";
+import { TCtl }         from "./TCtlSys.js";
 import { TControl }     from "./TControl.js";
 import { TContainer }   from "./TContainer.js";
 
@@ -118,7 +119,7 @@ export class TPanel extends TContainer {
 	  FUNC:	attach [override].
 	  TASK:	
 		Attaches a member component to the panel, if new component 
-		is a control and sequence is true it added to layout sequence.
+		is a control and sequence is true it is added to layout sequence.
 	  ARGS:
 		component	: TComponent : New member component :DEF: null.
 		sequence	: boolean	 : Add to layout sequence if true. :DEF: false.
@@ -160,24 +161,58 @@ export class TPanel extends TContainer {
 		return true;
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doMemberRelocate[override].
-	  TASK: Flags the TPanel that its member is resized or repositioned.
-	  ARGS: 
-		member	: TControl :	Member control that is relocated.
-	  INFO: 
-		Dimensions recalculated.
-		Called from relocate() method of member.
-		During viewport and layout calculation content change is supressed.
-	——————————————————————————————————————————————————————————————————————————*/
-	doMemberRelocate(member = null) {
-		var e = this._eve.onMemberRelocate;
-	
-		if (!this._vpResize && !this._calculating)
-			this.contentChanged();
-		return ((e) ? e.dispatch([this, member]) : null);	// dispatch it
-	}
-		
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _maxW [protected] [override].
+      TASK: This finds the maximum control width required for the panel.
+      RETV:     : number : maximum control width for the panel.
+      INFO: 
+        *   Called by autoFitW or autoMaxW. 
+        *   When autoW is "fit" or "max", tries to find maximum panel
+            width required for contents ignoring any boundaries.
+        *   This maximum is according to the contents of the panel.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _maxW() {
+        var s,                  // sub control.
+            p,                  // sub control right position.
+            m = 0;              // maximum.
+
+        for (s of this._subCtls) {
+            if (!s._visible)
+                continue;
+            p = s._x + s._w;
+            if (p > m)
+                m = p;
+        }
+    	return m + this._shellW;         
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _maxH [protected].
+      TASK: This finds the maximum control height required for the content.
+      RETV:     : number : maximum control height required for the content.
+      INFO: 
+        *   *May* be called by autoFitW or autoMaxW.   
+        *   When autoH is "fit" or "max", tries to find maximum control 
+            height required for contents ignoring any boundaries.
+        *   This maximum is according to the contents of the control.
+        *   To be overridden by control classes.
+      WARN: May not be implemented in some control classes, hence protected.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _maxH() {
+    	var s,                  // sub control.
+            p,                  // sub control bottom position.
+            m = 0;              // maximum.
+
+        for (s of this._subCtls) {
+            if (!s._visible)
+                continue;
+            p = s._y + s._h;
+            if (p > m)
+                m = p;
+        }
+    	return m + this._shellH;            
+    }
+
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: autoAdjust [override].
 	  TASK: Changes the size and position of TPanel according to properties.
@@ -185,7 +220,7 @@ export class TPanel extends TContainer {
 	  INFO: Tricky.
 	——————————————————————————————————————————————————————————————————————————*/
 	autoAdjust() {
-		var ret = super.autoAdjust();
+        var ret = super.autoAdjust();
 		if (!this._calculating)
 			this.calcLayout();
 		return ret;
@@ -221,7 +256,6 @@ export class TPanel extends TContainer {
 			else
 				calcVerLinear(t, s);
 		}
-		t.autoAdjust();			
 		t._calculating = false;			// Release.
 	}
 
@@ -367,17 +401,17 @@ export class TPanel extends TContainer {
 }
 
 // Private methods and values.
-const PNL_CALIGN = ['none','top','bottom','left','right','center'];
+const PNL_CALIGN = ['top','bottom','left','right','center'];
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorWrapped
   TASK: Calculates subcontrol positions for wrapped horizontal layout.
-  ARGS:	pnl	: TPanel	 : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
+  ARGS:	t	: TPanel	 : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
   INFO: When wrapped, contentAlign has no meaning.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcHorWrapped(pnl, seq) {
-	var wid = pnl.maxContainableInnerW(),
+function calcHorWrapped(t, s) {
+	var wid = t.maxContainableInnerW(),
 		top = 0,
 		lft = 0,
 		hei = 0,
@@ -385,23 +419,21 @@ function calcHorWrapped(pnl, seq) {
         chy,
 		sub;
 
-        for(sub of seq) {
+        for(sub of s) {
             if (lft + sub._w > wid){
                 if (lft !== 0){
-                    top += hei + pnl._splitY;
+                    top += hei + t._splitY;
                     hei = 0;
                     lft = 0;
                 }
             }
             chx = sub._setX(lft);
             chy = sub._setY(top);
-            if (chx || chy) {						// control needs rendering.
+            if (chx || chy) 						// control needs rendering.
                 sub.invalidate();
-                pnl.doMemberRelocate(sub);
-            }
             if (hei < sub._h)
 			    hei = sub._h;
-		    lft += sub._w + pnl._splitX;
+		    lft += sub._w + t._splitX;
         }
 }
 
@@ -409,12 +441,12 @@ function calcHorWrapped(pnl, seq) {
   FUNC: calcVerWrapped
   TASK: This utterly unnecessary function calculates subcontrol positions 
 		for wrapped vertical layout.
-  ARGS:	pnl	: TPanel : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
+  ARGS:	t	: TPanel : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
   INFO: When wrapped, contentAlign has no meaning.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcVerWrapped(pnl, seq) {
-	var hei = pnl.maxContainableInnerH(),
+function calcVerWrapped(t, s) {
+	var hei = t.maxContainableInnerH(),
 		top = 0,
 		lft = 0,
 		wid = 0,
@@ -422,68 +454,71 @@ function calcVerWrapped(pnl, seq) {
 		chx,
 		chy;
 
-	for(sub of seq) {
+	for(sub of s) {
 		if (top + sub._h > hei) {
 			if (top !== 0) {
-				lft += wid + pnl._splitX;
+				lft += wid + t._splitX;
 				wid = 0;
 			}
 			top = 0;
 		}
 		chx = sub._setX(lft);
         chy = sub._setY(top);
-        if (chx || chy) {						// control needs rendering.
+        if (chx || chy) 						// control needs rendering.
             sub.invalidate();
-            pnl.doMemberRelocate(sub);
-        }
 		if (wid < sub._w)
 			wid = sub._w;
-		top += sub._h + pnl._splitY;
+		top += sub._h + t._splitY;
 	}
 }
 
 /*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcMinHeight
-  TASK: Calculates minimum inner height for horizontal linear layout.
-  ARGS:	pnl	: TPanel : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
+  FUNC: calcHorLinearHeight
+  TASK: Calculates inner height for horizontal linear layout.
+  ARGS:	t	: TPanel : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
   RETV: 	: number : minimum possible inner height.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcMinHeight(pnl, seq){
-	var arr = pnl._subCtls,
-		sub,
+function calcHorLinearHeight(t, s) {
+	var cah,
+        sub = t._subCtls,
+		ctl,
 		hei,
 		min = 0;
-	
-	for(sub of arr) {
-		if (!sub.visible)
+
+	cah = TCtl.autoValue(t._autoH);
+    cah = (cah === 'fit' || cah === 'max');
+	for(ctl of sub) {
+		if (!ctl.visible)
 			continue;
-		hei = (seq.indexOf(sub) > -1) ? sub._h : sub._y + sub._h;
+		hei = (s.indexOf(ctl) > -1) ? ctl._h : ctl._y + ctl._h;
 		if (min < hei)
 			min = hei;
 	}
-	return min;
+    if (cah)                // if max or fit go on. 
+        return min;    
+    hei = t.innerH;
+    return (min > hei) ? min : hei;
 }
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorLinear [private].
   TASK: Calculates subcontrol positions for linear horizontal layout.
-  ARGS:	pnl	: TPanel : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
+  ARGS:	t	: TPanel : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
   INFO: contentAlign property defines vertical alignment for subcontrols.
 		"center", centers, "bottom" aligns bottom, any other value is top.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcHorLinear(pnl, seq) {
-	var hei = calcMinHeight(pnl, seq),
-		cal = pnl._contentAlign[0],
+function calcHorLinear(t, s) {
+	var hei = calcHorLinearHeight(t, s),
+       	cal = t._contentAlign[0],
 		lft = 0,
 		cty,
 		sub,
 		chx,
 		chy;
 	
-    hei = (pnl.innerH > hei) ? pnl.innerH : hei;
-	for(sub of seq) {
+    for(sub of s) {
         switch (cal) {
         case 'c':           // center
             cty = (hei - sub._h) / 2;
@@ -497,57 +532,62 @@ function calcHorLinear(pnl, seq) {
         }
 		chx = sub._setX(lft);
 		chy = sub._setY(cty);
-		if (chx || chy) {
+		if (chx || chy) 
 			sub.invalidate();
-			pnl.doMemberRelocate(sub);
-		}
-		lft += sub._w + pnl._splitX;
-	}
+		lft += sub._w + t._splitX;
+	}         
 }
 
 /*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcMinWidth
-  TASK: Calculates minimum inner width for vertical linear layout.
-  ARGS:	pnl	: TPanel : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
-  RETV: 	: number : minimum possible inner width.
+  FUNC: calcVerLinearWidth
+  TASK: Calculates inner width for vertical linear layout.
+  ARGS:	t	: TPanel : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
+  RETV: 	: number : minimum possible inner height.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcMinWidth(pnl, seq){
-	var arr = pnl._subCtls,
-		sub,
+function calcVerLinearWidth(t, s) {
+	var caw,
+        sub = t._subCtls,
+		ctl,
 		wid,
 		min = 0;
-	
-	for(sub of arr) {
-		if (!sub.visible)
+
+	caw = TCtl.autoValue(t._autoW);
+    caw = (caw === 'max' || caw === 'fit');
+
+    for(ctl of sub) {
+		if (!ctl.visible)
 			continue;
-		wid = (seq.indexOf(sub) > -1) ? sub._w: sub._x + sub._w;
+		wid = (s.indexOf(ctl) > -1) ? ctl._w: ctl._x + ctl._w;
 		if (min < wid)
 			min = wid;
 	}
-	return min;
+
+    if (caw)                // if max or fit go on. 
+        return min;    
+    wid = t.innerW;
+    return (min > wid) ? min : wid;
 }
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcVerLinear
   TASK: Calculates subcontrol positions for linear vertical layout.
-  ARGS:	pnl	: TPanel : TPanel.
-		seq	: Array	 : Array of visible controls in sequence.
+  ARGS:	t	: TPanel : TPanel.
+		s	: Array	 : Array of visible controls in sequence.
   INFO: 
   	*	contentAlign property defines horizontal alignment for subcontrols.
 		"center", centers, "right" aligns right, any other value is left.
 ——————————————————————————————————————————————————————————————————————————*/
-function calcVerLinear(pnl, seq) {
-	var wid = calcMinWidth(pnl, seq),
-		cal = pnl._contentAlign[0],		
+function calcVerLinear(t, s) {
+	var wid = calcVerLinearWidth(t, s),
+		cal = t._contentAlign[0],		
 		top = 0,
 		sub,
 		ctx,
 		chx,
 		chy;
 
-    wid = (pnl.innerW > wid) ? pnl.innerW : wid;
-	for(sub of seq) {
+    for(sub of s) {
         switch (cal) {
         case 'c':           // center
             ctx = (wid - sub._w) / 2;
@@ -561,11 +601,9 @@ function calcVerLinear(pnl, seq) {
         }
 		chx = sub._setX(ctx);
 		chy = sub._setY(top);
-		if (chx || chy) {
+		if (chx || chy) 
 			sub.invalidate();
-			pnl.doMemberRelocate(sub);
-		}
-		top += sub._h + pnl._splitY;
+		top += sub._h + t._splitY;
 	}
 }
 
@@ -594,23 +632,16 @@ function fetchSequenced(t) {
 	var s = t._sequence,
 		r = [],
 		n,
-		c,
-        a = t._contentAlign,
-        x,
-        y;
+		c;       
         
 	if (s === undefined || s === null)
 		return null;
-    if (t._layout === 'vertical') 
-        x = (a === 'left' || a === 'right' || a === 'center')? a : null;
-    if (t._layout === 'horizontal') 
-        y = (a === 'top' || a === 'bottom' || a === 'center') ? a : null;
     for(n of s) {
 		c = t._mem[n];
 		if (!c._visible)
 			continue;
-        c._autoX = x; 
-        c._autoY = y;
+        c._autoX = null; 
+        c._autoY = null;
 		c.anchorRight = false;
 		c.anchorBottom = false;
 		r.push(c);

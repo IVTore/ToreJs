@@ -121,6 +121,4 @@ export function ToreUI(){
             xxl: '0.625rem'
         }
     });
-
-    console.log(s._rls);
 }

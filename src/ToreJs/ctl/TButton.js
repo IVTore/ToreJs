@@ -136,7 +136,7 @@ export class TButton extends TPanel {
         if (value === this._selected)
             return;
         this._selected = v;
-        this._styleRoot = selected ? 'On' : '';
+        this._sRoot = selected ? 'On' : '';
         this.calcAllClassNames();
     }
 

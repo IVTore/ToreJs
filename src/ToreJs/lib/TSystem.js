@@ -398,12 +398,16 @@ const sys = {
                 t[e] = i;						// set directly
                 continue;
             }									// source is generic object...
-            if(t[e] instanceof Object){			// if target is an Object
+            if(t[e] instanceof Object) {		// if target is an Object
                 sys.propSet(t[e], i, t);		// transfer values
                 continue;
             }									// target is null...
             if(!i._new_) {						// if not a new sub object
-                t[e] = {};						// so it is a generic one
+                if (i._vp_) {
+                    t[e] = i;
+                    continue;
+                }
+                t[e] = {};
                 sys.propSet(t[e], i, t);		// transfer values
                 continue;
             }									// new sub object...

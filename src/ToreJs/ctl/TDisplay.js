@@ -47,12 +47,16 @@ class TDisplay extends TPanel {
 	static cdta = {
         autoW           : {value: null},
         autoH           : {value: null},
+        layout		    : {value: 'none'},
+		wrap		    : {value: false},
 		tabsLoop		: {value: true},
 		currentControl	: {value: null},
 	};
 
-    _autoW = null;   // * overridden default ...
-    _autoH = null;   // * overridden default ...
+    _autoW = null;      // * overridden default ...
+    _autoH = null;      // * overridden default ...
+    _layout = 'none';   // * overridden default ...
+	_wrap = false;      // * overridden default ...
     _tabsLoop = true;   // * overridden default ...
 	_curCtl = null;		// current control
 	_curCon = null;		// current container
@@ -65,8 +69,10 @@ class TDisplay extends TPanel {
 	_dblTim = null;		// double hit timer
 	_drgDta = null;		// drag data
 	_zmrDta = null;		// zoom-rotate data
-	_renLst = [];		// render list
-	_framed = false;	// true if there is an active frame requested.
+    _renLst = [];		// render list
+    _renFrm = false;	// true if render frame request active.
+    _renBlk = false;    // render block flag.
+    	
     _vpsnam = 'md';		// Viewport size name.
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -80,12 +86,13 @@ class TDisplay extends TPanel {
 		if (core["display"])
 			exc("E_SINGLETON", "core.display");
 		super('display', core);
-		this._curCon = this;				// display is current container 
-		l = this.class.displayEvents;
+        this._curCon = this;				// display is current container 
+        l = this.class.displayEvents;
 		for(e in l){						// link and add event listeners
 			this._events[e] = sys.bindHandler(this, l[e]);
 			window.addEventListener(e, this._events[e], true);
-		}
+		}        
+        this.measureFrames();
         this.invalidate();	
 	}
 
@@ -107,11 +114,10 @@ class TDisplay extends TPanel {
 		}
 		t._events = null;	
 		t._renLst = null;
-		t._rcaLst = null;
 		super.destroy();
 	}
 
-     /*——————————————————————————————————————————————————————————————————————————
+    /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: render [override].
 	  TASK: This draws the control. Called by display before new frame.
 	——————————————————————————————————————————————————————————————————————————*/
@@ -120,16 +126,58 @@ class TDisplay extends TPanel {
         super.render();
     }
 
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: avoidValidate.
+	  TASK: Avoids validation of all renderings.
+	——————————————————————————————————————————————————————————————————————————*/
+    avoidValidate() {
+        this._renBlk = true;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: allowValidate.
+	  TASK: Allows validation of all renderings.
+	——————————————————————————————————————————————————————————————————————————*/
+    allowValidate() {
+        this._renBlk = false;
+        if (this._renLst.length > 0 && !this._renFrm)
+            this.requestRenderFrame();
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: measureFrames.
+	  TASK: Measures animation frame periods.
+	——————————————————————————————————————————————————————————————————————————*/
+    measureFrames() {
+        var t = core.display,
+            c = 0,
+            z;
+
+        function measure(timeStamp) {
+            if (timeStamp - z < 1000) {
+                c++;
+                window.requestAnimationFrame(measure); 
+                return;  
+            }
+            console.log('measureFrames count:', c, 'time:', timeStamp - z);
+        }
+       
+        z = document.timeline.currentTime;
+        window.requestAnimationFrame(measure);
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: requestFrame.
 	  TASK: Requests an animation frame if not requested.
 	——————————————————————————————————————————————————————————————————————————*/
-	requestFrame(){
-		if (this._framed)
-			return;
-		this._framed = true;
-		window.requestAnimationFrame(this.validate);
+	requestRenderFrame() {
+        var t = this;
+        
+		if (t._renBlk || t._renLst.length === 0 || t._renFrm) 
+            return;
+		t._renFrm = true;
+		window.requestAnimationFrame(t.validate);
 	}
+    
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addRenderQueue
 	  TASK: Adds invalidated control to queue.
@@ -141,29 +189,36 @@ class TDisplay extends TPanel {
 		if (!(control instanceof TControl) || t._renLst.indexOf(control) > -1)
 			return;
 		t._renLst.push(control);
-		if (!t._framed)
-			t.requestFrame();
+        if (!t._renFrm)
+			t.requestRenderFrame();
 	}
 
+    
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: validate
 	  TASK: Renders invalidated controls in queue.
 	——————————————————————————————————————————————————————————————————————————*/
     validate(timeStamp) {
-		var t = display,
-			r,
-			l,
-			i;
-
-		t._framed = false;
-		
-        r = t._renLst;
-        t._renLst = [];
-        l = r.length;
-        console.log("render:", l, r);
-        for(i = 0; i < l; i++)
-            r[i].render();
-	}
+        var t = core.display,
+            i = 0,
+            l = 'Render: ', 
+            r,
+            c;
+            
+        while(t._renLst.length > 0) {
+            r = t._renLst;
+            t._renLst = [];
+            for(c of r) 
+                c.render();
+            for(c of r) 
+                c.recalculate();
+            l += '[' + r.length + '] '
+            i++;
+        }  
+        console.log(l, 'i:', i, 't:', performance.now()-timeStamp);  
+        t._renFrm = false;
+        t.requestRenderFrame();
+    }
     
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doViewportResize [override]
@@ -172,13 +227,14 @@ class TDisplay extends TPanel {
 	doViewportResize() {
         var n = calculateVpName(); 
 
-		this.w = 1;
+        this.w = 1;
 		this.h = 1;
        	if (n !== this._vpsnam) {
 			this._vpsnam = n;
 		    styler.applyDynamicRules();
         }
-		return super.doViewportResize();
+        n = super.doViewportResize();
+        return n; 
 	}
 	
 
@@ -187,7 +243,6 @@ class TDisplay extends TPanel {
 	  TASK: Refreshes the display according to current viewport styles.
 	——————————————————————————————————————————————————————————————————————————*/
     refresh() {
-        this.validate();            // force old renders.
         this._vpsnam = '';          // reset current viewport name.
         this.doViewportResize();    // force viewport resize.
     }
@@ -683,4 +738,4 @@ function findOpaque(event) {
 }
 
 export const display = new TDisplay();
-display.doViewportResize();
+display.refresh();

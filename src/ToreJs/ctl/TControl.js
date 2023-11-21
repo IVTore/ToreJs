@@ -8,7 +8,7 @@
 ————————————————————————————————————————————————————————————————————————————*/
 
 import { core, sys, exc, TComponent } from "../lib/index.js";
-import { TCtl, TContainer, styler }   from "../ctl/index.js";
+import { TCtl, TContainer, TPanel, styler }   from "../ctl/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TControl
@@ -106,10 +106,23 @@ export class TControl extends TComponent {
 	anchorBottom = false;
     _shellW = 0;                // border + padding widths.
     _shellH = 0;                // border + padding heights.
-    _oW = 0;				    // Previous width of control.
-	_oH = 0;			        // Previous height of control.
+    _oX = 0;                    // Previous x.
+    _oY = 0;                    // Previous y.
+    _oW = 0;				    // Previous width.
+	_oH = 0;			        // Previous height.
     _caW = null;                // computed autoW.
     _caH = null;                // computed autoH.
+    // These are for direct CSS values, used during render.
+    // if one of these are set _cCssWait flag must be set too.
+    // Look _calcAuto, _calcCss and render.     
+    _cvW = null;                // css render value for width.
+    _cvH = null;                // css render value for height.
+    _cvX = null;                // css render value for x (left).
+    _cvY = null;                // css render value for y (top).
+    _cpW = false;               // css parse flag for width.
+    _cpH = false;               // css parse flag for height.
+    _cpX = false;               // css parse flag for x (left).
+    _cpY = false;               // css parse flag for y (top).
     
 
     // Visibility.
@@ -129,22 +142,20 @@ export class TControl extends TComponent {
     _interact = false;          // True if control is interactive.
     _cContent = false;          // Content has changed flag.
     _cClasses = false;          // Css Classes has changed flag.
-    _cLocated = false;          // Coordinates changed flag.
-
+    _cCssWait = false;          // css direct change pending flag.     
 
     // Dom
     _element = null;            // Dom element (outer).
     _wrapper = null;            // Dom wrapper element (inner) if exists.
-    
-
+   
     // Css
     _computed = null;           // Current element computed style.
     _shadowed = {};             // Future shadowed style.
-    _styleRoot = null;          // Style Root prefix
-    _styleExtra = null;			// Style Extra name. 
-	_styleColor = "First";		// Color style name.
-	_styleSize = "Medium";		// Size style name.
-    _sClass = null;             // Calculated element class name.
+    _sRoot = null;              // Style Root prefix
+    _sSize = "Medium";		    // Size style name.
+    _sColor = "First";		    // Color style name.
+    _sExtra = null;			    // Style Extra name. 
+	_sClass = null;             // Calculated element class name.
 	
     
 
@@ -161,7 +172,7 @@ export class TControl extends TComponent {
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(name = null, owner = null, data = null) {
         super(name);
-        makeElements(this);
+        this._makeElements();
         this._canFocus = this.class.defaultCanFocus;
         sys.propSet(this._shadowed, this.class.initialStyle);
         this.initControl(name, owner, data);        
@@ -177,7 +188,7 @@ export class TControl extends TComponent {
 		this.controlState = TCtl.DYING;
 		super.destroy();		        // inherited destroy
 		this._subCtls = null;
-		killElements(this);
+		this._killElements();
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -206,7 +217,7 @@ export class TControl extends TComponent {
             owner._noValidate = true; 
         if (onn)
             owner.attach(this);
-        if (data)
+        if (data) 
             sys.propSet(this, data, owner);
         this.calcClassNames();
         this._noValidate = false;
@@ -298,100 +309,130 @@ export class TControl extends TComponent {
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: coordsChanged.
-	  TASK: Coordinate change dispatcher.
-	——————————————————————————————————————————————————————————————————————————*/
-	coordsChanged() {
-        if (this._cLocated)
-			return;
-		this._cLocated = true;
-		this.invalidate();
-	}
-
-    /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: render
 	  TASK: This draws the control. Called by display before new frame.
 	——————————————————————————————————————————————————————————————————————————*/
 	render() {
-		var index,
-			shade,
-			style,
-			cClas,
-			cCont,
-            cRelo;
+		var t = this,
+            idx,
+            cmp = t._computed,
+			sha = t._shadowed,
+            wrp = t._wrapper.style,
+			sty = t._element.style,
+			cla = t._cClasses,
+			con = t._cContent;
 
-		if (!this._sta)
+        if (!t._sta)
 			return;
-		shade = this._shadowed;
-		cClas = this._cClasses;
-		cCont = this._cContent;
-        cRelo = this._cLocated;
-        this._invalid = false;
-        this._shadowed = {};
-		this._cClasses = false;
-		this._cContent = false;
-        this._cLocated = false;
-        if (this._wrapper !== this._element) {
-            style = this._wrapper.style;
-            style.height = '' + this.innerH + 'px';
-            style.width = '' + this.innerW + 'px'; 
-            if (shade.visibility)
-                style.visibility = shade.visibility;
+
+        t._shadowed = {};
+        t._cClasses = false;
+        t._cContent = false;
+        t._invalid = false;
+
+        if (t._cCssWait) {
+            t._cCssWait = false;
+            if (t._cvW)
+                sty.width = t._cvW;
+            if (t._cvH) 
+                sty.height = t._cvH;
+            if (t._cvX) 
+                sty.left = t._cvX;
+            if (t._cvY) 
+                sty.top = t._cvY;
+            if (t._cpW)
+                t._w = parseFloat(cmp.width || '0');
+            if (t._cpH)
+                t._h = parseFloat(cmp.height || '0');
+            if (t._cpX)
+                t._x = parseFloat(cmp.left || '0');
+            if (t._cpY)
+                t._y = parseFloat(cmp.top || '0');
+            t._cvW = t._cwH = t._cwX = t._cvY = null;
+            t._cpW = t._cpH = t._cpX = t._cpY = false; 
         }
-        style = this._element.style;
-		for(index in shade)
-			style[index] = shade[index];
-		if (!this._ctlState)
-			return;
-		if (cClas)
-			this._element.className = this._sClass;
-        if (cRelo)
-            this.relocate();
-		if (cCont)
-			this.renderContent();
-        this.recalculate();
+		
+        if (wrp !== sty) {
+            wrp.width  = '' + (t._w - t._shellW) + 'px'; 
+            wrp.height = '' + (t._h - t._shellH) + 'px';
+            if (sha.visibility)
+                wrp.visibility = sha.visibility;
+        }
+		for(idx in sha)
+			sty[idx] = sha[idx];
+		if (cla)
+			t._element.className = t._sClass;
+        if (con)
+			t.renderContent();
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: renderContent
 	  TASK: This draws the control content. Called by render before new frame.
-	  INFO: This is used when a special HTML content is needed to be rendered.
-            This is a placeholder method to override.
+      INFO: To be overridden by controls manipulating the DOM. 
+      WARN: After content rendering, autoAdjust() is required. 
+            Call super.renderContent() or if it is so different from ascendant
+            control, call autoAdjust() directly.
 	——————————————————————————————————————————————————————————————————————————*/
-	renderContent() { }
+	renderContent() {  
+        this.autoAdjust();
+    }
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: recalculate.
 	  TASK: Called by display, this calculates the necessary values for
 			the control after rendering.
+            Notifies owner if control is relocated.
+		    Notifies members if control is resized.
+      WARN: Do not meddle.		
 	——————————————————————————————————————————————————————————————————————————*/
 	recalculate() {
-		var s = this._computed;
+		var t = this,
+            c = t._computed,
+            p,
+            s;
 
-		if (!this._sta)
+		if (!t._sta)
 			return;
+            
+        t._shellW = 
+			parseFloat(c.paddingLeft || '0') +
+			parseFloat(c.paddingRight || '0') +
+			parseFloat(c.borderLeftWidth || '0') +
+			parseFloat(c.borderRightWidth || '0');
 
-		this._shellW = 
-			parseFloat(s.paddingLeft || '0') +
-			parseFloat(s.paddingRight || '0') +
-			parseFloat(s.borderLeftWidth || '0') +
-			parseFloat(s.borderRightWidth || '0');
-		this._shellH = 
-			parseFloat(s.paddingTop || '0') +
-			parseFloat(s.paddingBottom || '0') +
-			parseFloat(s.borderTopWidth || '0') + 
-			parseFloat(s.borderBottomWidth || '0');
-		this.autoAdjust();
+		t._shellH = 
+			parseFloat(c.paddingTop || '0') +
+			parseFloat(c.paddingBottom || '0') +
+			parseFloat(c.borderTopWidth || '0') + 
+			parseFloat(c.borderBottomWidth || '0'); 
+
+        p = (t._oX !== t._x || t._oY !== t._y);
+        s = (t._oW !== t._w || t._oH !== t._h); 
+        
+        if ((p || s) && t._own instanceof TControl)
+			t._own.doMemberRelocate(t);
+
+		if (s) {
+			for(c of t._subCtls)
+			    c.doOwnerResize(t);
+        }
+      
+        t._oX = t._x;
+        t._oY = t._y;
+        t._oW = t._w;
+        t._oH = t._h;
+	
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
-    FUNC: calcClassNames [private].
-    TASK: Calculates control element class names.
-    INFO: Invalidates the control.
+      FUNC: calcClassNames [private].
+      TASK: Calculates control element class names.
+      INFO: Invalidates the control.
     ——————————————————————————————————————————————————————————————————————————*/
     calcClassNames() {
         var t = this,
-            c = t.class.name + ((t._styleRoot !== null) ? t._styleRoot : ''),
+            c = t.class.name + ((t._sRoot !== null) ? t._sRoot : ''),
             s = t.stateName;
 
         function calcSub(n){
@@ -400,102 +441,14 @@ export class TControl extends TComponent {
             return '';
         }
         
-        t._sClass  = t._nam + ' '+ c + ' ' + c + s;
-        t._sClass += calcSub(t._styleSize);
-        t._sClass += calcSub(t._styleColor);
-        t._sClass += calcSub(t._styleExtra);
+        t._sClass = ' '+ c + ' ' + c + s +
+                    calcSub(t._sSize) +
+                    calcSub(t._sColor) +
+                    calcSub(t._sExtra);
         t.classesChanged();
     }
 
     /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: relocate
-	  TASK: 
-		Notifies owner if it is relocated.
-		Notifies members if it is resized.		
-      INFO: Called from render.
-	—————————————————————————————————————————————————————————————————————————*/
-	relocate() {
-		var	c;
-
-		if (this._own instanceof TControl)
-			this._own.doMemberRelocate(this);
-		if (this._oW === this._w && this._oH === this._h)
-			return;
-		for(c of this._subCtls)
-			c.doOwnerResize();
-		this._oW = this._w;
-		this._oH = this._h;
-	}
-
-    /*——————————————————————————————————————————————————————————————————————————
-		_setX, _setY, _setW, _setH:
-		*	Are raw calls which do not make alignment or auto checkings.
-		*	Operate on shadowed style values only.
-		*	No relocation dispatching and invalidation is done.
-		*	They return true only if coordinates change.
-	——————————————————————————————————————————————————————————————————————————*/
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _setX [protected].
-	  TASK: Sets the x coordinate of control without checking.
-	  ARGS:	x	: number	: X coordinate value in pixels.
-	  RETV:     : boolean	: true if x changes.
-	——————————————————————————————————————————————————————————————————————————*/
-	_setX(x = 0) {
-		if (typeof x !== "number" || this._x === x)
-			return false;
-		this._x = x;
-		this._shadowed.left = '' + x +'px';
-		return true;
-	}
-	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _setY [protected].
-	  TASK:	Sets the y coordinate of control without checking.
-	  ARGS:	y	: number	: Y coordinate value in pixels.
-	  RETV:     : boolean	: true if y changes.
-	——————————————————————————————————————————————————————————————————————————*/
-	_setY(y = 0) {
-		if (typeof y !== "number" || this._y === y)
-			return false;
-		this._y = y;
-		this._shadowed.top = '' + y +'px';
-		return true;
-	}
-	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _setW [protected].
-	  TASK: 
-		Sets the width of control without auto Width checking.
-	  ARGS:
-		w	: number	: Width value in pixels.
-	  RETV: : boolean	: true if width changes.
-	——————————————————————————————————————————————————————————————————————————*/
-	_setW(w = 0) {
-		if (typeof w !== "number" || this._w === w || w < 0)
-			return false;
-		this._w = w;
-		this._shadowed.width = '' + w +'px';
-		return true;
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _setH [protected].
-	  TASK: 
-		Sets the height of control without auto Height checking.
-	  ARGS:
-		h	: number	: Height value in pixels.
-	  RETV: : boolean	: true if height changes.
-	——————————————————————————————————————————————————————————————————————————*/
-	_setH(h = 0) {
-		if (typeof h !== "number" || this._h === h || h < 0)
-			return false;
-		this._h = h;
-		this._shadowed.height = '' + h +'px';
-		return true;
-	}
-
-/*——————————————————————————————————————————————————————————————————————————
       FUNC: maxContainableInnerW.
       TASK: This finds the maximum containable inner width for the control.
       RETV:     : number : maximum containable inner width for the control.
@@ -504,10 +457,11 @@ export class TControl extends TComponent {
     ——————————————————————————————————————————————————————————————————————————*/
     maxContainableInnerW() {
     	var t = this,
-            mw,     // max width.
-            aw,     // autoW.
-            ax,     // autoX.
-            co = 0; // carve out from max.
+            mw,             // max width.
+            aw,             // autoW.
+            ax,             // autoX.
+            op,             // owner panel if any.
+            co = 0;         // carve out from max.
 
     	while(t instanceof TControl) {
             aw = TCtl.autoValue(t._autoW); 
@@ -515,9 +469,17 @@ export class TControl extends TComponent {
                 return 40960;   // big enough.
     		mw = t.innerW;
             ax = TCtl.autoValue(t._autoX);
-            if (ax !== 'left' &&
-                ax !== 'center' && 
-                ax !== 'right')
+            ax = (ax) && (ax === 'left' || ax === 'center' || ax === 'right');
+            if (!ax) {
+                op = (t._own instanceof TPanel) ? t._own : null;
+                ax = (
+                    op && !op._wrap && 
+                    op._layout !== 'none' && 
+                    op._sequence && 
+                    op._sequence.indexOf(t._nam) > -1
+                )                    
+            }     
+            if (!ax)
                 co += t._x;
     		if (aw !== 'fit')
     			break;
@@ -538,6 +500,7 @@ export class TControl extends TComponent {
             mh,     // max.
             ay,     // autoY.
             ah,     // autoH.
+            op,     // owner panel if any.
             co = 0; // carve out from max.
 
     	while(t instanceof TControl) {
@@ -546,9 +509,17 @@ export class TControl extends TComponent {
                 return 40960;   // big enough.
     		mh = t.innerH;
     		ay = TCtl.autoValue(t._autoY);
-            if (ay !== 'top' &&
-                ay !== 'center' && 
-                ay !== 'left')
+            ay = (ay) && (ay === 'top' || ay === 'center' || ay === 'left');
+            if (!ay) {
+                op = (t._own instanceof TPanel) ? t._own : null;
+                ay = (
+                    op && !op._wrap && 
+                    op._layout !== 'none' && 
+                    op._sequence && 
+                    op._sequence.indexOf(t._nam) > -1
+                )                    
+            }     
+            if (!ay)
                 co += t._y;
     		if (ah !== 'fit')
     			break;
@@ -557,147 +528,6 @@ export class TControl extends TComponent {
     	}
     	return mh - co;
     }
-
-    /*——————————————————————————————————————————————————————————————————————————
-      FUNC: _maxW [protected].
-      TASK: This finds the maximum control width required for the content.
-      RETV:     : number : maximum control width for the content.
-      INFO: 
-        *   *May* be called by autoFitW or autoMaxW. 
-        *   When autoW is "fit" or "max", tries to find maximum control
-            width required for contents ignoring any boundaries.
-        *   This maximum is according to the contents of the control.
-        *   To be overridden by control classes.
-      WARN: This method may not be implemented in several control classes.
-            Specially when calculation is done via css.
-    ——————————————————————————————————————————————————————————————————————————*/
-    _maxW() {
-    	return this._w;         
-    }
-
-    /*——————————————————————————————————————————————————————————————————————————
-      FUNC: _maxH [protected].
-      TASK: This finds the maximum control height required for the content.
-      RETV:     : number : maximum control height required for the content.
-      INFO: 
-        *   *May* be called by autoFitW or autoMaxW.   
-        *   When autoH is "fit" or "max", tries to find maximum control 
-            height required for contents ignoring any boundaries.
-        *   This maximum is according to the contents of the control.
-        *   To be overridden by control classes.
-      WARN: This method may not be implemented in several control classes.
-            Specially when calculation is done via css.
-    ——————————————————————————————————————————————————————————————————————————*/
-    _maxH() {
-    	return this._h;         
-    }
-
-
-    /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _autoFitW [protected].
-	  TASK:	Adjusts the width of control regarding its owner and its content.
-	  RETV:     : boolean	: true if width change is in shadowed style.
-      INFO: 
-        *   This is called from private calcAutoW() method which is 
-            called by t.autoAdjust() when autoW resolves to "fit".
-        *   Controls override this according to their way of calculating
-            and fitting their content into available or possible width.
-        *   Calculations may be done directly by setting css.
-            In that case width must be obtained via this._computed then
-            function must set this._w if it changes and return true.  
-        *   During adjusting, setting width is prioritized over height.
-	——————————————————————————————————————————————————————————————————————————*/
-	_autoFitW() {   // this is a general case algorithm for most controls.
-        var t = this,
-            n,      // max needed width . 
-            p;      // max possible width.
-
-		if (t._caW !== "fit")
-			return false;
-        n = t._maxW();
-        if (n === t._w)                     // need nothing.
-            return ;
-        if (n < t._w)                       // need shrinking ?
-            return t._setW(n);
-                                            // need growing.
-        p = t.maxContainableInnerW() + t._shellW;   
-        t._setW((n > p) ? p : n);    
-	}
-
-    /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _autoFitH [protected].
-	  TASK:	Adjusts the height of control regarding its owner and its content.
-	  RETV:     : boolean	: true if height change is in shadow style.
-      INFO: 
-        *   This is called from private calcAutoH() method which is 
-            called by t.autoAdjust() when autoH resolves to "fit".
-        *   Controls override this according to their way of calculating
-            and fitting their content into available or possible height.
-        *   Calculations may be done directly by setting css.
-            In that case width must be obtained via this._computed then
-            function must set this._h if it changes and return true.   
-        *   During adjusting, setting width is prioritized over height.
-	——————————————————————————————————————————————————————————————————————————*/
-	_autoFitH() {
-		var t = this,
-            n,      // max needed height. 
-            p;      // max possible height.
-
-		if (t._caH !== "fit")
-			return false;
-        n = t._maxH();
-        if (n === t._h)                     // need nothing.
-            return;
-        if (n < t._h)                       // need shrinking ?
-            return t._setH(n);
-                                            // need growing.
-        p = t.maxContainableInnerH()+ t._shellH;   
-        t._setH((n > p) ? p : n);    
-	}
-
-    /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _autoMaxW [protected].
-	  TASK:	Adjusts the width of control regarding its content only.
-	  RETV:     : boolean	: true if width change is in shadowed style.
-      INFO: 
-        *   This is called from private calcAutoW() method which is 
-            called by t.autoAdjust() when autoW resolves to "max".
-        *   Controls override this according to their way of calculating
-            their maximum width.
-        *   Calculations may be done directly by setting css.
-            In that case width must be obtained via this._computed then
-            function must set this._w if it changes and return true.   
-        *   During adjusting, setting width is prioritized over height.
-	——————————————————————————————————————————————————————————————————————————*/
-	_autoMaxW() {
-        var t = this;
-
-		if (t._caW !== "max")
-			return false;
-        return t._setW(t._maxW());
-	}
-
-    /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: _autoMaxH [protected].
-	  TASK:	Tries to fit height of control.
-	  RETV:     : boolean	: true if height change is in shadow style.
-      INFO: 
-        *   This is called from private calcAutoH() method which is 
-            called by t.autoAdjust().
-        *   Controls override this according to their way of calculating
-            their maximum height.
-        *   Calculations may be done directly by setting css.
-            In that case width must be obtained via this._computed then
-            function must set this._h if it changes and return true.  
-        *   During adjusting, setting width is prioritized over height.
-	——————————————————————————————————————————————————————————————————————————*/
-	_autoMaxH() {
-		var t = this;
-
-		if (t._caH !== "max")
-			return false;
-        return false;
-	}
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: autoAdjust
@@ -716,15 +546,15 @@ export class TControl extends TComponent {
             return false;
 		dx = o._w - o._oW;
 		dy = o._h - o._oH;
-		aw = (t._autoW) ? calcAutoW(t, o.innerW) : false;   // this should be first.
-		ah = (t._autoH) ? calcAutoH(t, o.innerH) : false;   // this should be second.
-		ax = (t._autoX) ? calcAutoX(t, o.innerW) : false;
-		ay = (t._autoY) ? calcAutoY(t, o.innerH) : false;
+		aw = (t._autoW) ? t._calcAutoW() : false;   // this should be first.
+		ah = (t._autoH) ? t._calcAutoH() : false;   // this should be second.
+		ax = (t._autoX) ? t._calcAutoX() : false;
+		ay = (t._autoY) ? t._calcAutoY() : false;
 		ar = (dx && t.anchorRight)  ? (t.anchorLeft) ? t._setW(t, t._w + dx) : t._setX(t, t._x + dx) : false;
-		aw = (dy && t.anchorBottom) ? (t.anchorTop)  ? t._setH(t, t._h + dy) : t._setY(t, t._y + dy) : false;
+		ab = (dy && t.anchorBottom) ? (t.anchorTop)  ? t._setH(t, t._h + dy) : t._setY(t, t._y + dy) : false;
 		aw = (aw || ah || ax || ay || ar || ab);
 		if (aw)
-			t.coordsChanged();
+			t.invalidate();
 		return aw;
 	}
 
@@ -766,7 +596,6 @@ export class TControl extends TComponent {
 
 		this._viewResize = true;
 		this.autoAdjust();
-		this.invalidate();
 		for(c of this._subCtls){
 			if (c instanceof TControl)
 				c.doViewportResize();
@@ -779,17 +608,18 @@ export class TControl extends TComponent {
 	  FUNC: doMemberRelocate
 	  TASK: Flags the control that its member is resized or repositioned.
 	  ARGS: 
-		member	: TControl :	Member control that is relocated.
+		member	: TControl  : Member control that is relocated.
+        suppress: boolean   : Suppresses invalidation by content change.
 	  INFO: 
 		Dimensions recalculated.
 		Called from relocate() method of member.
 		During viewport resize, autoAdjust is supressed.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMemberRelocate(member = null) {
+	doMemberRelocate(member = null, suppress = false) {
 		var eve = this._eve.onMemberRelocate;
         if (member === null)
             return null;
-		if (!this._viewResize)
+        if (!this._viewResize || suppress)
 			this.contentChanged();
 		return ((eve) ? eve.dispatch([this, member]) : null);	// dispatch it
 	}
@@ -802,7 +632,6 @@ export class TControl extends TComponent {
 	——————————————————————————————————————————————————————————————————————————*/
 	doOwnerResize() {
 		var eve = this._eve.onOwnerResize;
-		
 		if (!this._viewResize)
 			this.autoAdjust();
 		return ((eve) ? eve.dispatch([this]) : null);
@@ -916,6 +745,458 @@ export class TControl extends TComponent {
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
+        Protected and Private methods.
+        Not for mortals :D ...
+    ——————————————————————————————————————————————————————————————————————————*/
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _makeElements [private].
+      TASK: Builds and binds a document object model elements to control.
+      INFO: Containers have inner wrappers.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _makeElements() {
+        var t = this,
+            e = t.class.elementTag,
+            w = t.class.wrapperTag;
+
+        function elementMaker(tag = null) {
+            var dom;
+        
+            if (tag === null)
+                return null;
+            dom = (tag !== 'body') ? document.createElement(tag) : document.body;
+            dom.ToreJS_Control = t;
+            return dom;
+        }
+
+        sys.str(e, t.class.name + ": static elementTag = ?","E_CTL_NO_DOM");
+        t._wrapper = elementMaker(w);
+        t._element = elementMaker(e);
+        t._computed = window.getComputedStyle(t._element);    
+        if (t._wrapper === null) {
+            t._wrapper = t._element;
+            return;
+        }         
+        t._element.appendChild(t._wrapper);
+        t._wrapper.style.position = 'relative';       
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _killElements [private].
+      TASK: Frees control from its document object model elements.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _killElements(t) {
+        var t = this;
+
+        function elementKiller(dom = null) {
+            if (!dom)
+                return;
+            if (typeof dom.ToreJS_Control === 'undefined')
+                return;
+            delete(dom.ToreJS_Control);	
+            if (dom !== document.body){ 
+                if (dom.parentNode)
+                    dom.parentNode.removeChild(dom);
+                dom = null;
+            }
+        }
+        elementKiller(t._wrapper);
+        elementKiller(t._element);
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+		_setW, _setH, _setX, _setY:
+		*	Are raw calls which do not make alignment or auto checkings.
+		*	Operate on shadowed style values only.
+		*	No relocation dispatching and invalidation is done.
+		*	They return true only if coordinates change.
+	——————————————————————————————————————————————————————————————————————————*/
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setW [protected].
+	  TASK: 
+		Sets the width of control without auto Width checking.
+	  ARGS:
+		val	: number	: Width value in pixels.
+	  RETV: : boolean	: true if width changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setW(val = 0) {
+		if (typeof val !== "number" || this._w === val || val < 0)
+			return false;
+		this._w = val;
+		this._shadowed.width = '' + val +'px';
+		return true;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setH [protected].
+	  TASK: 
+		Sets the height of control without auto Height checking.
+	  ARGS:
+		val	: number	: Height value in pixels.
+	  RETV: : boolean	: true if height changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setH(val = 0) {
+		if (typeof val !== "number" || this._h === val || val < 0)
+			return false;
+		this._h = val;
+		this._shadowed.height = '' + val +'px';
+		return true;
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setX [protected].
+	  TASK: Sets the x coordinate of control without checking.
+	  ARGS:	val	: number	: X coordinate value in pixels.
+	  RETV:     : boolean	: true if x changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setX(val = 0) {
+		if (typeof val !== "number" || this._x === val)
+			return false;
+		this._x = val;
+		this._shadowed.left = '' + val +'px';
+		return true;
+	}
+	
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _setY [protected].
+	  TASK:	Sets the y coordinate of control without checking.
+	  ARGS:	val	: number	: Y coordinate value in pixels.
+	  RETV:     : boolean	: true if y changes.
+	——————————————————————————————————————————————————————————————————————————*/
+	_setY(val = 0) {
+		if (typeof val !== "number" || this._y === val)
+			return false;
+		this._y = val;
+		this._shadowed.top = '' + val +'px';
+		return true;
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _calcAutoW [private].
+      TASK: Calculates and sets the width of control according to autoW.
+      RETV:     : boolean : true if width changes.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _calcAutoW() {
+    	var t = this,
+            val = TCtl.autoValue(t._autoW); 
+
+    	t._caW = val;
+    	if (val === null)
+    		return false;
+    	switch(typeof val){
+    	case "number": 
+    		return t._setW((val > 1) ? val : val * t._own.innerW);
+    	case "string":
+            switch(val) {
+            case "fit":
+                return t._autoFitW();
+            case "max":
+                return t._autoMaxW();    
+            default:
+    		    return t._calcAutoCss('width', '_w', val);
+            }
+        default:
+    	}
+    	return false;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _calcAutoH [private].
+      TASK: Calculates and sets the height of control according to autoH.
+      RETV:     : boolean : true if height changes.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _calcAutoH(){
+    	var t = this,
+            val = TCtl.autoValue(t._autoH);
+
+    	t._caH = val;
+    	if (val === null)
+    		return false;
+    	switch(typeof val) {
+    	case "number": 
+    		return t._setH((val > 1) ? val : val * t._own.innerH);
+    	case "string":
+            switch(val) {            
+            case "fit":
+                return t._autoFitH();
+            case "max":
+                return t._autoMaxH();    
+            default:
+    		    return t._calcAutoCss('height', '_h', val);
+            }
+    	default:
+        }
+    	return false;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _calcAutoX [private].
+      TASK: Calculates and sets the x coordinate of control according to autoX. 
+      RETV: 	: boolean  : true if x changes.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _calcAutoX(){
+    	var t = this,
+            oiw = t._own.innerW,
+            val = TCtl.autoValue(t._autoX);
+
+        if (val === null)
+    		return false;
+    	switch(typeof val){
+    	case "number":
+    		return t._setX((val <= 0 || val >= 1) ? val : oiw * val);
+    	case "string": 
+    		switch(val) {
+            case "left":
+                return t._setX(0);
+    		case "right":
+    			return t._setX(oiw - t._w);
+    		case "center":
+    			return t._setX((oiw - t._w) / 2);
+    		default:
+                return t._calcAutoCss('left', '_x', val);
+    		}
+        default:
+    	}
+    	return false;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _calcAutoY [private].
+      TASK:	Calculates and sets the y coordinate of control according to autoY.
+      RETV: 	: boolean  : true if y changes.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _calcAutoY(t, oih){
+    	var t = this,
+            oih = t._own.innerH,
+            val = TCtl.autoValue(t._autoY);
+
+        if (val === null)
+    		return false;
+    	switch(typeof val) {
+    	case "number":
+    		return t._setY((val <= 0 || val >= 1) ? val : oih * val);
+    	case "string":
+    		switch(val) {
+            case "top":
+                return t._setY(0);
+    		case "bottom":
+    			return t._setY(oih - t._h);
+    		case "center":
+    			return t._setY((oih - t._h) / 2);
+    		default:
+    			return t._calcAutoCss(t, 'top', '_y', val);
+    		}
+        default:
+    	}
+    	return false;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _calcAutoCss [private].
+      TASK: 
+    	Sets the w, h, x or y of control to CSS value given during rendering.
+        Called by _calcAuto methods. 
+      ARGS: 
+      	attr        : string   : CSS attribute name.
+        vnam        : string   : Control variable name.
+        value       : string   : CSS value.
+
+      RETV: 	    : boolean  : true if property changes.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _calcAutoCss(attr, vnam, value) {
+        var t = this,
+            s = t._element.style, 
+            c = vnam[1].toUpperCase(),
+            r;        
+
+        if (s[attr] !== value) {    // If value is not set,
+            t['_cv'+c] = value;     // Set value at render.
+            t['_cp'+c] = true;      // Parse value after setting.
+            t._cCssWait = true;
+            return true;            // Things changed...
+        }                           
+        // If value is set, then get current value in *pixels*.
+        r = parseFloat(t._computed[attr] || '0'); 
+        if (t[vnam] === r)          // If every thing is same,
+            return false;           // say no change.
+        t[vnam] = r;                // otherwise things changed
+        return true;                // say it so.
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _maxW [protected].
+      TASK: This finds the maximum control width required for the content.
+      RETV:     : number : maximum control width for the content.
+      INFO: 
+        *   *May* be called by autoFitW or autoMaxW. 
+        *   When autoW is "fit" or "max", tries to find maximum control
+            width required for contents ignoring any boundaries.
+        *   This maximum is according to the contents of the control.
+        *   To be overridden by control classes.
+      WARN: May not be implemented in some control classes, hence protected.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _maxW() {
+    	return this._w;         
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _maxH [protected].
+      TASK: This finds the maximum control height required for the content.
+      RETV:     : number : maximum control height required for the content.
+      INFO: 
+        *   *May* be called by autoFitW or autoMaxW.   
+        *   When autoH is "fit" or "max", tries to find maximum control 
+            height required for contents ignoring any boundaries.
+        *   This maximum is according to the contents of the control.
+        *   To be overridden by control classes.
+      WARN: May not be implemented in some control classes, hence protected.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _maxH() {
+    	return this._h;         
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoFitW [protected].
+	  TASK:	Adjusts the width of control regarding its owner and its content.
+	  RETV:     : boolean	: true if width changes.
+      INFO: 
+        *   This is called from private calcAutoW() method which is 
+            called by t.autoAdjust() when autoW resolves to "fit".
+        *   Controls override this according to their way of calculating
+            and fitting their content into available or possible width.
+        *   During adjusting, setting width is prioritized over height.
+	——————————————————————————————————————————————————————————————————————————*/
+	_autoFitW() {   // this is a general case algorithm for most controls.
+        var t = this,
+            n,      // max needed width . 
+            p;      // max possible width.
+
+		if (t._caW !== "fit")
+			return false;
+        n = t._maxW();
+        p = t.maxContainableInnerW() + t._shellW;   
+        return t._setW((n > p) ? p : n);    
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoFitH [protected].
+	  TASK:	Adjusts the height of control regarding its owner and its content.
+	  RETV:     : boolean	: true if height change is in shadow style.
+      INFO: 
+        *   This is called from private calcAutoH() method which is 
+            called by t.autoAdjust() when autoH resolves to "fit".
+        *   Controls override this according to their way of calculating
+            and fitting their content into available or possible height.
+        *   During adjusting, setting width is prioritized over height.
+	——————————————————————————————————————————————————————————————————————————*/
+	_autoFitH() {
+		var t = this,
+            n,      // max needed height. 
+            p;      // max possible height.
+
+		if (t._caH !== "fit")
+			return false;
+        n = t._maxH();
+        p = t.maxContainableInnerH() + t._shellH;   
+        return t._setH((n > p) ? p : n);    
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoMaxW [protected].
+	  TASK:	Adjusts the width of control regarding its content only.
+	  RETV:     : boolean	: true if width changes.
+      INFO: 
+        *   This is called from private calcAutoW() method which is 
+            called by t.autoAdjust() when autoW resolves to "max".
+        *   Controls override this according to their way of calculating
+            their maximum width.
+        *   During adjusting, setting width is prioritized over height.
+	——————————————————————————————————————————————————————————————————————————*/
+	_autoMaxW() {
+        return (this._caW === "max") ? this._setW(this._maxW()) : false;
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: _autoMaxH [protected].
+	  TASK:	Adjusts the width of control regarding its content only.
+	  RETV:     : boolean	: true if height changes.
+      INFO: 
+        *   This is called from private calcAutoH() method which is 
+            called by t.autoAdjust().
+        *   Controls override this according to their way of calculating
+            their maximum height.
+        *   During adjusting, setting width is prioritized over height.
+	——————————————————————————————————————————————————————————————————————————*/
+	_autoMaxH() {
+        return (this._caH === "max") ? this._setH(this._maxH()) : false;
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _setAutoValue [private].
+      TASK: 
+    	Sets automatic values to automatic properties.
+      ARGS:
+        t       : TControl  : The control to set auto value.
+    	val		: number	: Value as number.
+    			: string	: Value as string.
+    			: object	: Value as viewport value object.
+    	pvar	: string	: Protected var name associated to property.
+    	prop	: string	: Property setter name (for exception info).
+        numOk   : boolean   : Value can be a number when true :DEF: true.
+        strOk   : boolean   : Value can be a string when true :DEF: true.
+      RETV: 	: boolean	: true if autoAdjust required.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _setAutoValue(val = null, pvar, prop, numOk = true, strOk = true) {
+        var	t = this,
+            typ = typeof val;
+        
+    	if (val === t[pvar])    // If no change,
+    		return false;		// no autoAdjust required.
+    	if (val === null) {     // If disabling auto value
+    		t[pvar] = null;     // disable it,
+    		return false;		// no autoAdjust required.
+    	}
+    	if (strOk && typ === "string") {
+    		sys.str(val, t.namePath + '.' + prop, 'E_INV_VAL');
+    		t[pvar] = val;
+    		return true;		// autoAdjust required.
+    	}
+    	if (numOk && typ === "number") {
+    		t[pvar] = val;
+    		return true;        // autoAdjust required.
+    	}
+       	if (val.constructor === Object && TCtl.vpCheck(val)) {
+    		t[pvar] = Object.assign({}, val);
+            if (t[pvar]._vp_) {
+                delete t[pvar]._vp_;
+                return false;
+            }
+    		return true;		// autoAdjust required.
+    	}
+        exc('E_INV_VAL',  t.namePath + '.' + prop);
+        return false;           // never executes.        
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: _cascadeVisible [private].
+      TASK: Sets control and sub control style visibilities.
+      ARGS:
+    	t 			: TControl	: TControl to set visibility.
+    	showing		: bool		: Visibility state.
+    ——————————————————————————————————————————————————————————————————————————*/
+    _cascadeVisible(showing = false) {
+    	var t = this,
+            c,
+    		v = (showing) ? 'visible': 'hidden';
+    
+    	if (t._element.style.visibility !== v) {
+    		t._shadowed.visibility = v;
+    		t.invalidate();
+    	}
+    	for(c of t._subCtls) 
+    		c._cascadeVisible((showing) ? c._visible : false);
+    }
+    /*——————————————————————————————————————————————————————————————————————————
 		Properties
 	——————————————————————————————————————————————————————————————————————————*/
 
@@ -933,7 +1214,7 @@ export class TControl extends TComponent {
 		if (this._autoX !== null) 
             return;
 		if (this._setX(val)) 
-			this.coordsChanged();
+			this.invalidate();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -950,7 +1231,7 @@ export class TControl extends TComponent {
 		if (this._autoY !== null)
             return;
 		if (this._setY(val))
-			this.coordsChanged();
+			this.invalidate();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -968,9 +1249,9 @@ export class TControl extends TComponent {
 		if (this._autoW !== null)
             return;
 		if (this._setW(val)) {
-			if (this._autoX && this._own)	
-				calcAutoX(this, this._own.innerW)
-			this.coordsChanged();
+			if (this._autoX)
+                this.autoAdjust();
+			this.invalidate();
 		}
 	}
 
@@ -988,72 +1269,16 @@ export class TControl extends TComponent {
 	set h(val = 32) {
 		if (this._autoH !== null)
             return;
-		if (this._setH(val)){
-			if (this._autoY && this._own)	
-				calcAutoY(this, this._own.innerH)
-			this.coordsChanged();
+		if (this._setH(val)) {
+            if (this._own instanceof TControl) {
+                if (this._autoY)
+			        calcAutoY(this, this._own.innerW);
+            }
+			this.invalidate();
 		}
 	}
 	
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	autoX : *.
-	  GET : Returns the autoX value.
-	  SET : Sets    the autoX value.
-	  INFO: 
-		autoX can be:
-        * Viewport values object.
-			The value will be extracted from object and processed like below.
-		* null.
-			Will not be automatic (direct assignment).
-            Does nothing (coming from viewport values object) .
-		* A number between 0 and 1 (exclusive) i.e: 0.5 .
-			x will be set to owner inner width * autoX.
-		* A number with value <= 0 or value >= 1, x = value.
-		* A string:
-            "left"      : Aligns the control to left.
-			"right" 	: Aligns the control to right.
-			"center"	: Aligns the control to center.
-			Other values will be treated as a CSS property.
-	——————————————————————————————————————————————————————————————————————————*/
-	get autoX() {
-		return(this._autoX);
-	}
-
-	set autoX(val = null) {
-		if (setAutoValue(this, val, '_autoX', 'autoX'))
-			this.autoAdjust();
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	autoY : *.
-	  GET : Returns the autoY value.
-	  SET : Sets    the autoY value.
-	  INFO: 
-		autoY can be:
-        * Viewport values object.
-			The value will be extracted from object and processed like below.
-		* null.
-			Will not be automatic (direct assignment).
-            Does nothing (coming from viewport values object) .
-		* A number between 0 and 1 (exclusive) i.e: 0.2 .
-			y will be set to owner inner height * autoY.
-		* A number with value <= 0 or value >= 1, y = value.
-		* A string: 
-            "top"       : Aligns the control to top.
-			"bottom" 	: Aligns the control to bottom.
-			"center"	: Aligns the control to center.
-			Other values will be treated as a CSS property.
-	——————————————————————————————————————————————————————————————————————————*/
-	get autoY() {
-		return(this._autoY);
-	}
-
-	set autoY(val = null) {
-		if (setAutoValue(this, val, '_autoY', 'autoY'))
-			this.autoAdjust();
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
+    /*——————————————————————————————————————————————————————————————————————————
 	  PROP:	autoW : *.
 	  GET : Returns the auto Width value.
 	  SET : Sets    the auto Width value.
@@ -1081,7 +1306,7 @@ export class TControl extends TComponent {
 	}
 
 	set autoW(val = null) {
-		if (setAutoValue(this, val, '_autoW', 'autoW'))
+		if (this._setAutoValue(val, '_autoW', 'autoW'))
 			this.autoAdjust();
 	}
 
@@ -1113,7 +1338,65 @@ export class TControl extends TComponent {
 	}
 
 	set autoH(val = null){
-		if (setAutoValue(this, val, '_autoH', 'autoH'))
+		if (this._setAutoValue(val, '_autoH', 'autoH'))
+			this.autoAdjust();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	autoX : *.
+	  GET : Returns the autoX value.
+	  SET : Sets    the autoX value.
+	  INFO: 
+		autoX can be:
+        * Viewport values object.
+			The value will be extracted from object and processed like below.
+		* null.
+			Will not be automatic (direct assignment).
+            Does nothing (coming from viewport values object) .
+		* A number between 0 and 1 (exclusive) i.e: 0.5 .
+			x will be set to owner inner width * autoX.
+		* A number with value <= 0 or value >= 1, x = value.
+		* A string:
+            "left"      : Aligns the control to left.
+			"right" 	: Aligns the control to right.
+			"center"	: Aligns the control to center.
+			Other values will be treated as a CSS property.
+	——————————————————————————————————————————————————————————————————————————*/
+	get autoX() {
+		return(this._autoX);
+	}
+
+	set autoX(val = null) {
+		if (this._setAutoValue(val, '_autoX', 'autoX'))
+			this.autoAdjust();
+	}
+
+	/*——————————————————————————————————————————————————————————————————————————
+	  PROP:	autoY : *.
+	  GET : Returns the autoY value.
+	  SET : Sets    the autoY value.
+	  INFO: 
+		autoY can be:
+        * Viewport values object.
+			The value will be extracted from object and processed like below.
+		* null.
+			Will not be automatic (direct assignment).
+            Does nothing (coming from viewport values object) .
+		* A number between 0 and 1 (exclusive) i.e: 0.2 .
+			y will be set to owner inner height * autoY.
+		* A number with value <= 0 or value >= 1, y = value.
+		* A string: 
+            "top"       : Aligns the control to top.
+			"bottom" 	: Aligns the control to bottom.
+			"center"	: Aligns the control to center.
+			Other values will be treated as a CSS property.
+	——————————————————————————————————————————————————————————————————————————*/
+	get autoY() {
+		return(this._autoY);
+	}
+
+	set autoY(val = null) {
+		if (this._setAutoValue(val, '_autoY', 'autoY'))
 			this.autoAdjust();
 	}
 
@@ -1240,15 +1523,15 @@ export class TControl extends TComponent {
 	}
 
 	set visible(value = true) {
-		var v = !!value;
+		var t = this,
+            v = !!value;
 
-		if (this._visible === v)
+		if (t._visible === v)
 			return;
-		this._visible = v;
-		this.checkEvents();
-		cascadeVisible(this, this.showing);
-		this.relocate(v);
-		this.invalidate();
+		t._visible = v;
+		t.checkEvents();
+		t._cascadeVisible(t.showing);
+		t.invalidate();
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -1310,13 +1593,13 @@ export class TControl extends TComponent {
       INFO: Defaults to null when value is not a string or string is empty.
 	——————————————————————————————————————————————————————————————————————————*/
 	get styleRoot() {
-		return this._styleRoot;
+		return this._sRoot;
 	}
 
 	set styleRoot(val = null) {
-		if (this._styleRoot === val)
+		if (this._sRoot === val)
 			return;
-		this._styleRoot = sys.str(val) ? val : null;
+		this._sRoot = sys.str(val) ? val : null;
 		this.calcClassNames();
 	}
 
@@ -1327,13 +1610,13 @@ export class TControl extends TComponent {
       INFO: Defaults to null when value is not a string or string is empty.
 	——————————————————————————————————————————————————————————————————————————*/
 	get styleExtra() {
-		return this._styleExtra;
+		return this._sExtra;
 	}
 
 	set styleExtra(val = null) {
-		if (this._styleExtra === val)
+		if (this._sExtra === val)
 			return;
-        this._styleExtra = sys.str(val) ? val : null;
+        this._sExtra = sys.str(val) ? val : null;
 		this.calcClassNames();
 	}
 
@@ -1344,13 +1627,13 @@ export class TControl extends TComponent {
       INFO: If value is not a color style name, set does not work.
 	——————————————————————————————————————————————————————————————————————————*/
 	get styleColor() {
-		return this._styleColor;
+		return this._sColor;
 	}
 
 	set styleColor(val = null) {
-		if (this._styleColor === val || !styler.isColorStyleName(val))
+		if (this._sColor === val || !styler.isColorStyleName(val))
 			return;
-		this._styleColor = val;
+		this._sColor = val;
 		this.calcClassNames();
 	}
 
@@ -1361,13 +1644,13 @@ export class TControl extends TComponent {
       INFO: If value is not a size style name, set does not work.
 	——————————————————————————————————————————————————————————————————————————*/
 	get styleSize() {
-		return this._styleSize;
+		return this._sSize;
 	}
 
 	set styleSize(val = null) {
-		if (this._styleSize === val || !styler.isSizeStyleName(val))
+		if (this._sSize === val || !styler.isSizeStyleName(val))
 			return;
-		this._styleSize = val;		// set style size name
+		this._sSize = val;		// set style size name
 		this.calcClassNames();
 	}
 
@@ -1404,11 +1687,13 @@ export class TControl extends TComponent {
         screen.
 	——————————————————————————————————————————————————————————————————————————*/
 	get showing() {
-		var t = this;
+		var t = this,
+            d = core.display;
+
 		while(t instanceof TControl){
 			if (!t._visible)				// if invisible
 				return(false);
-			if (t === display)			// if display
+			if (t === d)	                // if display
 				return(true);
 			t = t._own;
 		}
@@ -1423,352 +1708,7 @@ export class TControl extends TComponent {
         return TCtl.stateNames[this._ctlState];
     }
 
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  Private functions.
-——————————————————————————————————————————————————————————————————————————*/
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: cascadeShowing [private].
-  TASK: Sets control and sub control style visibilities.
-  ARGS:
-	t 			: TControl	: TControl to set visibility.
-	showing		: bool		: Visibility state.
-——————————————————————————————————————————————————————————————————————————*/
-function cascadeVisible(t, showing = false) {
-	var c,
-		v = (showing) ? 'visible': 'hidden';
-
-	if (t._element.style.visibility !== v) {
-		t._shadowed.visibility = v;
-		t.invalidate();
-	}
-	for(c of t._subCtls) 
-		cascadeVisible(c, (showing) ? c._visible : false);
-}
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: setAutoValue [private].
-  TASK: 
-	Sets automatic values to automatic properties.
-  ARGS:
-    t       : TControl  : The control to set auto value.
-	val		: number	: Value as number.
-			: string	: Value as string.
-			: object	: Value as viewport value object.
-	pvar	: string	: Protected var name associated to property.
-	prop	: string	: Property setter name (for exception info).
-    numOk   : boolean   : Value can be a number when true :DEF: true.
-    strOk   : boolean   : Value can be a string when true :DEF: true.
-  RETV: 	: boolean	: true if autoAdjust required.
-——————————————————————————————————————————————————————————————————————————*/
-function setAutoValue(t, val = null, pvar, prop, numOk = true, strOk = true) {
-    var	typ = typeof val;
     
-	if (val === t[pvar])    // If no change,
-		return false;		// no autoAdjust required.
-	if (val === null) {     // If disabling auto value
-		t[pvar] = null;     // disable it,
-		return false;		// no autoAdjust required.
-	}
-	if (strOk && typ === "string") {
-		sys.str(val, t.namePath + '.' + prop, 'E_INV_VAL');
-		t[pvar] = val;
-		return true;		// autoAdjust required.
-	}
-	if (numOk && typ === "number") {
-		t[pvar] = val;
-		return true;        // autoAdjust required.
-	}
-	if (val.constructor === Object && TCtl.vpCheck(val)) {
-		t[pvar] = Object.assign({}, val);
-		return true;		// autoAdjust required.
-	}
-    exc('E_INV_VAL',  t.namePath + '.' + prop);
-    return false;           // never executes.        
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: cssX [private].
-  TASK: 
-	Sets the x (left) of control according to CSS value given.
-  ARGS: 
-  	t 	    : TControl : (this).
-	val	    : string   : CSS value.
-  RETV: 	: boolean  : true if x changes.
-——————————————————————————————————————————————————————————————————————————*/
-function cssX(t, val){
-    var s =  t._element.style,
-        c =  t._computed;
-
-    if (s.left !== val) 
-        s.left = val;			                // reflow
-    val = parseFloat(c.left || '0');
-    if (t._x === val) 
-        return false;
-    t._x = val;
-    return true; 	        
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: cssY [private].
-  TASK: 
-	Sets the y (top) of control according to CSS value given.
-  ARGS: 
-  	t 	    : TControl : (this).
-	val	    : string   : CSS value.
-  RETV: 	: boolean  : true if width changes.
-——————————————————————————————————————————————————————————————————————————*/
-function cssY(t, val){
-    var s =  t._element.style,
-        c =  t._computed;
-
-        if (s.top !== val) 
-            s.top = val;			                // reflow
-        val = parseFloat(c.top || '0');
-        if (t._y === val) 
-            return false;
-        t._y = val;
-        return true; 	        
-}
-
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: cssW [private].
-  TASK: 
-	Sets the width of control according to CSS value given.
-  ARGS: 
-  	t 	    : TControl : (this).
-	val	    : string   : CSS value.
-  RETV: 	: boolean  : true if width changes.
-——————————————————————————————————————————————————————————————————————————*/
-function cssW(t, val) {
-    var s = t._element.style,
-        l = s.left;
-
-    if (s.width !== val) {     
-        if (t._wrapper !== t._element)
-            t._wrapper.style.width = val;	    // reflow
-        s.width = val;			                // reflow	
-    }
-    val = parseFloat(t._computed.width || '0');
-    if (t._w === val) 
-        return false;
-    t._w = val;
-    return true;    
-}
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: cssH [private].
-  TASK: 
-	Sets the height of control according to CSS value given.
-  ARGS: 
-  	t 	    : TControl : (this).
-	val	    : string   : CSS value.
-  RETV: 	: boolean  : true if height changes.
-——————————————————————————————————————————————————————————————————————————*/
-function cssH(t, val) {
-    var s = t._element.style;
-
-    if (s.height !== val) {
-        s.height = val;			            // reflow
-        if (t._wrapper !== t._element)
-            t._wrapper.style.height = val;	// reflow	
-    }
-    val = parseFloat(t._computed.height || '0');
-    if (t._h === val)
-        return false; 
-    t._h = val;
-    return true;
-}
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoX [private].
-  TASK: 
-	Calculates and sets the x coordinate of control according to autoX.
-  ARGS: 
-  	t			: TControl : Control object.
-	ownerWidth	: number   : Inner width of owner.
-  RETV: 		: boolean  : true if x changes.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoX(t, ownerWidth){
-	var val = TCtl.autoValue(t._autoX);
-
-    if (val === null)
-		return false;
-	switch(typeof val){
-	case "number":
-		return t._setX((val <= 0 || val >= 1) ? val : ownerWidth * val);
-	case "string": 
-		switch(val) {
-        case "left":
-            return t._setX(0);
-		case "right":
-			return t._setX(ownerWidth - t._w);
-		case "center":
-			return t._setX((ownerWidth - t._w) / 2);
-		default:
-            return cssX(t, val);
-		}
-    default:
-	}
-	return false;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoY [private].
-  TASK:
-	Calculates and sets the y coordinate of control according to autoY.
-  ARGS: 
-	t			: TControl : Control object.
-	ownerHeight	: number   : Inner height of owner.
-  RETV: 		: boolean  : true if y changes.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoY(t, ownerHeight){
-	var val = TCtl.autoValue(t._autoY);
-
-    if (val === null)
-		return false;
-	switch(typeof val) {
-	case "number":
-		return t._setY((val <= 0 || val >= 1) ? val : ownerHeight * val);
-	case "string":
-		switch(val) {
-        case "top":
-            return t._setY(0);
-		case "bottom":
-			return t._setY(ownerHeight - t._h);
-		case "center":
-			return t._setY((ownerHeight - t._h) / 2);
-		default:
-			return cssY(t, val);
-		}
-    default:
-	}
-	return false;
-}
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoW [private].
-  TASK: 
-	Calculates and sets the width of control according to autoW.
-  ARGS: 
-  	t 			: TControl : (this).
-	ownerWidth	: number  : inner width of owner.
-  RETV: 		: boolean : true if width changes.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoW(t, ownerWidth) {
-	var w = TCtl.autoValue(t._autoW); 
-
-	t._caW = w;
-	if (w === null)
-		return false;
-	switch(typeof w){
-	case "number": 
-		return t._setW((w > 1) ? w : w * ownerWidth);
-	case "string":
-        switch(w) {
-        case "fit":
-            return t._autoFitW();
-        case "max":
-            return t._autoMaxW();    
-        default:
-		    return cssW(t, w);
-        }
-    default:
-	}
-	return false;
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: calcAutoH [private].
-  TASK: Calculates control height.
-  ARGS: 
-	t			: TControl : (this).
-	ownerHeight	: number  : Inner height of owner.
-  RETV: 		: boolean : true if height changes.
-——————————————————————————————————————————————————————————————————————————*/
-function calcAutoH(t, ownerHeight){
-	var h = TCtl.autoValue(t._autoH);
-
-	t._caH = h;
-	if (h === null)
-		return false;
-	switch(typeof h) {
-	case "number": 
-		return t._setH((h > 1) ? h : h * ownerHeight);
-	case "string":
-        switch(h) {            
-        case "fit":
-            return t._autoFitH();
-        case "max":
-            return t._autoMaxH();    
-        default:
-		    return cssH(t, h);
-        }
-	default:
-    }
-	return false;
-}
-
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: makeElements [private].
-  TASK: Builds and binds a document object model elements to control.
-  INFO: Containers have inner wrappers.
-——————————————————————————————————————————————————————————————————————————*/
-function makeElements(t) {
-    var e = t.class.elementTag,
-        w = t.class.wrapperTag;
-
-    function elementMaker(tag = null) {
-        var dom;
-       
-        if (tag === null)
-            return null;
-        dom = (tag !== 'body') ? document.createElement(tag) : document.body;
-        dom.ToreJS_Control = t;
-        return dom;
-    }
-
-    sys.str(e, t.class.name + ": static elementTag = ?","E_CTL_NO_DOM");
-    t._wrapper = elementMaker(w);
-    t._element = elementMaker(e);
-    t._computed = window.getComputedStyle(t._element);    
-    if (t._wrapper === null) {
-        t._wrapper = t._element;
-        return;
-    }         
-    t._element.appendChild(t._wrapper);
-    t._wrapper.style.position = 'relative';       
-}
-
-/*——————————————————————————————————————————————————————————————————————————
-  FUNC: killElements [private].
-  TASK: Frees control from its document object model elements.
-——————————————————————————————————————————————————————————————————————————*/
-function killElements(t) {
-
-    function elementKiller(dom = null) {
-        if (!dom)
-            return;
-        if (typeof dom.ToreJS_Control === 'undefined')
-            return;
-        delete(dom.ToreJS_Control);	
-        if (dom !== document.body){ 
-            if (dom.parentNode)
-                dom.parentNode.removeChild(dom);
-            dom = null;
-        }
-    }
-    elementKiller(t._wrapper);
-    elementKiller(t._element);
 }
 
 sys.registerClass(TControl);

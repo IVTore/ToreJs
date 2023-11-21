@@ -121,6 +121,7 @@ class TDisplay extends TPanel {
 		this._framed = true;
 		window.requestAnimationFrame(this.validate);
 	}
+    
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: addRenderQueue
 	  TASK: Adds invalidated control to queue.

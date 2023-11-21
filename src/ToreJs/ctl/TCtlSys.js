@@ -6,8 +6,8 @@
   About		: 	TCtlSys.js: Tore Js visual control component helpers.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, exc,  TComponent } from "../lib/index.js";
-
+import { sys, exc, core, TComponent }   from "../lib/index.js";
+import { display }                      from "./index.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   CLASS:    TCtlSys [static singleton]
@@ -19,8 +19,6 @@ import { sys, exc,  TComponent } from "../lib/index.js";
 var vpSiz = [ 576, 768, 992, 1200, 1400];
 // private viewport names array.
 var vpNam = ['xs','sm','md','lg','xl','xxl'];
-
-
 
 
 const TCtl = {
@@ -183,7 +181,7 @@ const TCtl = {
             return false;
         if (v.df !== undefined)
             return true;
-        n = TCtl.vpNames;
+        n = vpNam;
         l = n.length;
         for(i = 0; i < l; i++) {
             if (v[n[i]] === undefined)
@@ -207,7 +205,7 @@ const TCtl = {
         if (v === null)
             return null;
         if (v.constructor === Object) {
-            n = display.viewportName;
+            n = core.display.viewportName;
             v = (v[n]) ? v[n] : v[df];
         }	
         return v;

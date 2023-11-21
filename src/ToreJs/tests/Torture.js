@@ -10,9 +10,11 @@ styler.addRule("PanExt", {
 	padding: "10px"
 });
 
+
+
 new TLabel('lblVpTitle', display, { 
     styleSize: 'Medium',
-    y: 10,
+    y: 90,
     autoX: 'center',  
     wrap: true,
     hndVpTtl: function (sender) {
@@ -31,56 +33,77 @@ var pan = new TPanel('pan', display, {
     wrap: false,
     autoX: 'center', 
     autoY: 'center', 
-    autoW: 0.5, 
-    autoH: 0.5, 
+    autoW: 'fit', 
+    autoH: 'fit', 
     splitX: 5,
     splitY: 5,
     styleExtra: 'PanExt',
     hndVpRes: function (sender) {
-        var style = getComputedStyle(sender._element);
-        sender.text = "[Hello World!] [" + sender._styleSize + "] " + style.fontSize;
+        var style = sender._computed;
+        sender.text = "[Hello World!] [" + sender.styleSize + "] " + style.fontSize;
     }
 });
 
 var labelProps = {
 	wrap: true,
-    canFocus: true,
     onViewportResize: { _new_: TEventHandler, target: '.p.owner', method: 'hndVpRes' }
 };
 
+
 new TLabel('l1',pan,{ styleSize: 'Huge', ...labelProps });
-/*
 new TLabel('l2',pan,{ styleSize: 'Large', ...labelProps });
 new TLabel('l3',pan,{ styleSize: 'Big', ...labelProps });
 new TLabel('l4',pan,{ styleSize: 'Medium', ...labelProps });
 new TLabel('l5',pan,{ styleSize: 'Small', ...labelProps });
 new TLabel('l6',pan,{ styleSize: 'Tiny', ...labelProps });
 
-new TButton('b1', pan, {
+new TButton('btnAlign', pan, {
     styleSize: 'Medium',
-    label: { _new_: TLabel, name: "label", styleSize: 'Medium', text: 'Align Center'},
+    label: { _new_: TLabel, name: "lblAlign", styleSize: 'Medium', text: 'Align Center', wrap: true, textAlign: 'center'},
     hndHit: function (sender) {
         switch (pan.contentAlign) {
         case 'left' :
             pan.contentAlign = 'center';
-            this.label.text = "Align Right";
+            this.lblAlign.text = "Align Right";
             break;
         case 'center':
             pan.contentAlign = 'right';
-            this.label.text = "Align Left";
+            this.lblAlign.text = "Align Left";
             break;
         case 'right':    
             pan.contentAlign = 'left';
-            this.label.text = "Align Center";
+            this.lblAlign.text = "Align Center";
         }        
         console.log(pan.contentAlign);
     },
     onHit: { _new_: TEventHandler, target: '.p.', method: 'hndHit' }
 });
-*/	
-pan.sequence = ['l1','l2','l3','l4','l5','l6', 'b1'];
+
+pan.sequence = ['l1','l2','l3','l4','l5','l6', 'btnAlign'];
+
+new TButton('btnSwitch', display, {
+    styleSize: 'Medium',
+    label: { _new_: TLabel, name: "lblSwitch", styleSize: 'Medium', text: 'Hide Panel', autoW: 'fit', autoH: 'max'},
+    handleHit: function (sender) {
+        switch (pan.visible) {
+        case false :
+            pan.visible = true;
+            this.lblSwitch.text = "Hide Panel";
+            break;
+        case true:
+            pan.visible = false;
+            this.lblSwitch.text = "Show Panel";
+            break;
+        } 
+    },
+    onHit: { _new_: TEventHandler, target: '.p.', method: 'handleHit' }
+});
 
 display.refresh();
+
+
+
+
 
 
 

@@ -85,18 +85,17 @@ export class TEventHandler extends TObject {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: dispatch.
 	  TASK: Calls the handler method in target component.
+            Sender (source) is automatically added as the first argument.
 	  ARGS:
 		args : Array : Arguments to pass to target handler method.
 	  INFO:
 		For triggering non-native events, this method is used directly, 
 		If event handler instance is not valid, throws exception.
-		By convention, it is recommended to pass the sender component as the 
-		first argument.
 	——————————————————————————————————————————————————————————————————————————*/
-	dispatch(args){
+	dispatch(...args) {
 		if (this._rdy)
-			return this._tar[this._met].apply(this._tar, args);
-		exc('E_INV_HANDLER', 
+           	return this._tar[this._met].apply(this._tar, [this._src, ...args]);
+        exc('E_INV_HANDLER', 
 			((this._src) ? this._src._nam : "?") + "." +
 			((this._nam) ? this._nam : "?") + " = [ TEventHandler ]" +
 			((this._tar) ? this._tar._nam : "?") + "." +
@@ -183,9 +182,8 @@ export class TEventHandler extends TObject {
 		For native events, 
 			Embeds dispatch into a bound method closure as:
 			this._fun = function(e) { 
-				return this.dispatch([this._src, e]);
+				return this.dispatch(e);
 			} 
-			this._src is the sender; Event source component,
 			e is the native event object.
 			Then this._fun is added as event listener to native event source.
 		Throws exception for invalid definitions.
@@ -213,12 +211,13 @@ export class TEventHandler extends TObject {
 			if (!this._src[this._def.src])
                 exc('E_EVENT_SRC', this._src.name + '.' + this._def.src);
 		    this._fun = function(e) { 
-			    return this.dispatch([this._src, e]); 
+			    return this.dispatch(e); 
 		    }
 		    this._src[this._def.src].addEventListener(this._def.typ, this._fun, false);
         }
         this._rdy = true;
 	}
+
 }
 
 // private.
@@ -227,7 +226,7 @@ function setTEventHandlerTarget(handler, target) {
 	if (target === handler._tar)
 		return;
 	if (handler._tar !== null)
-		exc("E_SET_ONCE_ONLY", "target");
+		exc("E_SET_ONCE", "target");
 	if (typeof target === 'string')
 		target = sys.fetchObject(target);
 	handler._tar = target;

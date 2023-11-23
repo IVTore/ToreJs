@@ -161,7 +161,7 @@ export class TLabel extends TControl {
 		if (t._caH !== 'fit')
 			return false;
 
-        return t._calcAutoCss('height', '_h', 'fit-content');
+        return t._calcAutoCss('height', '_h', '_cvH', '_cpH', 'fit-content');
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -180,7 +180,7 @@ export class TLabel extends TControl {
 
 		if (t._caH !== 'max')
 			return false;
-        return t._calcAutoCss('height', '_h', 'max-content');
+        return t._calcAutoCss('height', '_h', '_cvH', '_cpH', 'max-content');
 	}
 
     /*——————————————————————————————————————————————————————————————————————————

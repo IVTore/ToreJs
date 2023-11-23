@@ -1,7 +1,7 @@
 // inspect in browser and change browser window size, see the torture.
 
 import { TEventHandler } from "../lib/index.js";
-import { styler, display, TPanel, TLabel, TButton } from "../ctl/index.js";
+import { styler, display, TPanel, TLabel, TButton, TImage } from "../ctl/index.js";
 import { ToreUI } from "../styles/ToreUI.js";
 
 ToreUI();
@@ -10,7 +10,12 @@ styler.addRule("PanExt", {
 	padding: "10px"
 });
 
-
+new TImage('istanbul', display, {
+    src: '../src/ToreJs/tests/images/ist.png', 
+    aspectRatio: 0.2,
+    autoX: 'center', 
+    autoW: 'fit', 
+    autoH: 'fit'});
 
 new TLabel('lblVpTitle', display, { 
     styleSize: 'Medium',
@@ -99,7 +104,10 @@ new TButton('btnSwitch', display, {
     onHit: { _new_: TEventHandler, target: '.p.', method: 'handleHit' }
 });
 
+
+
 display.refresh();
+display.istanbul.load();
 
 
 

@@ -2,3 +2,9 @@ ToreJS :
 
 My take on Javascript framework for browsers.
 It is at its baby steps as a side project.
+
+To test it, 
+1] Download.
+2] Open with Visual Studio Code.
+3] Install Live Server of Ritwick Rey if you do not have it.
+4] Choose /pub/index.html and press Go Live.

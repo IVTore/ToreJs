@@ -112,10 +112,11 @@ export class TControl extends TComponent {
 	_oH = 0;			        // Previous height.
     _caW = null;                // computed autoW.
     _caH = null;                // computed autoH.
+
     // These are for direct CSS values, used during render.
     // if one of these are set _cCssWait flag must be set too.
-    // Look _calcAuto, _calcCss and render.     
-    _cvW = null;                // css render value for width.
+    // Look _calcAuto, _calcCss and render.    
+    _cvW = null; 
     _cvH = null;                // css render value for height.
     _cvX = null;                // css render value for x (left).
     _cvY = null;                // css render value for y (top).
@@ -569,7 +570,7 @@ export class TControl extends TComponent {
 	
 		if (!t._sta)						// if dead...
 			return;
-		r = (t._visible && t._ctlState && t._ctlState !== TCtl.SLEEP && t._canFocus);
+		r =(t._visible && t._ctlState && t._ctlState !== TCtl.SLEEP && t._canFocus);
 		t._element.style.pointerEvents = (r) ? 'auto': 'none';
 		if (r === t._interact)			    // if no change in interactivity
 			return;
@@ -591,8 +592,7 @@ export class TControl extends TComponent {
 	  INFO: This is a global dispatch from display control.
 	——————————————————————————————————————————————————————————————————————————*/
 	doViewportResize() {
-		var c,
-			eve = this._eve.onViewportResize;
+		var c;
 
 		this._viewResize = true;
 		this.autoAdjust();
@@ -601,7 +601,7 @@ export class TControl extends TComponent {
 				c.doViewportResize();
 		}
 		this._viewResize = false;
-		return ((eve) ? eve.dispatch([this]) : null);
+		return this.dispatch(this._eve.onViewportResize);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -616,12 +616,11 @@ export class TControl extends TComponent {
 		During viewport resize, autoAdjust is supressed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doMemberRelocate(member = null, suppress = false) {
-		var eve = this._eve.onMemberRelocate;
-        if (member === null)
+		if (member === null)
             return null;
         if (!this._viewResize || suppress)
 			this.contentChanged();
-		return ((eve) ? eve.dispatch([this, member]) : null);	// dispatch it
+		return this.dispatch(this._eve.onMemberRelocate, member);	
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -631,10 +630,9 @@ export class TControl extends TComponent {
 			Called from relocate() method of owner.
 	——————————————————————————————————————————————————————————————————————————*/
 	doOwnerResize() {
-		var eve = this._eve.onOwnerResize;
 		if (!this._viewResize)
 			this.autoAdjust();
-		return ((eve) ? eve.dispatch([this]) : null);
+		return this.dispatch(this._eve.onOwnerResize);
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -642,11 +640,9 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that mouse is clicking or touch tapping on it.
 	——————————————————————————————————————————————————————————————————————————*/
 	doHit(x, y, e) {
-		var eve = this._eve.onHit;
-		
 		if (this._ctlState != TCtl.FOCUS)
 			return null;
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
+		return this.dispatch(this._eve.onHit, x, y, e);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -654,11 +650,9 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that mouse is double clicked on it.
 	——————————————————————————————————————————————————————————————————————————*/
 	doDoubleHit(x, y, e) {
-		var eve = this._eve.onDoubleHit;
-		
 		if (this._ctlState !== TCtl.FOCUS)
 			return null;
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
+		return this.dispatch(this._eve.onDoubleHit, x, y, e);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -666,10 +660,8 @@ export class TControl extends TComponent {
 	  TASK:	Flags the control that it has mouse pressed over.
 	——————————————————————————————————————————————————————————————————————————*/
 	doPointerDown(x, y, e) {
-		var eve = this._eve.onPointerDown;
-		
 		this.setFocus();
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
+		return this.dispatch(this._eve.onPointerDown, x, y, e);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -677,10 +669,8 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that it has mouse released over.
 	——————————————————————————————————————————————————————————————————————————*/
 	doPointerUp(x, y, e) {
-		var eve = this._eve.onPointerUp;
-		
 		this.invalidate();
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
+		return this.dispatch(this._eve.onPointerUp, x, y, e);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -688,9 +678,7 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that it has mouse moving over.
 	——————————————————————————————————————————————————————————————————————————*/
 	doPointerMove(x, y, e) {
-		var eve = this._eve.onPointerMove;	
-		
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);
+		return this.dispatch(this._eve.onPointerMove, x, y, e);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -698,12 +686,10 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that it has mouse over.
 	——————————————————————————————————————————————————————————————————————————*/
 	doPointerOver(x, y, e) {
-	var eve = this._eve.onPointerOver;					// fetch event to relay
-	
 		this._ptrOver = true;							// flag pointer over
 		if (this._ctlState === TCtl.ALIVE)				// if state is ALIVE 
 			this.controlState = TCtl.HOVER;				// set it to HOVER
-		return ((eve) ? eve.dispatch([this, x, y, e]) : null);	
+        return this.dispatch(this._eve.onPointerOver, x, y, e);	
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -711,12 +697,10 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that mouse leaves.
 	——————————————————————————————————————————————————————————————————————————*/
 	doPointerOut() {
-	var eve = this._eve.onPointerOut;					// fetch event to relay
-	
 		this._ptrOver = false;						    // not any more.
 		if (this._ctlState === TCtl.HOVER)
 			this.controlState = TCtl.ALIVE;
-		return ((eve) ? eve.dispatch([this]) : null);	
+            return this.dispatch(this._eve.onPointerOut);
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -724,10 +708,8 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that it enters focus.  
 	——————————————————————————————————————————————————————————————————————————*/
 	doFocusIn() {
-		var eve = this._eve.onFocusIn;				    // fetch event
-	
 		this.controlState = TCtl.FOCUS;
-		return ((eve) ? eve.dispatch([this]) : null);	// dispatch it
+		return this.dispatch(this._eve.onFocusIn);	    
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -735,13 +717,11 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that it leaves focus.
 	——————————————————————————————————————————————————————————————————————————*/
 	doFocusOut() {
-		var eve = this._eve.onFocusOut;				// fetch event
-	
 		if (this._ctlState == TCtl.SLEEP)
 			return null;
 		if (this._ctlState == TCtl.FOCUS)
 			this.controlState = (this._ptrOver ? TCtl.HOVER : TCtl.ALIVE);
-		return ((eve) ? eve.dispatch([this]) : null);	// dispatch it
+		return this.dispatch(this._eve.onFocusOut);	
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -893,7 +873,7 @@ export class TControl extends TComponent {
             case "max":
                 return t._autoMaxW();    
             default:
-    		    return t._calcAutoCss('width', '_w', val);
+    		    return t._calcAutoCss('width', '_w', '_cvW', '_cpW', val);
             }
         default:
     	}
@@ -922,7 +902,7 @@ export class TControl extends TComponent {
             case "max":
                 return t._autoMaxH();    
             default:
-    		    return t._calcAutoCss('height', '_h', val);
+    		    return t._calcAutoCss('height', '_h', '_cvH', '_cpH', val);
             }
     	default:
         }
@@ -953,7 +933,7 @@ export class TControl extends TComponent {
     		case "center":
     			return t._setX((oiw - t._w) / 2);
     		default:
-                return t._calcAutoCss('left', '_x', val);
+                return t._calcAutoCss('left', '_x', '_cvX', '_cpX', val);
     		}
         default:
     	}
@@ -984,7 +964,7 @@ export class TControl extends TComponent {
     		case "center":
     			return t._setY((oih - t._h) / 2);
     		default:
-    			return t._calcAutoCss(t, 'top', '_y', val);
+    			return t._calcAutoCss(t, 'top', '_y', '_cvY', '_cpY', val);
     		}
         default:
     	}
@@ -998,28 +978,28 @@ export class TControl extends TComponent {
         Called by _calcAuto methods. 
       ARGS: 
       	attr        : string   : CSS attribute name.
-        vnam        : string   : Control variable name.
+        ctv         : string   : Control variable name.
+        cvn         : string   : Css render variable name.
+        cpn         : string   : Css render parse flag variable name.
         value       : string   : CSS value.
-
       RETV: 	    : boolean  : true if property changes.
     ——————————————————————————————————————————————————————————————————————————*/
-    _calcAutoCss(attr, vnam, value) {
+    _calcAutoCss(attr, ctv, cvn, cpn, value) {
         var t = this,
             s = t._element.style, 
-            c = vnam[1].toUpperCase(),
             r;        
 
         if (s[attr] !== value) {    // If value is not set,
-            t['_cv'+c] = value;     // Set value at render.
-            t['_cp'+c] = true;      // Parse value after setting.
+            t[cvn] = value;         // Set value at render.
+            t[cpn] = true;          // Parse value after setting.
             t._cCssWait = true;
             return true;            // Things changed...
         }                           
         // If value is set, then get current value in *pixels*.
         r = parseFloat(t._computed[attr] || '0'); 
-        if (t[vnam] === r)          // If every thing is same,
+        if (t[ctv] === r)           // If every thing is same,
             return false;           // say no change.
-        t[vnam] = r;                // otherwise things changed
+        t[ctv] = r;                 // otherwise things changed
         return true;                // say it so.
     }
 

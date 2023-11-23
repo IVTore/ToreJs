@@ -170,7 +170,6 @@ export class TComponent extends TObject {
         var allow = this.class.allowMemberClass,
             avoid = this.class.avoidMemberClass,
             write = this.class.allowMemberOverwrite,
-            event = this.onAttach,
             c = component,
             o,
             n;
@@ -210,8 +209,7 @@ export class TComponent extends TObject {
 			}
 		);
 		c.doAttached();						// Inform component.
-		if (event)
-			event.dispatch([this, c]);
+        this.dispatch(this._eve.onAttach, c);
 		return(true);
 	}
 	
@@ -225,16 +223,14 @@ export class TComponent extends TObject {
 	  RETV: 		: Boolean	 : True on success
 	——————————————————————————————————————————————————————————————————————————*/
 	detach(component = null, kill = false) {
-	    var c = component,
-		    event = this._eve.onDetach;
+	    var c = component;
 		
 		this.checkDead();
 		if (!(c instanceof TComponent))		// if not a component exception
 			exc('E_INV_ARG','component');
 		if (c._own !== this)				// if barking at the wrong tree
 			return false;
-		if (event)							// dispatch if event exists
-			event.dispatch([this, c]);
+		this.dispatch(this._eve.onDetach, c);  // dispatch if event exists
 		c._own = null;						// detach member.
 		delete this[c._nam];				// delete getter.
 		delete this._mem[c._nam];			// remove.
@@ -357,7 +353,7 @@ export class TComponent extends TObject {
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROC: getEvent.
+	  FUNC: getEvent.
 	  TASK:	Returns the event handler assigned to an event if any.
 	  ARGS:	
 		name	: String		: name of the event.
@@ -370,6 +366,25 @@ export class TComponent extends TObject {
 			return null;
 		r = this._eve[name];
 		return (r) ? r : null;
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: dispatch.
+	  TASK:	
+        Dispatches event with arguments if event is valid.
+        Sender (this) is automatically added as the first argument.
+	  ARGS:	
+		event   : TEventHandler	: event handler object.
+                : string        : event name.
+        args    : Array         : arguments.
+	  RETV: 	: *	            : whatever event handler returns.
+	——————————————————————————————————————————————————————————————————————————*/
+	dispatch(event = null, ...args) {
+        if (event === null) 
+            return;
+        if (typeof event === 'string')
+            event = this._eve[event];
+		return (event instanceof TEventHandler) ? event.dispatch(...args) : null;
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
@@ -399,10 +414,7 @@ export class TComponent extends TObject {
 	  TASK:	Signals component that loading (deserialization) is complete.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLoadComplete() {
-	    var eve = this.onLoadComplete;
-		
-		if (eve)
-			eve.dispatch([this]);
+	    this.dispatch(this._eve.onLoadComplete);
 		super.doLoadComplete();
 	}
 	
@@ -411,11 +423,9 @@ export class TComponent extends TObject {
 	  TASK:	Signals component that language has changed.
 	——————————————————————————————————————————————————————————————————————————*/
 	doLanguageChange() {
-	var eve = this.onLanguageChange,
-		n;
+	    var n;
 
-		if (eve)
-			eve.dispatch([this]);
+        this.dispatch(this._eve.onLanguageChange);
 		for(n in this._mem)					// propagate to members
 			this._mem[n].doLanguageChange();
 	}
@@ -440,7 +450,7 @@ export class TComponent extends TObject {
 	}
 		
 	set name(val) {
-		if (val == this._nam)
+		if (val === this._nam)
 			return;
 		if (!sys.isIdent(val))
 			exc('E_NAME_SYNTAX', val);

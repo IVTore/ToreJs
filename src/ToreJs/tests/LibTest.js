@@ -1,4 +1,4 @@
-import {sys, exc, core, send, TObject, TEventHandler, TComponent, THttpClient} from "../lib/index.js";
+import {sys, exc, log, core, send, TObject, TEventHandler, TComponent, THttpClient} from "../lib/index.js";
 
 const c = console;
 c.log('\n———————————————————————————————————————————————————');

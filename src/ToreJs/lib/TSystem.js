@@ -20,9 +20,18 @@ const WHITESPACE_REGEXP = new RegExp(/^\s*$/);
 // Please refer to : sys.exceptionInterceptor.
 var excInterceptor = null;
 
-// Exception log to console variable.
-// Please refer to : sys.setExceptionLogToConsole.
-var excLogToConsole = true;
+// Exception output to console variable.
+// Please refer to : sys.exceptionLogToConsole.
+var excToConsole = true;
+
+// Log function.
+// Please refer to : sys.logFunction.
+var sysLogFunction = console.log;
+
+// LogEnabled flag.
+// Please refer to : sys.logEnabled.
+var sysLogEnabled = true;
+
 
 // Class registry.
 const classes = {
@@ -43,6 +52,7 @@ const classes = {
 function exc(tag = "E_NO_TAG", inf = "", err = null) {
 var asg = err instanceof Error,
     cex = asg ? err : new Error(tag),
+    clg = console.log,
     dta = {
         exc: cex.name, 
         tag: tag,
@@ -53,16 +63,21 @@ var asg = err instanceof Error,
     if (typeof excInterceptor === 'function') 
         excInterceptor(dta, err);
 
-    if (excLogToConsole) {
-        console.log("———————————————————————————————————————————————————————————————————————————");
-        console.log("EXC: ", dta.exc);
-        console.log("TAG: ", dta.tag);
-        console.log("INF: ", dta.inf);
-        console.log("MSG: ", dta.msg);
-        console.log("———————————————————————————————————————————————————————————————————————————");
+    if (excToConsole) {
+        clg("———————————————————————————————————————————————————————————————————————————");
+        clg("EXC: ", dta.exc);
+        clg("TAG: ", dta.tag);
+        clg("INF: ", dta.inf);
+        clg("MSG: ", dta.msg);
+        clg("———————————————————————————————————————————————————————————————————————————");
     }
     if (!asg)
         throw cex;
+}
+
+function log(...args) {
+    if (sysLogEnabled && sysLogFunction instanceof Function)
+        sysLogFunction(...args);
 }
 
 /*———————————————————————————————————————————————————————————————————————————
@@ -72,10 +87,11 @@ var asg = err instanceof Error,
 const sys = {
 
     // TObject states
-	DEAD: 0,			// logically dead
-	LIVE: 1,			// live
-	SAVE: 2,			// saving
-	LOAD: 3,			// loading
+    CTOR:-1,            // In construction.
+	DEAD: 0,			// logically dead.
+	LIVE: 1,			// live.
+	SAVE: 2,			// saving.
+	LOAD: 3,			// loading.
 
     /*———————————————————————————————————————————————————————————————————————————
       PROP: exceptionInterceptor : function [static]. 
@@ -102,18 +118,46 @@ const sys = {
     },
 
     /*———————————————————————————————————————————————————————————————————————————
-      PROP: exceptionLogToConsole : boolean [static].
-      SET : Sets    if the exceptions will be logged to console.
-      GET : Returns if the exceptions will be logged to console.
-      ARGS: val : function : Exception interceptor method. :DEF: true.
+      PROP: exceptionToConsole : boolean [static].
+      SET : Sets    if the exceptions will be written to console.
+      GET : Returns if the exceptions will be written to console.
     ———————————————————————————————————————————————————————————————————————————*/
-    set exceptionLogToConsole(val = true) {
+    set exceptionToConsole(val = true) {
         excLogToConsole = !!val;
     },
 
-    get exceptionLogToConsole() {
-        return excLogToConsole;
+    get exceptionToConsole() {
+        return excToConsole;
     },
+
+    /*———————————————————————————————————————————————————————————————————————————
+      PROP: logFunction : Function [static].
+      SET : Sets    the logging function.
+      GET : Returns the logging function .
+      ARGS: val : function : logging function. :DEF: null.
+    ———————————————————————————————————————————————————————————————————————————*/
+    set logFunction(val = null) {
+        if (val instanceof Function)
+            sysLogFunction = val;
+    },
+
+    get logFunction() {
+        return sysLogFunction;
+    },
+
+    /*———————————————————————————————————————————————————————————————————————————
+      PROP: logEnabled : boolean [static].
+      SET : Sets    if logging is enabled.
+      GET : Returns if logging is enabled.
+    ———————————————————————————————————————————————————————————————————————————*/
+    set logEnabled(val = true) {
+        sysLogEnabled = !!val;
+    },
+
+    get logEnabled() {
+        return sysLogEnabled;
+    },
+
 
     /*———————————————————————————————————————————————————————————————————————————
       FUNC: chk [static].                                      
@@ -186,8 +230,8 @@ const sys = {
 	  FUNC: isSuper [static].
 	  TASK: Returns true if the class cls is super class of class sub or same.
 	  ARGS:
-		cls	: Class     : presumed super class (ctor).
-		sub	: Class     : presumed descendant class (ctor).
+		cls	: Class     : presumed super class (constructor).
+		sub	: Class     : presumed descendant class (constructor).
 	  RETV:	: boolean   : true if cls is Super Class or same of sub class.
     ———————————————————————————————————————————————————————————————————————————*/
     isSuper(cls, sub) {
@@ -239,41 +283,38 @@ const sys = {
     
 	/*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	fetchObject [static].
-	  TASK:	Tries to fetch an object from its namepath from window.
+	  TASK:	Tries to fetch an object from its namepath.
 	  ARGS:	namePath	: String	: object name path or
 					    : Array		: pre splitted object name path
 		    fromObject	: Object	: Start object. :DEF: null, means window.
 	  RETV:			    : Object 	: fetched object.
+      INFO: For arrays, a syntax like "myObject.subObjsArr.3.someProp" work.
+      WARN: Raises exception if object or variable does not exist.
 	———————————————————————————————————————————————————————————————————————————*/
 	fetchObject(namePath = "", fromObject = null){
 		var	curObj = (fromObject) ? fromObject : window,
 			namArr,
 			i;
 		
-		namArr = (namePath instanceof Array) ? namePath : 
-                    (namePath === '') ? [] : namePath.split('.');
+		namArr = (namePath instanceof Array) ? namePath : (namePath === '') ? [] : namePath.split('.');
 		try {								
 			for(i in namArr)			// try fetching by names
 				curObj = curObj[namArr[i]]; 
 		} catch (e) {   				// on failure
-			exc(	
-				'E_REF_INV', 
-				null, 
-				namArr.join('.') + ' [' + namArr[i] + ']?'
-			);
+			exc('E_REF_INV', null, namArr.join('.') + ' [' + namArr[i] + ']?');
 		}
 		return(curObj);					// return fetched
 	},
 
     /*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	addUnique [static].
-	  TASK:	Adds an item to array if it is not already added.
+	  FUNC:	arrAddUnique [static].
+	  TASK:	Adds an item to an array if it is not already added.
 	  ARGS:	array	: Array		: Array to add item to.
 		    item	: *			: Item to add.
 	  RETV:	    	: number	: Index of item.
 	  INFO:	*	Throws exception if array argument is null or not an array.
 	———————————————————————————————————————————————————————————————————————————*/
-	addUnique(array = null, item = null) {
+	arrAddUnique(array = null, item = null) {
 		var i;
 
 		if (!array || !Array.isArray(array))
@@ -285,6 +326,29 @@ const sys = {
 	},
 
     /*———————————————————————————————————————————————————————————————————————————
+	  FUNC:	arrDelUnique [static].
+	  TASK:	Deletes an item from an array if it exists.
+	  ARGS:	array	: Array		: Array to remove item from.
+		    item	: *			: Item to remove.
+	  
+      INFO: Unique here is the expected state of item in the array not a fact.
+            This deletes the all instances of item it encounters in the array.
+	  WARN:	*	Throws exception if array argument is null or not an array.
+	———————————————————————————————————————————————————————————————————————————*/
+	arrDelUnique(array = null, item = null) {
+		var i;
+
+		if (!array || !Array.isArray(array))
+			exc('E_INV_ARG', 'array');
+        while (true) {
+		    i = array.indexOf(item);
+		    if (i === -1)
+			    return;
+            array.splice(i, 1);
+		}
+	},
+
+    /*———————————————————————————————————————————————————————————————————————————
 	  FUNC:	registerClass [static].
 	  TASK:	Adds a class to class registry. If it is not prepared, prepares it.
       ARGS:	cls	: Class	: Class constructor.
@@ -292,7 +356,7 @@ const sys = {
     registerClass(cls = null) {
         if (!sys.isClass(cls))
             return;
-        console.log("Registering " + cls.name + ".");
+        log("Registering " + cls.name + ".");
         if (!sys.isSuper(TObject, cls)) {
             classes[cls.name] = cls;
             return;
@@ -315,10 +379,28 @@ const sys = {
 			exc('E_INV_ARG', 'target');
 		if(typeof handler !== 'string')
 			exc('E_INV_ARG', 'handler');
-		if(!typeof target[handler] === 'function')
+		if(!(target[handler] instanceof Function))
 			exc('E_HANDLER_INV', target.name + "." + handler);
 		return(function(e){target[handler](e);});
 	},
+
+    /*———————————————————————————————————————————————————————————————————————————
+      FUNC:	resolveODS  [static].
+      TASK  Checks and resolves an Object Designator String (ODS).
+      ARGS:	tar     : Object :  target object.
+            par     : Object :  parent object. 
+            ods     : String :  object designator string.
+      RETV:         : *      :  if valid ODS, returns designated value.
+                                otherwise, the ods string.                                 
+      INFO: Invalid parameters raise exception.
+    ———————————————————————————————————————————————————————————————————————————*/
+    resolveODS: function(tar = null, par = null, ods = null) {
+        sys.chk(tar, 'tar');
+        sys.str(ods, 'ods');
+        if (ods[0] !== '.')
+            return ods;
+        return fastResolveODS(tar, par, ods);
+    },
 
     /*———————————————————————————————————————————————————————————————————————————
 	  PROC:	propSet [static].
@@ -330,108 +412,148 @@ const sys = {
 					  p is used during recursive descent assignments for 
 					  ".prnt." definitions automatically.
 	  INFO:
-		If t has properties which are also sub objects it is possible to 
+        * Tricky object designator string values:
+			propName: 	".t."   will fetch from "this" and assign.
+			propName: 	".p."   will fetch from parent of "this" and assign.
+			propName: 	".c."   will fetch from core and assign.
+
+		* If t has properties which are also sub objects it is possible to 
 		set their properties in a single call. Requirements are as follows:
-		A) The sub object should be made before the call to propSet.
-		B) The data should be added like this: 
+        A) If sub object exists:
+	        The data should be added like this: 
 			<subObjectName>: { <prop>: <value>, <prop>: <value>}
-			Example: for a panel 'p' with a button named 'b' inside;
+			Ex: for a panel 'p' with a button named 'b' inside;
 			propSet(p, {x: 10, y:10, b: {x:5, y:5} });
-		It is possible to make sub objects during propSet.
-		To make a sub object the information should be given in the 
-		following format:
-			<subObjectName>: {	_new_: <subObject className or class>,
-								_var_: <true if to be added as variable>,
+        B) If sub object does not exist:
+		    It is possible to make sub objects during propSet.
+		    <subObjectName>: {	_new_: <subObject className or class>,
+								_var_: <assign as variable, look below>,
 								<prop>: <value>, <prop: value>...}   
-		_new_ can be the class constructor or a string having class name.
-		_var_ is only for components.
-		When set to false it means the sub object will be added as
-		a member component. 
+            Ex: for a panel 'p', to make a button named 'b' inside;
+			propSet(p, {x: 10, y:10, b: {_new_: TButton, x:5, y:5} });
+		    _new_ can be the class constructor or a string having class name.
+		    _var_ is valid only for when target and sub object are components.
+    		When set to false or not set at all it means the sub component 
+            will be added as a member component. 
 			THIS		 SUB			_var_    defaults to
 			TComponent	 TComponent		false	(false - add as member)
 			TComponent	 TComponent		true	(true  - add as variable)
 			TComponent	!TComponent		ignored	(true  - add as variable)
 		   !TComponent	!TComponent		ignored	(true  - add as variable)
-		When _var_ defaults to true, it is not overridable.
-
-		Tricky object designator string values:
-			propName: 	".t."   will fetch from "this" and assign.
-			propName: 	".p."   will fetch from parent of "this" and assign.
-			propName: 	".c."   will fetch from core and assign.
+		    When _var_ defaults to true, it is not overridable.
+        C) If sub object exists the _new_ & _var_ are ignored.  
 	———————————————————————————————————————————————————————————————————————————*/
-	propSet: function(t = null, s = null, p = null){  
-        var i,	c,o,d,e;
-    
-        if (t === null)
-            exc('E_INV_ARG', 't');
-        if (s === null)
-            exc('E_INV_ARG', 's');
-        
-        for(e in s){							// iterate source elements
-            if (e === '_new_' || e === '_var_')	// those keys are processed
-                continue;
-            i = s[e];							// get element value at source
-            if(i === null){						// if null
-                t[e] = i;						// set directly
-                continue;
-            }
-            // Tricky object designator string value evaluator, abracadabra...
-            if (typeof i === 'string' && i[0] === '.' ) {
-                d = i.substring(3);
-                switch(i[1]) { 
-                case 't':                       
-                    t[e] = sys.fetchObject(d, t);
-                    continue;
-                case 'c' :
-                    t[e] = sys.fetchObject(d, core);
-                    continue;
-                case 'p':
-                    if (p !== null) {
-                        t[e] = sys.fetchObject(d, p);
+    propSet: function(tar = null, src = null, par = null) { 
+        var lst = [],
+            res = [],
+            bnd = [],
+            cur = 0,
+            itm,
+            typ,
+            val,
+            cla,
+            obj;
+
+
+        function pushLst(t, s, p) {
+            sys.chk(t, "target");
+            sys.chk(s, "source");
+            lst.push({t: t, s: s, p: p});
+            if (t instanceof TObject)
+                t._sta = sys.LOAD;
+        }
+
+        sys.arrAddUnique(res, par);
+        sys.arrAddUnique(res, tar);
+        pushLst(tar, src, par);
+
+        while(cur < lst.length) {
+            obj = lst[cur];
+            tar = obj.t;
+            src = obj.s;
+            par = obj.p;
+            cur++;                
+            for(itm in src) {                                       // iterate source.      
+                if (itm === '_new_' || itm === '_var_')             // If special keys,
+                    continue;                                       // processed already.
+                val = src[itm];                                     // get value.
+                typ = typeof val; 
+                if (typ === 'undefined' || val === null) {          // If undefined or null.          
+                    tar[itm] = null;                                // set to null.
+                    continue;                                       // next.
+                }
+                if (val.constructor !== Object) {		            // If primitive-ish,
+                    if (typ === 'string' && val[0] === '.')         // If ODS, 
+                        val = fastResolveODS(tar, par, val);        // set value to resolved.
+                    tar[itm] = val;					                // set directly
+                    continue;                                       // next.
+                }		                                            // Here the value is Object.
+                if (tar[itm]) {                                     // if target exists.
+                    if (tar[itm] instanceof Object &&               // if target is Object and
+                        !(tar[itm] instanceof TEventHandler)) {     // not an event handler and
+                        pushLst(tar[itm], val,  tar);               // just transfer values.
                         continue;
                     }
-                    exc('E_NO_PARENT', 	((t._nam) ? t._nam : '?') + '.' + e + ' = ".p."');
-                    break;
-                }
+                }                                                   // tar[itm] needs instantiation.
+                cla = (val._new_) ? val._new_ : Object;
+                if (typeof cla === 'string')		                // if class name
+                    cla = sys.classByName(cla);		                // try fetching class
+                if (!sys.isClass(cla))				                // if failed to fetch, exception
+                    exc('E_CLASS_INV', (val._new_) ? val._new: 'null');
+                obj = new cla();
+                pushLst(obj, val, tar);                             // push to transfer list.
+                if (obj instanceof TComponent) {
+                    obj.name = val.name ? val.name : itm;
+                    if (!val._var_) {                               // If member, pre-bind.
+                        tar.attach(obj);                            // attach to owner.
+                        continue;                                   // no more binding here.   
+                    }
+                } 
+                bnd.push({t: tar, i: itm, o: sys.arrAddUnique(res, obj)});
             }
-            if (i.constructor !== Object){		// if source is not generic Object
-                t[e] = i;						// set directly
-                continue;
-            }									// source is generic object...
-            if(t[e] instanceof Object) {		// if target is an Object
-                sys.propSet(t[e], i, t);		// transfer values
-                continue;
-            }									// target is null...
-            if(!i._new_) {						// if not a new sub object
-                if (i._vp_) {
-                    t[e] = i;
-                    continue;
-                }
-                t[e] = {};
-                sys.propSet(t[e], i, t);		// transfer values
-                continue;
-            }									// new sub object...
-            c = i._new_;						// get the class
-            if (typeof c === 'string')			// if string
-                c = sys.classByName(c);			// try fetching class
-            if (!sys.isClass(c))				// if failed to fetch, exception
-                exc('E_CLASS_INV', (i._new_) ? 'null' : i._new_);
-            if (sys.isSuper(TComponent, c) ) {
-                o = new c( 
-                        (i.name) ? i.name: e,
-                        (i._var_) ? null : t, 
-                        i);
-                if (i._var_)
-                    t[e] = o;
-                continue;
-            }
-            o = new c();
-            sys.propSet(o, i, t);
-            t[e] = o;
+        }
+        for (itm of bnd)                                            // lazy binder.
+             itm.t[itm.i] = res[itm.o];
+        for (itm of lst) {                                          // deserializinator :D
+            if (itm.t instanceof TObject) 
+                itm.t.doDeserializeEnd();
         }
     }
 }
 
+/*———————————————————————————————————————————————————————————————————————————
+  FUNC:	fastResolveODS  [static private].
+  TASK  resolves Object Designator Strings.
+  ARGS:	tar     : Object :  target object.
+        par     : Object :  parent object. 
+        ods     : String :  object designator string.
+  RETV:         : *      :  if valid ODS, returns designated value.
+                            otherwise, the ods string.          
+  INFO: Internal system function.
+        This does not check parameters.
+        Returns null when *value of the variable* is undefined.
+  WARN: Raises exception when references or variable not found.
+———————————————————————————————————————————————————————————————————————————*/
+const R_ODS_STR = 'tpcw';
+const R_ODS_ERR = ['E_NO_TARGET', 'E_NO_PARENT', 'E_NO_CORE', 'E_NO_WINDOW'];
+
+function fastResolveODS(tar, par = null, ods) {
+    var i,    // indexer.
+        d,    // descriptor.
+        r;    // root & return.
+    
+    if (ods.length > 2 && ods[2] !== '.')
+        return ods;
+    i = R_ODS_STR.indexOf(ods[1]);
+    if (i === -1)
+        return ods;
+    d = ods.substr(3);
+    r = [tar, par, core, window][i];
+    if (!r)
+        exc(R_ODS_ERR[i], ((tar._nam) ? tar._nam : '?') + '.' + itm + ' = .' + ods[1] +'.'+ d);
+    r = sys.fetchObject(d, r);
+    return  typeof r !== 'undefined' ? r : null;
+}
 
 /*———————————————————————————————————————————————————————————————————————————
   FUNC:	prepareClassData [static private].
@@ -521,7 +643,7 @@ function defineEventProperty(ctor, propName) {
     );
 }
 
-// This makes sys really static.
+// This makes sys hopefully static.
 Object.freeze(sys);
 
 // Register base classes.
@@ -537,4 +659,4 @@ sys.registerClass(TComponent);
 ———————————————————————————————————————————————————————————————————————————*/
 const core = new TComponent('core');
 
-export {sys, exc, core};
+export {sys, exc, log, core};

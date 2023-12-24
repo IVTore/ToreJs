@@ -6,8 +6,15 @@
   About		: 	TCtlSys.js: Tore Js visual control component helpers.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, exc, core, TComponent }   from "../lib/index.js";
-import { display }                      from "./index.js";
+import {
+        sys, 
+        exc, 
+        core, 
+        TObject,
+        TComponent, 
+        resources 
+    }               from "../lib/index.js";
+import { display }  from "./index.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   CLASS:    TCtlSys [static singleton]
@@ -137,6 +144,27 @@ const TCtl = {
         return vpNam.concat();
     },
 
+    /*—————————————————————————————————————————————————————————————————————————
+      FUNC: calcVpName
+      TASK: Returns the viewport size name.
+      ARGS: w   : number : Viewport width in pixels or null for auto.
+      RETV:		: string : viewport size name.
+    —————————————————————————————————————————————————————————————————————————*/
+    calcVpName(w = null) {
+        var s = TCtl.vpSizes,
+            i,
+            l = s.length;
+
+        if (w === null)
+            w = document.documentElement.clientWidth;
+        for(i = 0; i < l; i++) {
+            if (w < s[i])
+                break;
+        }
+        return TCtl.vpNames[i];
+    },
+    
+
     /*——————————————————————————————————————————————————————————————————————————
   	  FUNC: vpValue.
   	  TASK: 
@@ -206,10 +234,221 @@ const TCtl = {
             return null;
         if (v.constructor === Object) {
             n = core.display.viewportName;
-            v = (v[n]) ? v[n] : v[df];
+            v = (v[n]) ? v[n] : v.df;
         }	
         return v;
+    },
+
+    /*———————————————————————————————————————————————————————————————————————————— 
+        Default Image Loader and Image XHR loader.
+        These are here instead of TImage since various controls can use images.
+    ————————————————————————————————————————————————————————————————————————————*/
+
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: imageLoader [public].
+      TASK: This loads an image into resources via an Image object.
+            Events are proxied to tar.
+      ARGS: src : string  : image url.
+            tar : TObject : Event target object.
+            par : Object  : Extra parameters. Irrelevant here.
+      RETV      : Promise : promise resolve(src) reject(errorMessage) 
+      INFO: 
+        *   Can be used standalone, target (tar) can be null.
+        *   Theoretically non-blocking :).
+        *   When image is loaded, it can be obtained from resources.
+        *   If the image is previously loaded and target is non null
+            triggers doLoadStart, doProgress, doLoad and doLoadEnd on target.
+    ——————————————————————————————————————————————————————————————————————————*/
+    imageLoader(src = '', tar = null, par = null) {
+        return imageLoaderCommon(src, tar, imageLoaderPromise, src, tar);
+    },
+
+    /*————————————————————————————————————————————————————————————————————————————
+      FUNC: imageLoaderXhr [public][export].
+      TASK: This loads an image into resources using XMLHttpRequest.
+      ARGS: src : string  : image url.
+            tar : TObject : Target TObject for events (resource claimer).
+            par : Object  : Extra parameters. Used for TXhrClient properties.
+      RETV      : Promise : promise resolve(src) reject(errorMessage) 
+      INFO: 
+        *   Can be used standalone, target (tar) can be null.
+        *   Non-blocking.
+        *   Theoretically non-blocking :).
+        *   When image is loaded, it can be obtained from resources.
+        *   If the image is previously loaded and target is non null
+            triggers doLoadStart, doProgress, doLoad and doLoadEnd on target.
+        *   This uses FileReader. Looks stable. Very slow for big images, 
+            since FileReader converts the image blob to base64 data before 
+            assigning. 
+        *   The use of URL createObjectURL() and revokeObjectURL() was messy. 
+            This may change when browsers support srcObject property.
+    ————————————————————————————————————————————————————————————————————————————*/
+    imageLoaderXhr(src = '', tar = null, par = null) {
+    	return imageLoaderCommon(src, tar, imageLoaderXhrPromise, src, par);
+    }    
+
+}
+
+// Internal:
+// This DRY routine contains common prelude for loading an image.
+function imageLoaderCommon(src, tar, promiseFunc, par) {
+    const r = resources;
+
+    sys.str(src, 'src');
+    tar = (tar instanceof TObject) ? tar : null;
+    if (r.hasAsset(src)) {
+        return new Promise((resolve) => {
+            if (tar && tar._sta)
+                ImageLoaderMethodTrigger(src, tar, ['LoadStart', 'Progress', 'Load', 'LoadEnd']);
+            resolve(src);
+        });
     }
+    if (r.hasClaim(src)) 
+        return r.addClaim(src);        
+    return r.newClaim(src, tar, promiseFunc(src, tar, par)) ;  
+}
+
+// Internal:
+// This DRY routine tries to compensate methods that are not normally triggered. 
+function ImageLoaderMethodTrigger(src, tar, def) {
+    var met, 
+        eve;
+
+    if (!tar || !tar._sta)
+        return;
+    for (met in def) {
+        eve = met.toLowerCase();
+        met = 'do' + met; 
+        if (tar[met] instanceof Function) 
+            tar[met](src, new ProgressEvent(eve))
+    }
+} 
+
+// internal.
+// Used in TCtl.imageLoader.
+function imageLoaderPromise(src, tar, par) {
+    var img = new Image(),
+        res = resources;
+
+    return new Promise((resolve, reject) => {
+        img.onabort = hndProblem; 
+        img.onerror = hndProblem;
+        img.onload = hndLoad;
+        img.onloadend = hndLoadEnd;
+        if (tar && tar._sta) 
+            ImageLoaderMethodTrigger(src, tar, ['LoadStart', 'Progress']);   
+        img.src = src;
+
+        function hndProblem(e) { 
+            var nm = e.type[0].toUpperCase() + e.type.substring(1);
+
+            res.trigger(src, 'do' + nm, e); 
+            reject('Image Load ' + nm + ' ['+ src + '].');
+        }
+
+        function hndLoad(e) {
+            res.add(src, img);
+            res.trigger(src, 'doLoad', e); 
+            resolve(src);
+        }
+
+        function hndLoadEnd(e) {
+            res.trigger(src, 'doLoadEnd', e);   // this is the last event.
+            res.delClaims(src);                 // so clear claims.
+            img.onabort = null; 
+            img.onerror = null;
+            img.onload = null;
+            img.onloadend = null;
+        }
+    });
+}
+
+// internal.
+// Used in TCtl.imageLoaderXhr.
+function imageLoaderXhrPromise(src, tar, par) {
+    var client = null,
+        reader = null,
+        xhr,
+        res = resources,        
+        img;
+
+    return new Promise((resolve, reject) => {  
+
+        client = new TXhrClient('GET', src, null, 'blob');
+        if (par)
+            sys.propSet(client, par);
+        xhr = client.xhr;
+        xhr.onloadstart = xhrLoadStart;
+        xhr.onload      = xhrLoad;
+        xhr.onloadend   = xhrLoadEnd;
+        xhr.onprogress  = hndProgress;
+        xhr.onabort     = hndProblem;       // Might be necessary.
+        xhr.ontimeout   = hndProblem;       // Might be necessary.
+        xhr.onerror     = hndProblem;
+        client.send();
+
+        // xhr handlers.
+        function xhrLoadStart(e) { 
+            res.trigger(src, 'doLoadStart', e); 
+        }
+
+        function xhrLoad(e) {  
+            if (xhr.status < 200 || xhr.status > 299) {
+                hndProblem({type: 'error'});
+                return;
+            }
+            reader = new FileReader();
+            reader.onprogress  = hndProgress;
+            reader.onabort     = hndProblem;
+            reader.onerror     = hndProblem;
+            reader.onload      = frdLoad;
+            reader.onloadend   = frdLoadEnd;
+            reader.readAsDataURL(xhr.response); 
+        }
+
+        function xhrLoadEnd(e) {
+            if (reader === null)                // If load failed,
+                cleanUp(e);                     // bailout.
+        }
+
+        // common handlers.
+        function hndProgress(e)  { res.trigger(src, 'doProgress', e); }
+
+        function hndProblem(e) { 
+            var nm = e.type[0].toUpperCase() + e.type.substring(1);
+
+            res.trigger(src, 'do' + nm, e); 
+            reject('Image Load ' + nm + ' ['+ src + '].');
+        }
+
+        // File reader handlers.
+        function frdLoad(e) {
+            img = new Image();
+            img.src = reader.result;
+            res.add(src, img);
+            res.trigger(src, 'doLoad', e);
+            resolve(src); 
+        }
+
+        function frdLoadEnd(e) {
+            cleanUp(e);           
+        }
+
+        function cleanUp(e) {
+            res.trigger(src, 'doLoadEnd', e);   // this is the last event.
+            res.delClaims(src);                 // Clear claims.
+            client.destroy();                   // Destroy xhr client.
+            client = null;                      // XhrClient to GC.
+            if (!reader)                        // If client failed,
+                return;                         // no reader, so return.
+            reader.onprogress  = null;
+            reader.onabort     = null;
+            reader.onerror     = null;
+            reader.onload      = null;
+            reader.onloadend   = null;
+            reader = null;                      // File reader to GC.
+        }
+    });    
 }
 
 Object.freeze(TCtl);

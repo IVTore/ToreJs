@@ -7,8 +7,8 @@
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { core, sys, exc, TComponent } from "../lib/index.js";
-import { TCtl, TContainer, TPanel, styler }   from "../ctl/index.js";
+import { core, sys, exc, TComponent} from "../lib/index.js";
+import { TCtl, TContainer, TPanel, styler, renderQueue }   from "../ctl/index.js";
 
 /*———————————————————————————————————————————————————————————————————————————— 
   CLASS: TControl
@@ -31,6 +31,12 @@ export class TControl extends TComponent {
     static elementTag = 'div';
     static wrapperTag = null;
 
+    static get defaultRoot() {
+        var n = this.name;
+        if (n[0] === 'T')
+            n = n.substring(1);
+        return n;
+    } 
 		
 
     // TControl initial style.
@@ -284,7 +290,7 @@ export class TControl extends TComponent {
 		if (this._invalid || this._noValidate)
 			return;
 		this._invalid = true;
-		core.display.addRenderQueue(this);
+		renderQueue.add(this);
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -381,7 +387,7 @@ export class TControl extends TComponent {
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: recalculate.
-	  TASK: Called by display, this calculates the necessary values for
+	  TASK: Called by renderer, this calculates the necessary values for
 			the control after rendering.
             Notifies owner if control is relocated.
 		    Notifies members if control is resized.
@@ -433,7 +439,7 @@ export class TControl extends TComponent {
     ——————————————————————————————————————————————————————————————————————————*/
     calcClassNames() {
         var t = this,
-            c = t.class.name + ((t._sRoot !== null) ? t._sRoot : ''),
+            c = (t._sRoot !== null) ? t._sRoot : t.class.defaultRoot,
             s = t.stateName;
 
         function calcSub(n){
@@ -455,6 +461,7 @@ export class TControl extends TComponent {
       RETV:     : number : maximum containable inner width for the control.
       INFO: Tries to find maximum width that can be contained in control.
             This maximum is according to the containers of the control.
+            Please do not meddle with this algorithm.
     ——————————————————————————————————————————————————————————————————————————*/
     maxContainableInnerW() {
     	var t = this,
@@ -489,12 +496,14 @@ export class TControl extends TComponent {
     	}
     	return mw - co;
     }
+
     /*——————————————————————————————————————————————————————————————————————————
       FUNC: maxContainableInnerH.
       TASK: This finds the maximum containable inner height for the control.
       RETV:     : number : maximum containable inner height for the control.
       INFO: Tries to find maximum height that can be contained in control.
             This maximum is according to the containers of the control. 
+            Please do not meddle with this algorithm
     ——————————————————————————————————————————————————————————————————————————*/
     maxContainableInnerH() {
     	var t = this,
@@ -586,20 +595,22 @@ export class TControl extends TComponent {
     setFocus(){
         core.display.currentControl = this;
     }
+
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doViewportResize
 	  TASK: Flags the control that viewport is resized.
+      ARGS: newViewportName : string :  if viewport name changes, 
+                                        this is the new viewport name,
+                                        otherwise it is null.
 	  INFO: This is a global dispatch from display control.
 	——————————————————————————————————————————————————————————————————————————*/
-	doViewportResize() {
+	doViewportResize(newViewPort = null) {
 		var c;
 
 		this._viewResize = true;
 		this.autoAdjust();
-		for(c of this._subCtls){
-			if (c instanceof TControl)
-				c.doViewportResize();
-		}
+		for(c of this._subCtls)
+			c.doViewportResize(newViewPort);
 		this._viewResize = false;
 		return this.dispatch(this._eve.onViewportResize);
 	}
@@ -609,16 +620,15 @@ export class TControl extends TComponent {
 	  TASK: Flags the control that its member is resized or repositioned.
 	  ARGS: 
 		member	: TControl  : Member control that is relocated.
-        suppress: boolean   : Suppresses invalidation by content change.
 	  INFO: 
 		Dimensions recalculated.
 		Called from relocate() method of member.
-		During viewport resize, autoAdjust is supressed.
+		During viewport resize, content change invalidation is supressed.
 	——————————————————————————————————————————————————————————————————————————*/
-	doMemberRelocate(member = null, suppress = false) {
+	doMemberRelocate(member = null) {
 		if (member === null)
             return null;
-        if (!this._viewResize || suppress)
+        if (!this._viewResize)
 			this.contentChanged();
 		return this.dispatch(this._eve.onMemberRelocate, member);	
 	}
@@ -749,7 +759,7 @@ export class TControl extends TComponent {
             return dom;
         }
 
-        sys.str(e, t.class.name + ": static elementTag = ?","E_CTL_NO_DOM");
+        sys.str(e, t.constructor.name + ": static elementTag = ?","E_CTL_NO_DOM");
         t._wrapper = elementMaker(w);
         t._element = elementMaker(e);
         t._computed = window.getComputedStyle(t._element);    
@@ -1128,30 +1138,28 @@ export class TControl extends TComponent {
     ——————————————————————————————————————————————————————————————————————————*/
     _setAutoValue(val = null, pvar, prop, numOk = true, strOk = true) {
         var	t = this,
+            p = pvar,
             typ = typeof val;
         
-    	if (val === t[pvar])    // If no change,
-    		return false;		// no autoAdjust required.
-    	if (val === null) {     // If disabling auto value
-    		t[pvar] = null;     // disable it,
-    		return false;		// no autoAdjust required.
+    	if (val === t[p])           // If no change,
+    		return false;		    // no autoAdjust required.
+    	if (val === null) {         // If disabling auto value
+    		t[p] = null;            // disable it,
+    		return false;		    // no autoAdjust required.
     	}
     	if (strOk && typ === "string") {
     		sys.str(val, t.namePath + '.' + prop, 'E_INV_VAL');
-    		t[pvar] = val;
-    		return true;		// autoAdjust required.
+    		t[p] = val;
+    		return true;		    // autoAdjust required.
     	}
     	if (numOk && typ === "number") {
-    		t[pvar] = val;
-    		return true;        // autoAdjust required.
+    		t[p] = val;
+    		return true;            // autoAdjust required.
     	}
        	if (val.constructor === Object && TCtl.vpCheck(val)) {
-    		t[pvar] = Object.assign({}, val);
-            if (t[pvar]._vp_) {
-                delete t[pvar]._vp_;
-                return false;
-            }
-    		return true;		// autoAdjust required.
+    		t[p] = Object.assign({}, val);
+            t[p]._vpo = true;       // stamp it.
+            return true;		    // autoAdjust required.
     	}
         exc('E_INV_VAL',  t.namePath + '.' + prop);
         return false;           // never executes.        

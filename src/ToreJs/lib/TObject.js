@@ -6,7 +6,7 @@
   About		: 	TObject.js: Tore Js base object class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, exc} from "./TSystem.js"
+import { sys, exc, core} from "./TSystem.js"
 
 /*——————————————————————————————————————————————————————————————————————————— 
   CLASS: TObject
@@ -14,9 +14,13 @@ import { sys, exc} from "./TSystem.js"
 ———————————————————————————————————————————————————————————————————————————*/
 export class TObject extends Object{
 
-	static get class() { return this;}
+	static serializable = true;
+    static get class() { return this;}
+    
+    _sta = sys.CTOR;
+    _resLst = [];
 
-	/*———————————————————————————————————————————————————————————————————————————
+    /*———————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
 	  TASK: Constructs a TObject instance.
 	  ARGS: 
@@ -30,7 +34,7 @@ export class TObject extends Object{
 		//—————————————————————————————————————————————————————————————————————
 		if (!data)
 			return;
-		if (data == sys.LOAD)
+		if (data === sys.LOAD)
 			this._sta = sys.LOAD;
 		else
 			sys.propSet(this, data);
@@ -49,9 +53,11 @@ export class TObject extends Object{
 		
 		if (!this._sta)					// dead already
 			return;
-		this._sta = sys.DEAD;
+        if (this._resLst.length > 0)    // unlink resources
+            core.resources.removeTarget(this);    
+        this._sta = sys.DEAD;
 		for(i in this){					// wipe dynamics
-			if (c[i] || i[0]==='_')
+			if (c[i] || i[0] === '_')
 				continue;
 			delete this[i];
 		}
@@ -99,9 +105,20 @@ export class TObject extends Object{
 	  TASK:	Used to signal object that loading is complete.
       INFO: This is called when sys.deserialize or sys.propSet is completed.
 	———————————————————————————————————————————————————————————————————————————*/
-	doLoadComplete(){
-		if (this._sta == sys.LOAD)
-			this._sta = sys.LIVE;
+	doDeserializeEnd(){
+		if (this._sta !== sys.LOAD)
+            return;
+        this._sta = sys.LIVE;
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC:	doResourcelinkRemoved.
+	  TASK:	Signals object that a resource with name is no more linked.
+	  ARGS:	resourceName : string	: resource name.
+	  INFO: This is to be overridden.
+	——————————————————————————————————————————————————————————————————————————*/
+	doResourceLinkRemoved(resourceName = null) {
+		
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
@@ -129,3 +146,5 @@ export class TObject extends Object{
 		return this._sta; 
 	}
 }
+
+// register class at sys.

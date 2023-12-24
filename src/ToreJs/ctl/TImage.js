@@ -8,7 +8,14 @@
   License	: MIT.
 ————————————————————————————————————————————————————————————————————————————*/
 
-import { exc, sys, resources, send, TComponent } from "../lib/index.js";                         
+import {    
+        exc, 
+        sys, 
+        log, 
+        resources, 
+        TObject,
+        TXhrClient
+}                   from "../lib/index.js";                         
 import { TCtl }     from "./TCtlSys.js";
 import { TControl } from "./TControl.js";
 
@@ -16,12 +23,10 @@ import { TControl } from "./TControl.js";
   CLASS: TImage
   TASKS: Defines behaviours of Tore JS TImage controls.
 ————————————————————————————————————————————————————————————————————————————*/
+class TImage extends TControl {
 
-export class TImage extends TControl {
-
-	// TImage allows sub components but does not support sub controls.
-	static allowMemberClass = TComponent;
-	static avoidMemberClass = TControl;
+	// TImage does not allow sub components for now.
+	static allowMemberClass = null;
 
 	static elementTag = 'img';	
 	static canFocusDefault = false;	
@@ -29,20 +34,30 @@ export class TImage extends TControl {
     static cdta = {
 		src:			{value: null},
         loader:         {value: null}, // = imageLoader()
+        strategy:       {value: 'auto'},
 		aspectRatio:	{value: 1},
+        onLoadStart:    {event: true},
+        onLoad:         {event: true},
+        onLoadEnd:      {event: true},
         onProgress:	    {event: true},
-        onLoad:	    	{event: true},
+        onTimeout:      {event: true},
+        onAbort:        {event: true},
 		onError:		{event: true}
 	}
 
 	_src = null;			// source definition.
-    _cur = null;			// current source.
-    _ldr = null;            // loader method, null binds imageLoader().
-	_asp = 1;		        // image aspect ratio.
-    _active = false;    	// loading in progress.
-	
-	
-	
+    _curImg = null;			// current image.
+    _nxtImg = null;         // next image (avoids race conditions).
+    _loader = null;         // loader method, null binds imageLoader().
+    _alt    = null;         // Image alternate text.
+    _title  = null;         // Image title text.
+	_aspect = 1;		    // image aspect ratio.
+    _strategy = 'auto';     // loading strategy,
+                            // 'auto' = auto manage.
+                            // 'manual' = programmer manages by commands.
+                            // 'agressive' = load all viewport images a.s.a.p.
+    _loading = [];          // images that are currently loading. 
+    	
 	/*——————————————————————————————————————————————————————————————————————————
       CTOR: constructor.
       TASK: Constructs an TImage component, attaches it to its owner if any.
@@ -59,64 +74,148 @@ export class TImage extends TControl {
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy.
-	  TASK: Removes image link from resources, destroys the TImage instance.
+	  TASK: Destroys the TImage instance.
+      INFO: Resources (images) used are unlinked at inherited destroy.
 	————————————————————————————————————————————————————————————————————————————*/
 	destroy() {
 		if (!this._sta)
 			return;
-		if (this._cur)	
-			resources.removeLink(this._cur, target);
 		this._src = null;
 		super.destroy();		// inherited destroy
 	}
-
+   
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: load
-	  TASK: Tries to load the image.
-	  INFO: First looks up to resources if image exists,
-			if so links the image form there.
-			Otherwise calls TLoader instance this.loader refers to.
+	  TASK: Tries to load the image or images according to strategy.
 	——————————————————————————————————————————————————————————————————————————*/
 	load() {
-		var snm = this.nextSrc;
-					
-		if (this.assign(snm))
-			return;	
-		
-		this.loader.apply(null, [this]);
+		var t = this,
+            s = TCtl.autoValue(t._src),
+            v;
+
+        if (!sys.str(s))
+            return;
+        innerLoader(true);
+        if (t._strategy === 'agressive' && t._src instanceof Object) {
+            for(v in t._src) {
+                s = t._src[v];
+                innerLoader(false);
+            }
+        }
+        
+        function innerLoader(assign = false) {
+            if (assign)  
+                t._nxtImg = s;
+            if (resources.hasAsset(s)) {
+                if (assign)
+                    t.doLoad(s, null);
+                return;
+            }    
+            if (!resources.hasClaim(s))  
+                setTimeout(t.loader, null, s, assign ? t : null);
+        }
 	}
 	
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doProgress
-	  TASK: Flags the image control that image load is progressing.
-	  ARGS: e   : progress event.
-	  INFO: Invokes onLoad(sender, e) if defined.
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doLoadStart
+      TASK: Flags the image control that image loading is started.
+      ARGS: src : string : source url.
+            e   : event  : progress event.
+      INFO: Invokes onLoadStart(sender, src, e) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doProgress(e = null) {
-		console.log(this.namePath, 'progress');
-		return this.dispatch(this._eve.onProgress, e);
-	}
+    doLoadStart(src, e) {
+        log(this.namePath, 'loadStart');
+		return this.dispatch(this._eve.onLoadStart, src, e);
+    }
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doLoad
-      TASK: Flags the image control that image load is completed.
-	  ARGS: e   : load event.
+      TASK: Flags the image control that image is loaded.
+      ARGS: src : string : source url.
+            e   : event  : progress event.
+      INFO: This is sent after image is loaded and in resources.
+            Invokes onLoad(sender, src, e) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doLoad(e = null) {
-		console.log(this.namePath, 'load');
-		return this.dispatch(this._eve.onLoad, e);
+    doLoad(src, e) {
+        var t = this, // really helpful in closure.
+            img;
+
+		if (src === t._curImg || src !== t._nxtImg)
+            return false;
+		img = resources.addLink(src, t);
+		if (img) {
+            t._element.onload = innerOnLoad;
+			t._element.src = img.src;
+		}
+        return (img !== null);
+
+        function innerOnLoad() {
+            t._curImg = src;
+            t._element.onload = null;
+            log(t.namePath, 'load');
+            t.contentChanged();
+            t.dispatch(t._eve.onLoad, src, e);
+        }		 
     }
 
     /*——————————————————————————————————————————————————————————————————————————
-	  FUNC: doError
-	  TASK: Flags the image control that image load has an error.
-	  ARGS: e   : error event.
+	  FUNC: doLoadEnd
+      TASK: Flags the image control that image loading is finalized.
+      ARGS: src : string : source url.
+            e   : event  : progress event.
+      INFO: Invokes onLoadEnd(sender, src, e) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doError(e = null) {
-		console.log(this.namePath, 'error');
-		return this.dispatch(this._eve.onError, e);
+    doLoadEnd(src, e) {
+        log(this.namePath, 'loadEnd');
+		return this.dispatch(this._eve.onLoadEnd, src, e);
     }
 
+	/*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doProgress
+	  TASK: Flags the image control that image load is progressing.
+	  ARGS: src : string : source url.
+            e   : event  : progress event.
+	  INFO: Invokes onProgress(sender, src, e) if defined.
+	——————————————————————————————————————————————————————————————————————————*/
+    doProgress(src, e = null) {
+		log(this.namePath, 'progress');
+		return this.dispatch(this._eve.onProgress, src, e);
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doTimeout
+	  TASK: Flags the image control that image load is timed out.
+	  ARGS: src : string : source url.
+            e   : event  : timeout event.
+	  INFO: Invokes onTimeout(sender, src, e) if defined.
+	——————————————————————————————————————————————————————————————————————————*/
+    doTimeout(src, e = null) {
+		log(this.namePath, 'timeout');
+		return this.dispatch(this._eve.onTimeout, src, e);
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doAbort
+	  TASK: Flags the image control that image load is aborted.
+	  ARGS: src : string : src (url).
+            e   : event  : progress event.
+	  INFO: Invokes onAbort(sender, e) if defined.
+	——————————————————————————————————————————————————————————————————————————*/
+    doAbort(src, e = null) {
+		log(this.namePath, 'abort');
+		return this.dispatch(this._eve.onAbort, src, e);
+	}
+    
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doError
+	  TASK: Flags the image control that image load has an error.
+	  ARGS: src : string : src (url).
+            e   : event  : progress event.ARGS: e   : error event.
+	——————————————————————————————————————————————————————————————————————————*/
+    doError(src, e = null) {
+		log(this.namePath, 'error');
+		return this.dispatch(this._eve.onError, src, e);
+    }
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doResourceLinkRemoved
@@ -124,9 +223,34 @@ export class TImage extends TControl {
 	  ARGS: name : string : image resource name.
 	——————————————————————————————————————————————————————————————————————————*/
     doResourceLinkRemoved(name = null) {
-		this._cur = null;
-		this._element.src = null;
+        if (name === this._curImg)
+            this._curImg = null;
     }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC:	doLoadComplete.
+	  TASK:	Signals control that loading (deserialization) is complete.
+	——————————————————————————————————————————————————————————————————————————*/
+	async doDeserializeEnd(dispatchEvent = true) {
+        super.doDeserializeEnd(false);
+        if (this._strategy !== 'manual') 
+            this.load();
+        if (!!dispatchEvent)
+            this.dispatch(this.onDeserializeEnd)
+	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: doViewportResize
+	  TASK: Flags the image that viewport is resized.
+	  INFO: This is a global dispatch from display control.
+	——————————————————————————————————————————————————————————————————————————*/
+	doViewportResize(newViewport = null) {
+	
+        if (newViewport) {
+            this.load();
+        }
+		super.doViewportResize(newViewport);
+	}
 
     /*——————————————————————————————————————————————————————————————————————————
       FUNC: _maxW [protected][override].
@@ -139,7 +263,7 @@ export class TImage extends TControl {
         *   maxW is aspectRatioW * naturalWidth.
     ——————————————————————————————————————————————————————————————————————————*/
     _maxW() {
-    	return this._asp * this.naturalWidth;         
+    	return this.naturalWidth;         
     }
 
     /*——————————————————————————————————————————————————————————————————————————
@@ -153,30 +277,7 @@ export class TImage extends TControl {
         *   maxW is aspectRatioH * naturalHeight.
     ——————————————————————————————————————————————————————————————————————————*/
     _maxH() {
-    	return this._asp * this.naturalHeight;         
-    }
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC: assign
-	  TASK: Assigns a named image from resources to TImage instance.
-	  ARGS: name : string  : image resource name.
-	  RETV: 	 : boolean : true if assignment is done.
-	——————————————————————————————————————————————————————————————————————————*/
-    assign(name = null) {
-		var img;
-
-		if (name === this._cur)
-			return true;
-		if (this._cur)	
-			resources.removeLink(this._cur, target);
-		img = resources.addLink(name, this);
-		if (img) {
-			this._element.src = img.src;
-			this._cur = name;
-			this.contentChanged();
-			return true;
-		}
-		return false;
+    	return (this._w / this.naturalWidth) * this.naturalHeight;         
     }
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -184,13 +285,13 @@ export class TImage extends TControl {
 	  GET : Gets the source url data.
 	  SET : Sets the source url data.
 	  INFO: 
-		* It can be a string like : "myImages/theImage.png".
+		* It can be a string like : "images/theImage.png".
 		* It can be a viewport object like :
         {
-            xs: "myImages/extraSmallImage.png", // for extra small viewport.
-            sm: "myImages/smallImage.png",		// for small viewport.
-            md: "myImages/mediumImage.png",		// for medium viewport.
-            df: "myImages/largeImage.png"		// for other viewports (default).
+            xs: "images/extraSmallImage.png",   // for extra small viewport.
+            sm: "images/smallImage.png",		// for small viewport.
+            md: "images/mediumImage.png",		// for medium viewport.
+            df: "images/largeImage.png"		    // for other viewports (default).
         }
 	————————————————————————————————————————————————————————————————————————————*/
 	get src() {
@@ -199,34 +300,86 @@ export class TImage extends TControl {
 
 	set src(val = null) {
         this._setAutoValue(val, '_src', 'src', false, true);
+        if (this._sta === sys.LOAD || this._strategy === 'manual')
+            return;
+        this.load();
+	}
+
+    /*————————————————————————————————————————————————————————————————————————————
+	  PROP:	alt : string.
+	  GET : Gets the image alt string.
+	  SET : Sets the image alt string.
+	————————————————————————————————————————————————————————————————————————————*/
+	get alt() {
+		return this._alt;
+	}
+
+	set alt(val = null) {
+        if (typeof val !== 'string' &&  val !== null)
+            return;
+        if (this._alt === val)
+            return;
+        this._alt = val;
+        this._element.alt = val;
 	}
 	
+    /*————————————————————————————————————————————————————————————————————————————
+	  PROP:	title : string.
+	  GET : Gets the image title string.
+	  SET : Sets the image title string.
+	————————————————————————————————————————————————————————————————————————————*/
+	get title() {
+		return this._title;
+	}
+
+	set title(val = null) {
+        if (typeof val !== 'string' &&  val !== null)
+            return;
+        if (this._title === val)
+            return;
+        this._title = val;
+        this._element.title = val;
+	}
+
     /*————————————————————————————————————————————————————————————————————————————
 	  PROP:	loader : function.
 	  GET : Gets the loader function.
 	  SET : Sets the loader function.
 	  INFO: 
-		* At set and get if invalid, it will default to imageLoader(). 
+		* At set and get if invalid, it will default to TCtl.imageLoader(). 
 	————————————————————————————————————————————————————————————————————————————*/
 	get loader() {
-		return (typeof this._ldr  === 'function') ? this._ldr : imageLoader;
+		return (this._loader instanceof Function) ? this._loader : TCtl.imageLoader;
 	}
 
 	set loader(val = null) {
-        this._ldr = (typeof val  === 'function') ? val : imageLoader;
+        this._loader = (val instanceof Function) ? val : TCtl.imageLoader;
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP: nextSrc : string.
-	  GET : Returns the name of source that must be loaded.
-	  INFO: current source name can change according to source definition and
-	  		viewport size. This returns the name of the source that *must*
-			be current.
-	——————————————————————————————————————————————————————————————————————————*/
-	get nextSrc() {
-		return TCtl.autoValue(this._src);
+    /*————————————————————————————————————————————————————————————————————————————
+	  PROP:	strategy : string.
+	  GET : Gets the loading strategy.
+	  SET : Sets the loading strategy.
+	  INFO: 
+        *   Valid values:
+            'auto' -> automatic management of image load, when needed.
+            'manual'-> programmer manages loading.
+            'agressive' -> preloads everything.     
+	————————————————————————————————————————————————————————————————————————————*/
+	get strategy() {
+		return this._strategy;
 	}
 
+	set strategy(val = null) {
+        if (!sys.str(val) || val === this._strategy)
+            return;
+        if (val === 'auto' || val === 'manual' || val === 'agressive') {
+            this._strategy = val;
+            if (this._sta !== sys.LOAD && val !== 'manual')
+                this.load();
+        }
+	}
+	
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	aspectRatio : null, int > 0.
 	  GET : Gets the current aspect ratio of image.
@@ -235,20 +388,17 @@ export class TImage extends TControl {
 		image height is calculated as height * aspectRatio.
 	————————————————————————————————————————————————————————————————————————————*/
     get aspectRatio() {
-        return 
+        return 1; 
     }
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	naturalWidth : int.
 	  GET : Gets the natural width of image.
 	  INFO: If image is not loaded returns 0. 
-      
-      NOT WORKING
-      
-	————————————————————————————————————————————————————————————————————————————*/
+    ————————————————————————————————————————————————————————————————————————————*/
 	get naturalWidth() {
-		const w = this._element.naturalWidth;
-		return (w === 'undefined' ? 0 : w);
+		const nw = this._element.naturalWidth;
+		return (nw === 'undefined' ? 0 : nw);
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -257,30 +407,13 @@ export class TImage extends TControl {
 	  INFO: If image is not loaded returns 0.
 	————————————————————————————————————————————————————————————————————————————*/
 	get naturalHeight() {
-		const h = this._element.naturalWidth;
-		return (h === 'undefined' ? 0 : h);
+		const nh = this._element.naturalWidth;
+		return (nh === 'undefined' ? 0 : nh);
 	}
 
 }
 
-function imageLoader(image = null) {
-	var src,
-		img;
-
-	if (!(image instanceof TImage))
-		exc ('E_INV_ARG', 'image');
-	src = image.nextSrc;
-	send(image, 'GET', src, null, 'blob').then(
-		(xhr) => {
-			img = new Image();
-			img.src = URL.createObjectURL(xhr.response);
-			resources.add(src, img);
-			image.assign(src);
-		},
-		(error) => {
-			console.log('promise error', error, image.namePath, src);
-		}
-	);
-}
 
 sys.registerClass(TImage);
+
+export { TImage }

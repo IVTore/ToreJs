@@ -6,7 +6,7 @@
   About		: 	TComponent.js: Tore Js base component class.
   License 	:	MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, exc } from "./TSystem.js";
+import { sys, exc, log } from "./TSystem.js";
 import { TObject } from "./TObject.js";
 import { TEventHandler } from "./TEventHandler.js";
 
@@ -49,7 +49,7 @@ export class TComponent extends TObject {
         owner: {value: null},
 		onAttach: {event: true},
 		onDetach: {event: true},
-		onLoadComplete: {event: true},
+		onDeserializeEnd: {event: true},
 		onLanguageChange: {event: true}
 	}
 
@@ -90,7 +90,7 @@ export class TComponent extends TObject {
 	
 		if(!this._sta)						// already dead
 			return;
-		if (this._own)						// detach from owner
+        if (this._own)						// detach from owner
 			this._own.detach(this);
 		for(k in this._hdt)					// unhook incoming events
 			this._hdt[k].destroy();
@@ -118,7 +118,7 @@ export class TComponent extends TObject {
 
 		if (!ownerCandidate)
 			return;
-        n = this.class.name;
+        n = this.constructor.name;
         if (n[0] === 'T')
             n = n.substring(1);
 		n = n.toLowerCase();
@@ -178,11 +178,11 @@ export class TComponent extends TObject {
 		if (!c)
 			exc('E_MEM_NULL', 'component');
 		if (!allow)
-			exc('E_MEM_NOT_ALLOWED', this.class.name);
+			exc('E_MEM_NOT_ALLOWED', this.constructor.name);
 		if (!(c instanceof allow))			// if c is not permitted
-			exc('E_MEM_RESTRICTED', 'component: ! '+ allow.class.name);
+			exc('E_MEM_RESTRICTED', 'component: ! '+ allow.constructor.name);
 		if (avoid && c instanceof avoid)
-			exc('E_MEM_RESTRICTED', 'component: ! '+ avoid.class.name);
+			exc('E_MEM_RESTRICTED', 'component: ! '+ avoid.constructor.name);
 		if (c._own === this)				// if already attached to this
 			return(false);
 		o = this;
@@ -191,7 +191,7 @@ export class TComponent extends TObject {
 				exc('E_MEM_RING', this.namePath +"<-"+ c._nam);
 			o = o._own;
 		}
-		if (!c._nam)						// If component is not named.
+		if (c._nam === '')					// If component is not named.
 			c.autoname(this);				// give it a name.
 		n = c._nam;							// get name
 		if (write && this._mem[n])			// if overwritable and has member
@@ -203,7 +203,7 @@ export class TComponent extends TObject {
 		c._own = this;
 		this._mem[n] = c;
 		Object.defineProperty( this, n, {
-				get:function(){return(this._mem[n]);},
+				get: function(){return(this._mem[n]);},
 				enumerable: false,
 				configurable: true			// deletable.
 			}
@@ -372,7 +372,7 @@ export class TComponent extends TObject {
 	  FUNC: dispatch.
 	  TASK:	
         Dispatches event with arguments if event is valid.
-        Sender (this) is automatically added as the first argument.
+        Sender (this) is prepended as the first argument by TEventHandler.
 	  ARGS:	
 		event   : TEventHandler	: event handler object.
                 : string        : event name.
@@ -381,10 +381,12 @@ export class TComponent extends TObject {
 	——————————————————————————————————————————————————————————————————————————*/
 	dispatch(event = null, ...args) {
         if (event === null) 
-            return;
+            return null;
         if (typeof event === 'string')
             event = this._eve[event];
-		return (event instanceof TEventHandler) ? event.dispatch(...args) : null;
+		if (event instanceof TEventHandler && event._src === this) 
+            return event.dispatch(...args) 
+        return null
 	}
 
 	/*———————————————————————————————————————————————————————————————————————————
@@ -412,10 +414,26 @@ export class TComponent extends TObject {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC:	doLoadComplete.
 	  TASK:	Signals component that loading (deserialization) is complete.
+      ARGS: dispatchEvent : boolean : if true end event handler exists,
+                                      dispatches onDeserializeEnd event.
+      INFO: dispatchEvent is for overriders.
+            The overriding sub class instances might want to dispatch 
+            event after they do their operations.
+            In that case, they must be structured like this:
+
+            doDeserializeEnd(dispatchEvent = true) {
+                super.doDeserializeEnd();
+                //
+                // Do their operations.
+                //
+                if (!!dispatchEvent)
+	                this.dispatch(this._eve.onDeserializeEnd);		
+	        }
 	——————————————————————————————————————————————————————————————————————————*/
-	doLoadComplete() {
-	    this.dispatch(this._eve.onLoadComplete);
-		super.doLoadComplete();
+	doDeserializeEnd(dispatchEvent = true) {
+        super.doDeserializeEnd();
+        if (!!dispatchEvent)
+	        this.dispatch(this._eve.onDeserializeEnd);		
 	}
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -428,16 +446,6 @@ export class TComponent extends TObject {
         this.dispatch(this._eve.onLanguageChange);
 		for(n in this._mem)					// propagate to members
 			this._mem[n].doLanguageChange();
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  FUNC:	doResourcelinkRemoved.
-	  TASK:	Signals component that a resource with name is no more linked.
-	  ARGS:	name : string	: resource name.
-	  INFO: This is to be overridden.
-	——————————————————————————————————————————————————————————————————————————*/
-	doResourceLinkRemoved(name = null) {
-		
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -478,6 +486,13 @@ export class TComponent extends TObject {
 		return((this._own ? this._own.namePath + '.' : '') + this._nam);
 	}
     
+    /*————————————————————————————————————————————————————————————————————————————
+	  PROP:	nameStr : string. 
+	  GET : Returns component name if exists or '?'.
+	————————————————————————————————————————————————————————————————————————————*/
+	get nameStr() {
+		return((this._nam !== '') ? this._nam : '?');
+	}
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP: owner : TComponent.
 	  GET : Get owner of the component.
@@ -488,6 +503,9 @@ export class TComponent extends TObject {
 	}
 
     set owner(val = null) {
-        this.attach(val);
+        if (val instanceof TComponent)
+            val.attach(this);
     }
 }
+
+// register class at sys.

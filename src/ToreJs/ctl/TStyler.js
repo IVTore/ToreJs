@@ -309,6 +309,8 @@ class TStyler extends TComponent {
 
 }
 
+sys.registerClass(TStyler);
+
 export const styler = new TStyler();
 
 

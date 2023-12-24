@@ -3,21 +3,21 @@
 
   Version	: 	20230301
   Author	: 	İhsan V. Töre
-  About		: 	THttpClient.js: Tore Js http client component class.
+  About		: 	TXhrClient.js: Tore Js xml http request client class.
   License	:   MIT.
 ————————————————————————————————————————————————————————————————————————————*/
-import { sys, exc } from "./TSystem.js";
-import { TComponent } from "./TComponent.js";
+import { sys, exc} from "./TSystem.js";
+import { TObject } from "./TObject.js";
+import { resources } from "./TResources.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   FUNC: send.
-  TASK: Builds a THttpClient component sets it up and sends the request.
-  ARGS: Arguments map to THttpClient component properties.
+  TASK: Builds a TXhrClient object sets it up and sends the request.
+  ARGS: Arguments map to TXhrClient object properties.
   RETV: 	: Promise : resolve returns XMLHttpRequest object.
-  INFO: On completion of communication, THttpClient component is destroyed.
+  INFO: TXhrClient object auto-destroys when done.
 ————————————————————————————————————————————————————————————————————————————*/
 export function send (
-        owner = null, 
         method = 'POST', 
         url = '', 
         content = null, 
@@ -28,54 +28,77 @@ export function send (
         pass = null
     ) {
 
-	var o = {method: method, url: url, content: content, 
-		responseType: responseType,	query: query,
-		headers: headers, user: user, pass: pass };
-	return sendPromise(owner, o);
+	var o = { method, url, content, responseType, query, headers, user, pass };
+	return sendPromise(o);
 }
 
 // internal.
-function sendPromise(owner = null, options = null){
-	return new Promise ( (resolve, reject) => {
-		var com = new THttpClient(null, owner, options),
-			xhr = com.xhr,
-			err = () => reject(xhr.statusText);
+function sendPromise(options = null) {
+    var com = new TXhrClient(null, null, options),
+		xhr = com.xhr;
 
-		xhr.onerror = err;
-		xhr.onabort = err;
-		xhr.ontimeout = err;
-		xhr.onload = () => {
-			if (xhr.status >= 200 && xhr.status < 300) {
-				resolve(xhr);
+	return new Promise ( (resolve, reject) => {
+		xhr.onerror = trouble;
+		xhr.onabort = trouble;
+		xhr.ontimeout = trouble;
+		xhr.onload = success;
+		xhr.onloadend = terminate;
+
+        function success() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+            	resolve(xhr);
 			} else {
-				err();
+				trouble();
 			}
-		};
-		xhr.onloadend = () => {
-			xhr.onerror = null;
+        }
+
+        function trouble() {
+            reject(xhr.statusText);
+        }
+
+        function terminate() {
+            xhr.onerror = null;
 			xhr.onabort = null;
 			xhr.ontimeout = null;
 			xhr.onload = null;
 			xhr.onloadEnd = null;
 			com.destroy();
-		};
-		com.send();
+        }
+
+        com.send();
 	});
+
 }
 
+/*  Standards For Event Binding.
+
+	doLoadStart: 		{src: '_xhr', typ: 'loadstart'},
+	doProgress: 		{src: '_xhr', typ: 'progress' },
+	doAbort: 			{src: '_xhr', typ: 'abort'    },
+	doTimeout: 			{src: '_xhr', typ: 'timeout'  },
+	doError: 			{src: '_xhr', typ: 'error'    },
+	doLoad: 			{src: '_xhr', typ: 'load'     },
+	doLoadEnd: 			{src: '_xhr', typ: 'loadend'  },
+
+	doUploadStart: 		{src: '_upl', typ: 'loadstart'},
+	doUploadProgress: 	{src: '_upl', typ: 'progress' },
+	doUploadAbort: 		{src: '_upl', typ: 'abort'    },
+	doUploadTimeout: 	{src: '_upl', typ: 'timeout'  },
+	doUploadError: 		{src: '_upl', typ: 'error'    },
+	doUpload: 			{src: '_upl', typ: 'load'     },
+	doUploadEnd: 		{src: '_upl', typ: 'loadend'  }
+*/
+
 /*————————————————————————————————————————————————————————————————————————————
-  CLASS: THttpClient.
+  CLASS: TXhrClient.
   TASKS:
-	Defines http client communicator class.
+	Defines xhr http client class.
 	* It is an XHR wrapper.
-	* Does not allow members.
-	* Communication is always asynchronous.
 	* Normally used by send(), talk() methods above.
-	* It is exported also as a micro management option.
+
   USAGE:
 
-	* Properties:
-
+	* Building Properties:
 	method					as http method, default is 'POST'.
 	url						as url, default is ''.
 	content 				as content, default is null.
@@ -85,150 +108,86 @@ function sendPromise(owner = null, options = null){
 	user					as username, default is null.
 	pass					as password, default is null.
 
-	* Request and upload events, default null:
-
-	onLoadStart, onProgress, onAbort, onTimeout, onError, onLoad, onLoadEnd.
-	onUploadStart, onUploadProgress, onUploadAbort,	onUploadTimeout,
-	onUploadError, onUpload, onUploadEnd.
-
-	* If an owner is given;
-
-	doLoadStart, doProgress, doAbort, doTimeout,
-	doError, doLoad, doLoadEnd,
-	doUploadStart, doUploadProgress, doUploadAbort,	doUploadTimeout,
-	doUploadError, doUpload, doUploadEnd
-
-	handler methods are *sought* in the owner, and the existing ones are
-	bound to their respective events auto*magic*ally.
-
-	Handler method signature example: 
-		owner.doLoadStart(e)
-			where e is the event object.
 ————————————————————————————————————————————————————————————————————————————*/
-export class THttpClient extends TComponent {
-	
+export class TXhrClient extends TObject {
+
+	static serializable = false;
 	static cdta = {
-		method: {value: 'POST'},
-		url: {value:	''},
-		content: {value: null},
-		responseType: {value: 'blob'},
-		query: {value: null},
-		headers: {value: null},
-		timeout: {value: 0},
-		user: {value: null},
-		pass: {value: null},
-		
-		onLoadStart: {event: true, typ: 'loadstart', src: '_xhr'},
-		onProgress: {event: true, typ: 'progress', src: '_xhr'},
-		onAbort: {event: true, typ: 'abort', src: '_xhr'},
-		onTimeout: {event: true, typ: 'timeout', src: '_xhr'},
-		onError: {event: true, typ: 'error', src: '_xhr'},
-		onLoad: {event: true, typ: 'load', src: '_xhr'},
-		onLoadEnd: {event: true, typ: 'loadend', src: '_xhr'},
-		
-		onUploadStart: {event: true, typ: 'loadstart', src: '_upl'},
-		onUploadProgress: {event: true, typ: 'progress', src: '_upl'},
-		onUploadAbort: {event: true, typ: 'abort', src: '_upl'},
-		onUploadTimeout: {event: true, typ: 'timeout', src: '_upl'},
-		onUploadError: {event: true, typ: 'error', src: '_upl'},
-		onUpload: {event: true, typ: 'load', src: '_upl'},
-		onUploadEnd: {event: true, typ: 'loadend', src: '_upl'},
+		method:             {value: 'POST'},
+		url:                {value:	''},
+		content:            {value: null},
+		responseType:       {value: 'blob'},
+		query:              {value: null},
+		headers:            {value: null},
+		timeout:            {value: 0},
+		user:               {value: null},
+		pass:               {value: null}
 	};
 	
-	static allowMemberClass = null;
-
-	_xhr = null;				// XMLHttpRequest Object
+    _xhr = null;				// XMLHttpRequest Object
 	_res = null;				// response object (shortcut).
 	_upl = null;				// upload object (shortcut).
-	
+    
 	_met = 'POST';				// method.
 	_url = '';					// url.
 	_cnt = null;				// content.
 	_typ = 'blob';				// response type.
 	_qry = null;				// query.
 	_hdr = null;				// headers.
-	
+    _tim = null;                // timeout.
 	_usr = null;				// user name if required.
 	_pwd = null;				// user pass if required.
 
-	_bnd = null;				// bound functions list.
-
 	/*——————————————————————————————————————————————————————————————————————————
-	  CTOR: THttpClient.
-	  TASK: Constructs an http client component.
-	  ARGS:
-		name	: String		: Name of new communicator			:DEF: null.
-		owner	: TComponent	: Owner component.					:DEF: null.
-		data	: Object		: An object containing instance data:DEF: null.
+	  CTOR: TXhrClient.
+	  TASK: Constructs an xml http client object.
+	  ARGS: Look instance properties with same names.
 	——————————————————————————————————————————————————————————————————————————*/
-	constructor(name = null, owner = null, data = null) {
-		super(name);
+	constructor(
+        method = 'POST',
+        url = '',
+        content = null, 
+        responseType = 'blob', 
+        query = null,
+        headers = null,
+        user = null, 
+        pass = null) {
+
+        var data;
+
+        super();
 		this._xhr = new XMLHttpRequest();
 		this._upl = this._xhr.upload;
-		if (owner instanceof TComponent)
-			owner.attach(this);
-		if (data)
-			sys.propSet(this, data);
+		data = {method, url, content, responseType, query, headers, user, pass};
+		sys.propSet(this, data);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  DTOR: destroy [override].
-	  TASK: Destroys the http communicator component.
+	  TASK: Destroys the xml http client component.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy() {
-		if (this._own)					// Unbinding has priority (doDetached).
-			this._own.detach(this);
-		this._xhr = null;
+        var x = this._xhr,
+            u = this._upl;
+
+        x.onloadstart = null;   // clear xhr event handlers.
+        x.onprogress  = null;
+        x.onabort     = null;
+        x.ontimeout   = null;
+        x.onerror     = null;
+        x.onload      = null;
+        x.onloadend   = null;
+
+        u.onloadstart = null;   // clear upload event handlers.
+        u.onprogress  = null;
+        u.onabort     = null;
+        u.ontimeout   = null;
+        u.onerror     = null;
+        u.onload      = null;
+        u.onloadend   = null;
+   		
+        this._xhr = null;
 		super.destroy();
-	}
-
-	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	doAttached [override].
-	  TASK:	Seeks for do<event> handler methods* in new owner and binds them.
-	  INFO: * Methods like: owner.doLoad(e) etc.
-	———————————————————————————————————————————————————————————————————————————*/
-	doAttached() {
-		var own = this._own,
-			nam,
-			dta,
-			hnd;
-
-		if (!own)
-			return;
-
-		this._bnd = {};
-		// Automatic event routing: set all available handlers to events.
-		for(nam in EVENT_INFO) {
-			dta = EVENT_INFO[nam];
-			if (typeof own[nam] !== 'function')
-				continue;
-			hnd = sys.bindHandler(own, nam);
-			this[dta.src].addEventListener(dta.typ, hnd);
-			this._bnd[nam] = hnd;
-		}
-	}
-
-	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	doDetached [override].
-	  TASK:	Seeks for bound handler methods* to old owner and unbinds them.
-	  ARGS:
-	  	exOwner	: TComponent : owner that "this" is detached from. :DEF: null
-	  INFO: * Methods like: exOwner.doLoad(e) etc.
-	———————————————————————————————————————————————————————————————————————————*/
-	doDetached(exOwner = null) {
-		var nam,
-			dta;
-
-		if (!exOwner)
-			return;
-		for(nam in this._bnd) { 		// Clear all events targeting ex owner.
-			dta = EVENT_INFO[nam];
-			if (!dta)
-				continue;
-			this[dta.src].removeEventListener(dta.typ, this._bnd[nam]);
-			delete this._bnd[nam];
-		}
-		this._bnd = null;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -238,7 +197,7 @@ export class THttpClient extends TComponent {
 	send() {
 		var t = this;
 		if (t._xhr.readyState > XMLHttpRequest.OPENED)
-			exc('E_CLIENT_RUN', propName);
+			exc('E_CLIENT_SENT', t._url);
 		setup(t);
 		t._xhr.send(t._cnt);
 		return t;
@@ -249,42 +208,19 @@ export class THttpClient extends TComponent {
 	  TASK: Aborts communication.
 	——————————————————————————————————————————————————————————————————————————*/
 	abort() {
-		t._xhr.abort();
+		this._xhr.abort();
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
+    /*——————————————————————————————————————————————————————————————————————————
 
-	  THttpClient getter-setters.
+	  TXhrClient getter-setters.
 	
 	——————————————————————————————————————————————————————————————————————————*/
 
 	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	xhr : XMLHttpRequest.
-	  GET : Returns the XMLHttpRequest object.
-	——————————————————————————————————————————————————————————————————————————*/
-	get xhr() {
-		return this._xhr;
-	} 
-
-	/*——————————————————————————————————————————————————————————————————————————
-	  PROP:	timeout : number.
-	  GET : Returns timeout in milliseconds.
-	  SET : Sets    timeout in milliseconds.
-	——————————————————————————————————————————————————————————————————————————*/
-	get timeout() {
-		return this._xhr.timeout;
-	}
-
-	set timeout(value = 0) {
-		if (typeof value !== 'number')
-            exc('E_INV_VAL', 'timeout');
-		this._xhr.timeout = value;
-	}
-
-	/*——————————————————————————————————————————————————————————————————————————
 	  After communication start, attempting to set these throws exception.
 	——————————————————————————————————————————————————————————————————————————*/
-
+   
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	method : String.
 	  GET : Returns http(s) method.
@@ -309,8 +245,8 @@ export class THttpClient extends TComponent {
 		return this._url; 
 	}
 	
-	set url(value) { 
-		checkSet(this, '_url', value, "url", typeof value === 'string'); 
+	set url(val) { 
+		checkSet(this, '_url', val, "url", typeof val === 'string'); 
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -322,10 +258,22 @@ export class THttpClient extends TComponent {
 		return this._cnt;
 	}
 
-	set content(value = null) {
-		checkSet(this, '_cnt', value, "content", true);
+	set content(val = null) {
+		checkSet(this, '_cnt', val, "content", true);
 	}
 
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	timeout : number.
+	  GET : Returns timeout in milliseconds.
+	  SET : Sets    timeout in milliseconds.
+	——————————————————————————————————————————————————————————————————————————*/
+	get timeout() {
+		return this._xhr.timeout;
+	}
+
+	set timeout(value = 0) {
+        checkSet(this, '_tim', val, 'timeout', typeof value === 'number');
+	}
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	responseType : String.
 	  GET : Returns response type.
@@ -335,10 +283,10 @@ export class THttpClient extends TComponent {
 		return this._typ;
 	}
 
-	set responseType(value = 'blob') {
-		const valid = (typeof value === 'string') && (RESPONSE_TYPES.indexOf(value) > -1);
-		value = valid ? value : 'blob';
-		checkSet(this, '_typ', value, "responseType", valid);
+	set responseType(val = 'blob') {
+		const valid = RESPONSE_TYPES.indexOf(val) > -1;
+		val = valid ? val : 'blob';
+		checkSet(this, '_typ', val, "responseType", valid);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -368,6 +316,33 @@ export class THttpClient extends TComponent {
 		const valid = val === null || sys.isPlain(val);
 		checkSet(this, '_hdr', val, "headers", valid);
 	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  Get only properties.
+	——————————————————————————————————————————————————————————————————————————*/
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	xhr : XMLHttpRequest.
+	  GET : Returns the XMLHttpRequest object.
+	——————————————————————————————————————————————————————————————————————————*/
+	get xhr() {
+		return this._xhr;
+	} 
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	upload : XMLHttpRequestUpload.
+	  GET : Returns the XMLHttpRequestUpload object.
+	——————————————————————————————————————————————————————————————————————————*/
+	get upload() {
+		return this._upl;
+	} 
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	response : whatever the responseType is.
+	  GET : Returns the response object.
+	——————————————————————————————————————————————————————————————————————————*/
+	get response() {
+		return this._res;
+	} 
 }
 
 const RESPONSE_TYPES = [
@@ -379,26 +354,23 @@ const RESPONSE_TYPES = [
 	"text"
 ];
 
-const EVENT_INFO = { 
-	doLoadStart: 		{typ: 'loadstart', src: '_xhr'},
-	doProgress: 		{typ: 'progress', src: '_xhr'},
-	doAbort: 			{typ: 'abort', src: '_xhr'},
-	doTimeout: 			{typ: 'timeout', src: '_xhr'},
-	doError: 			{typ: 'error', src: '_xhr'},
-	doLoad: 			{typ: 'load', src: '_xhr'},
-	doLoadEnd: 			{typ: 'loadend', src: '_xhr'},
+// private. DRY routine. Proxies the xhr event dispatching.
+function eventProxy(t, e, eventName) {
+    var den = 'do' + eventName;
 
-	doUploadStart: 		{typ: 'loadstart', src: '_upl'},
-	doUploadProgress: 	{typ: 'progress', src: '_upl'},
-	doUploadAbort: 		{typ: 'abort', src: '_upl'},
-	doUploadTimeout: 	{typ: 'timeout', src: '_upl'},
-	doUploadError: 		{typ: 'error', src: '_upl'},
-	doUpload: 			{typ: 'load', src: '_upl'},
-	doUploadEnd: 		{typ: 'loadend', src: '_upl'}
+    if (t._tar) {
+        if (t._tar === resources) {
+            resources.trigger(t._url, den, e);
+            if (eventName === 'LoadEnd' || eventName === 'UploadEnd')
+                resources.clearClaims(t._url);
+        } else {
+            if (t._tar[den] instanceof Function)
+                t._tar[den](t._url, e);
+        }
+    }
 }
 
-
-// private.
+// private. DRY routine. Checks and executes propery assignment.
 function checkSet(client, varName, value, propName, valid = true) {
 	if (!valid)
 		exc('E_INV_ARG', propName);
@@ -449,4 +421,4 @@ function buildHeaders(client) {
 		x.setRequestHeader(i, h[i]);	
 }
 
-sys.registerClass(THttpClient);
+sys.registerClass(TXhrClient);

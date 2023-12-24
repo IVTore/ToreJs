@@ -25,34 +25,46 @@ export class TEventHandler extends TObject {
 	
 	static cdta = {
 		target: {value: null},
-		method: {value: ""}
+		method: {value: ""},
+        jobQueue: {value: null},
+        jobParam: {value: null}
 	}
 
 	_rdy = false;	// Internal ready flag.
 	_fun = null;	// Bound function as event listener.
 	_nam = null;	// Event name set by assign().
 	_src = null;	// Source component set by assign().
-	_def = null;	// Event definition data object set by assign().
 	_tar = null; 	// Target handler component.
 	_met = null;	// Handler method name in target handler component.
+    _que = null;    // Job queue if any.
+    _par = null;    // Job queue parameters if any.
 
 	/*———————————————————————————————————————————————————————————————————————————
 	  CTOR: constructor.
 	  TASK: Constructs a TEventHandler instance.
 	  ARGS: 
-		target : TComponent	: 	Target handler component.
-			   : string     : 	Target handler component namepath. 
-			   					:DEF: null.
-								if Sys.LOAD construction is by deserialization.
-		method : string		:	Handler method name in target handler component.
-								:DEF: null.
+		target      : TComponent	: Target handler component or
+			        : string        : Target handler component namepath. 
+			   					      :DEF: null.
+								      if Sys.LOAD construction is by 
+                                      deserialization.
+		method      : string		: Handler method name in target component.
+                    : Function      : Handler method in target component.
+								      :DEF: null.
+        jobQueue    : string        : Job Queue name.
+                    : TJobQueue     : Job Queue object.
+                                      :DEF: null.
+        jobParam    : Object        : Job Queue specific parameters as object.
+                                      :DEF: null.                            
 	———————————————————————————————————————————————————————————————————————————*/
-	constructor (target = null, method = null) {
+	constructor (target = null, method = null, jobQueue = null, jobParam = null) {
 		if (target === sys.LOAD && super(sys.LOAD))
 			return;
 		super();
-		setTEventHandlerTarget(this, target);
-		setTEventHandlerMethod(this, method);
+		setHandlerTarget(this, target);
+		setHandlerMethod(this, method);
+        setJobQueue(this, jobQueue);
+        setJobParam(this, jobParam);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -60,46 +72,58 @@ export class TEventHandler extends TObject {
 	  TASK: Destroys the TEventHandler instance.
 	——————————————————————————————————————————————————————————————————————————*/
 	destroy(){
-	var	i,
-		src = this._src,
-		tar = this._tar;
+	var	t = this,
+        src = t._src,
+		tar = t._tar,
+        idx = t._rdy ? tar._hdt.indexOf(t) : -1,
+        def = t._rdy ? src.class.cdta[t._nam] : null;
 
-		if (this._rdy) {					// If assigned,
-			delete src._eve[this._nam];	    // Detach from event source.
-			i = tar._hdt.indexOf(this);	    // Kill back hook.
-			if (i > -1)
-				tar._hdt.splice(i, 1);
-			if (this._fun)					// Remove bound function.
-				src[this._def.src].removeEventListener(this._def.typ, this._fun);
-			this._fun = null;
+
+		if (t._rdy) {					    // If assigned,
+			delete src._eve[t._nam];	    // Detach from event source.
+            if (idx > -1)
+				tar._hdt.splice(idx, 1);
+			if (t._fun)					    // Remove bound function.
+				src[def.src].removeEventListener(def.typ, t._fun);
 		}
-		this._rdy = false;					// Release all data for GC.
-		this._nam = null;
-		this._src = null;
-		this._tar = null;
-		this._def = null;
-		this._met = null;
+        t._fun = null;
+		t._rdy = false;					    
+		t._nam = null;
+		t._src = null;
+		t._tar = null;
+		t._met = null;
+        t._que = null;
+        t._par = null;
 		super.destroy();				    // Logical destruction.
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: dispatch.
-	  TASK: Calls the handler method in target component.
+	  TASK: Calls or queues the handler method in target component.
             Sender (source) is automatically added as the first argument.
 	  ARGS:
 		args : Array : Arguments to pass to target handler method.
 	  INFO:
 		For triggering non-native events, this method is used directly, 
 		If event handler instance is not valid, throws exception.
+        If pushed to a queue, queue add method must be like 
+        add(instance, method, arguments, extra parameter data for queue);
 	——————————————————————————————————————————————————————————————————————————*/
 	dispatch(...args) {
-		if (this._rdy)
-           	return this._tar[this._met].apply(this._tar, [this._src, ...args]);
-        exc('E_INV_HANDLER', 
-			((this._src) ? this._src._nam : "?") + "." +
-			((this._nam) ? this._nam : "?") + " = [ TEventHandler ]" +
-			((this._tar) ? this._tar._nam : "?") + "." +
-			 (this._met) ? this._met : "?");
+        var t = this;
+
+		if (!t._rdy) 
+            t.assign(t._src, t._nam);
+        if (!t._rdy) {
+            exc('E_INV_HANDLER', 
+			(t._src ? t._src.nameStr : "?")  + "." +
+			(t._nam ? t._nam : "?") + " = [ TEventHandler ]" +
+			(t._tar ? t._tar.nameStr : "?") + "." +
+			(t._met ? t._met : "?"));
+        }
+        if (t._que) 
+            return t._que.add(t._tar, t._tar[t._met], [t._src, ...args], t._par);
+        return t._tar[t._met].apply(t._tar, [t._src, ...args]);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -115,7 +139,7 @@ export class TEventHandler extends TObject {
 	}
 
 	set target(val) {
-		setTEventHandlerTarget(this, val);
+		setHandlerTarget(this, val);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -123,8 +147,8 @@ export class TEventHandler extends TObject {
 	  GET : Returns target handler component method name.
 	  SET : Sets target handler component method name.
 	  INFO: Method name can only be set once.
-			Throws exception if :
-				method already given.
+			Throws exception if : 
+                method already given or
 				target component assigned and method does not exist.
 	——————————————————————————————————————————————————————————————————————————*/
 	get method() {
@@ -132,8 +156,37 @@ export class TEventHandler extends TObject {
 	}
 
 	set method(val) {
-		setTEventHandlerMethod(this, val);
+		setHandlerMethod(this, val);
 	}
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	jobQueue : TJobQueue.
+	  GET : Returns job queue if any.
+	  SET : Sets job queue.
+	  INFO: This can only be set once.
+	——————————————————————————————————————————————————————————————————————————*/
+	get jobQueue() {
+		return this._que;
+	}
+
+	set jobQueue(val) {
+		setJobQueue(this, val);
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
+	  PROP:	jobParam : God knows whatever.
+	  GET : Returns job parameter(s) if any.
+	  SET : Sets job parameters.
+	  INFO: This can only be set once.
+            This must contain job specific parameters.
+	——————————————————————————————————————————————————————————————————————————*/
+	get jobParam() {
+		return this._que;
+	}
+
+	set jobParam(val) {
+		setJobParam(this, val);
+    }
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  PROP:	name : string.
@@ -151,17 +204,6 @@ export class TEventHandler extends TObject {
 	——————————————————————————————————————————————————————————————————————————*/
 	get source() {
 		return this._src;
-	}
-
-	/*———————————————————————————————————————————————————————————————————————————
-	  FUNC:	doLoadComplete.
-	  TASK:	Used to signal event handler that loading (deserialization) is 
-			complete.
-	———————————————————————————————————————————————————————————————————————————*/
-	doLoadComplete(){
-		checkTEventHandlerTarget(this);
-		checkTEventHandlerMethod(this);
-		super.doLoadComplete();
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -189,76 +231,91 @@ export class TEventHandler extends TObject {
 		Throws exception for invalid definitions.
 	——————————————————————————————————————————————————————————————————————————*/
 	assign(source = null, eventName = null){
-	    var def;
+	    var t = this,
+            d;
 
-		if (this._rdy)
+		if (t._rdy)
 			return;
-		checkTEventHandlerTarget(this);
-		checkTEventHandlerMethod(this);
+		checkHandlerTarget(t);
+		checkHandlerMethod(t);
 		if (!(source instanceof TComponent))
 			exc('E_INV_ARG', "source");
 		if (typeof eventName !== 'string')
 			exc('E_INV_ARG', 'eventName');
-		def = source.class.cdta[eventName];
-		if (!def || !def.event)
+		d = source.class.cdta[eventName];
+		if (!d || !d.event)
 			exc('E_INV_ARG', 'eventName');
-				this._src = source;
-		this._nam = eventName;
-		this._def = def;
-		this._src._eve[this._nam] = this;
-		this._tar._hdt.push(this);
-		if (this._def.src) {    // if native.
-			if (!this._src[this._def.src])
-                exc('E_EVENT_SRC', this._src.name + '.' + this._def.src);
-		    this._fun = function(e) { 
+		t._src = source;
+		t._nam = eventName;
+        t._src._eve[t._nam] = t;
+        t._tar._hdt.push(t);
+		if (d.src) {    // if native.
+			if (!t._src[d.src])
+                exc('E_EVENT_SRC', t._src.name + '.' + d.src);
+		    t._fun = function(e) { 
 			    return this.dispatch(e); 
 		    }
-		    this._src[this._def.src].addEventListener(this._def.typ, this._fun, false);
+		    t._src[d.src].addEventListener(d.typ, t._fun, false);
         }
-        this._rdy = true;
+        t._rdy = true;
 	}
-
 }
 
-// private.
-// Controls the target handler component assignment.
-function setTEventHandlerTarget(handler, target) {
-	if (target === handler._tar)
-		return;
-	if (handler._tar !== null)
-		exc("E_SET_ONCE", "target");
-	if (typeof target === 'string')
+// private. Controls the target handler component assignment.
+function setHandlerTarget(t, target) {
+    if (typeof target === 'string')
 		target = sys.fetchObject(target);
-	handler._tar = target;
-	checkTEventHandlerTarget(handler);
+    if (!setChecker(t, '_tar', 'target', target))
+        return;
+	t._tar = target;
 }
 
-// private.
-// Controls the target handler component method name assignment.
-function setTEventHandlerMethod(handler, method) {
-	if (method === handler._met)
-		return;
-	if (handler._met !== null)
-		exc("E_SET_ONCE_ONLY", "method");
-	handler._met = method;
-	if (handler._sta != sys.LOAD) 
-		checkTEventHandlerMethod(handler)
+// private. Controls the target handler component method name assignment.
+function setHandlerMethod(t, method) {
+    if (method instanceof Function) 
+        method = method.name;
+    if (!setChecker(t, '_met', 'method', method))
+        return;
+	t._met = method;
 }
 
-// private.
-// Checks the target handler component assignment.
-function checkTEventHandlerTarget(handler) {
-	if (handler._tar instanceof TComponent) 
+// private. Controls the job queue assignment.
+function setJobQueue(t, queue) {
+    if (!setChecker(t, '_que', 'jobQueue', queue))
+        return;
+    t._que = queue;
+}
+
+// private. Controls the job parameter assignment.
+function setJobParam(t, param) {
+    if (!setChecker(t, '_par', 'jobParam', param))
+        return;
+    t._par = par;
+}
+
+// private. Set checker DRY code.
+function setChecker(t, pvar, name, val) {
+    if (val === t[pvar])
+        return false;
+    if (t[pvar] !== null)
+        exc("E_SET_ONCE_ONLY", name);
+    return true;
+}
+
+// private. Checks the target handler component.
+function checkHandlerTarget(t) {
+    if (t._tar instanceof TComponent) 
 		return;
-	handler._tar = null;
+	t._tar = null;
 	exc("E_INV_VAL", "target != TComponent");
 }
 
-// private.
-// Checks the target handler component method assignment.
-function checkTEventHandlerMethod(handler) {
-	if (typeof handler._tar[handler._met] === 'function') 
+// private. Checks the target handler component method.
+function checkHandlerMethod(t) {
+	if (t._tar && typeof t._tar[t._met] === 'function') 
 		return;
-	handler._met = null;
+	t._met = null;
 	exc("E_INV_VAL", "method != function");
 }
+
+// register class at sys.

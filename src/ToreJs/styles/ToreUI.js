@@ -75,50 +75,42 @@ export function ToreUI(){
         }
     });
 
-    s.addRule("TDisplayFirst", {
-        backgroundColor: 'rgb(20,20,20)'
-    });
-
-    s.addRule("TLabelFirst", {
-        backgroundColor: 'rgb(50,50,50)',
+    s.addRule("LabelFirst", {
         color: 'White'
     });
     
-    s.addRule("TLabelFirstHover", {
-        backgroundColor: 'rgb(50,150,50)',
+    s.addRule("LabelFirstHover", {
         color: 'White'
     });
 
-    s.addRule("TPanelFirst",{
+    s.addRule("PanelFirst",{
         backgroundColor: 'rgb(30,30,30)',
         color: 'White'
     });
 
-    s.addRule("TPanelFirstHover", {
-        backgroundColor: 'rgb(180,50,50)',
-        color: 'White'
+    s.addRule("DisplayFirst", {
+        backgroundColor: 'rgb(20,20,20)'
     });
-    
-    s.addRule("TButton", {
+
+    s.addRule("Button", {
+        padding:'6px 8px 8px 8px',
         borderStyle: 'solid',
         borderWidth: '1px',
         borderRadius: '4px'
-        //lineHeight: "1.4"
     });
 
-    s.addRule("TButtonTiny", {
-        padding: '0.4375rem'
+    s.addRule("ButtonFirst",{
+        backgroundColor: 'rgb(30,30,30)',
+        borderColor: 'rgb(60,60,60)',
     });
 
-    s.addRule("TButtonSmall", {
-        padding: '0.5rem'
+    s.addRule("ButtonFirstHover",{
+        backgroundColor: 'rgb(70,70,70)',
+        borderColor: 'rgb(90,90,90)',
     });
 
-    s.addRule("TButtonMedium", {
-        padding: {
-            xs: '0.5625rem',
-            df: 'calc(0.52rem + 0.12vw)',
-            xxl: '0.625rem'
-        }
+    s.addRule("ButtonFirstFocus",{
+        backgroundColor: 'rgb(70,70,70)',
+        borderColor: 'rgb(90,90,90)',
     });
 }

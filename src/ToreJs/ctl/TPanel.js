@@ -132,7 +132,7 @@ export class TPanel extends TContainer {
 			return true;
 		if (sequence) {
 			this._sequence = this._sequence || [];
-			sys.addUnique(this._sequence, component.name);
+			sys.arrAddUnique(this._sequence, component.name);
 		}
 		this.autoAdjust();
 		return true;
@@ -154,7 +154,7 @@ export class TPanel extends TContainer {
 			return false;
 		if (!(component instanceof TControl))
 			return true;
-		i = this.sequenceIdx(component);
+		i = this.sequenceIdx(component._nam);
 		if (i !== -1)
 			this._sequence.splice(i, 1);
 		this.calcLayout();
@@ -262,17 +262,15 @@ export class TPanel extends TContainer {
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: sequenceIdx [override].
 	  TASK: Finds the index of control in panel layout sequence.
-	  ARGS: member	: TControl : The member control to search.
+	  ARGS: 
+        memberName	: string  : Name of the member control to search.
 	  RETV: 		: number  : The member index in sequence or -1 if 
 	  							there is no sequence or
-	  							member is not a control or
-								member is not a member of panel or
+	  							member is not a member of panel or
 								member is not sequenced.
 	——————————————————————————————————————————————————————————————————————————*/
-	sequenceIdx(member = null){
-		if (this._sequence === null || !(member instanceof TControl))
-			return -1;
-		return this._sequence.indexOf(member.name);
+	sequenceIdx(memberName = null){
+		return this._sequence ? this._sequence.indexOf(memberName) : -1;
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -616,10 +614,10 @@ function buildSequence(t, s){
         t._sequence = null;   
         return;
     }
-    for(c in s){
-        if (!(t._mem[s[c]] instanceof TControl))
+    for(c of s){
+        if (!(t._mem[c] instanceof TControl))
             continue;
-        sys.addUnique(n, s[c]);
+        sys.arrAddUnique(n, c);
     }
     if (n.length === 0)
         n = null;

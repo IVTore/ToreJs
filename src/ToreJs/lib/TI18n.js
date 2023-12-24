@@ -32,6 +32,7 @@ export class TLanguage extends TComponent {
 ———————————————————————————————————————————————————————————————————————————*/
 class TI18n extends TComponent {
 
+    static serializable = false;
 	static allowMemberClass = TLanguage;
 
 	_seq = []; 			// language sequence
@@ -41,9 +42,10 @@ class TI18n extends TComponent {
 	  TASK: Constructs i18n singleton component, attaches it to core.
 	——————————————————————————————————————————————————————————————————————————*/
 	constructor(){
-		if (core["i18n"])
-			exc("E_SINGLETON", "core.i18n");
-		super("i18n", core);
+        const n = 'i18n';
+		if (core[n])
+			exc("E_SINGLETON", 'core.' + n);
+		super(n, core);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -62,7 +64,7 @@ class TI18n extends TComponent {
 	attach(component = null){
 		if (!super.attach(component))
 			return false;
-		if (sys.addUnique(this._seq, component.name) === 0)
+		if (sys.arrAddUnique(this._seq, component.name) === 0)
 			core.doLanguageChange();
 		return true;
 	}
@@ -184,12 +186,13 @@ class TI18n extends TComponent {
 				a.push(s);
 		}
 		for(i in t._mem)
-			sys.addUnique(a, i);
+			sys.arrAddUnique(a, i);
 		t._seq = a;
 		t.language = l;
 	}
 }
 
 sys.registerClass(TLanguage);
+sys.registerClass(TI18n);
 
 export const i18n = new TI18n();

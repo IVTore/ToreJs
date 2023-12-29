@@ -22,17 +22,28 @@ import { TContainer }   from "./TContainer.js";
 	layout	: string.
 			if 'none' there is no layout.
 			if 'horizontal' controls are laid horizontally.
-			if 'vertical' controls are laid vertically. 
+			if 'vertical' controls are laid vertically.
+            TODO: if 'grid' control layout is a grid. 
 	
 	wrap : boolean.
+            Validity: 
+                1] Layout is 'horizontal' or 'vertical'.
+                2] Only for member controls in sequence.
 			if true controls are wrapped while laid.
 			if false controls are laid linearly.
 
 	sequence: array.
+            Validity: 
+                When layout is not 'none'.
 			Contains the names of controls effected from layout and 
 			their laying order.
 
 	contentAlign : null or string.
+            Validity: 
+                1] Layout is not 'none'.
+                2] Wrap is false, or layout is 'grid'.
+                3] Only for member controls in sequence.
+                
 			Valid when wrap is false so controls are laid linearly.
 			If layout is 'horizontal' :
                     if 'top', controls are aligned top.
@@ -62,11 +73,15 @@ import { TContainer }   from "./TContainer.js";
 			b)	Sequenced control autoX and autoY will be set to null.
 				anchorRight and anchorBottom will be set to false.
 ——————————————————————————————————————————————————————————————————————————*/
+
+const PANEL_LAYOUTS= ['none','vertical','horizontal'];//,'grid'];
+
 export class TPanel extends TContainer {
 
 	
 	// Property publishing map.
 	static cdta = {
+        clipMargin  : {value: 0},
 		splitX		: {value: 0},
 		splitY		: {value: 0},
         autoW       : {value: 'fit'},
@@ -79,6 +94,7 @@ export class TPanel extends TContainer {
 
 	_layout = 'horizontal';
 	_wrap = true;
+    _clipMargin = 0;
 	_splitX = 0;
 	_splitY = 0;
     _autoW = 'fit';
@@ -282,6 +298,7 @@ export class TPanel extends TContainer {
 	  GET : Gets layout of sequenced members.
 	  SET : Sets layout of sequenced members.
 	——————————————————————————————————————————————————————————————————————————*/
+    
 	get layout() {
 		return this._layout;
 	}
@@ -289,7 +306,7 @@ export class TPanel extends TContainer {
 	set layout(val = 'none') {
 		var cal;
 
-		if (val !== 'none' && val !== 'vertical' && val !== 'horizontal')
+		if (PANEL_LAYOUTS.indexOf(val) === -1)
 			return;
 		if (val === this._layout)
 			return;
@@ -358,6 +375,32 @@ export class TPanel extends TContainer {
 		this.contentChanged();
 	}
 
+    /*———————————————————————————————————————————————————————————————————————————
+	  PROP:	clipMargin : uint;
+	  GET : Gets clipMargin for panel wrapper.
+	  SET : Sets clipMargin for panel wrapper.
+	  INFO: *   The wrapper wraps and clips for padding to work correctly.
+                So when controls are at the borders of panel, control 
+                border effects are clipped too. Thus a margin is needed. 
+                This allows a clipMargin for the controls at border without 
+                changing the box model or calculations.
+            *   To see a proper and useful effect, give padding to panel
+                style, then set a clipMargin *less than* smallest of 
+                padding values.
+	——————————————————————————————————————————————————————————————————————————*/
+	get clipMargin() {
+		return this._clipMargin;
+	}
+
+	set clipMargin(val = 0) {
+		val = (typeof val !== 'number' || val < 0) ? 0 : Math.floor(val);
+		if (this._clipMargin === val) 
+			return;
+		this._clipMargin = val;
+        this._wrapper.overflowClipMargin = ''+val+'px';
+		this.contentChanged();
+	}
+
 	/*———————————————————————————————————————————————————————————————————————————
 	  PROP:	splitX : uint;
 	  GET : Gets horizontal splitting distance for subcontrols.
@@ -369,9 +412,8 @@ export class TPanel extends TContainer {
 	}
 
 	set splitX(val = 0) {
-		if (typeof val !== 'number' || val < 0)
-			val = 0;
-		if (this._splitX == val) 
+		val = (typeof val !== 'number' || val < 0) ? 0 : Math.floor(val);
+		if (this._splitX === val) 
 			return;
 		this._splitX = val;
 		this.contentChanged();
@@ -388,9 +430,8 @@ export class TPanel extends TContainer {
 	}
 
 	set splitY(val = 0) {
-		if (typeof val !== 'number' || val < 0)
-			val = 0;
-		if (this._splitY == val) 
+		val = (typeof val !== 'number' || val < 0) ? 0 : Math.floor(val);
+		if (this._splitY === val) 
 			return;
 		this._splitY = val;
 		this.contentChanged();

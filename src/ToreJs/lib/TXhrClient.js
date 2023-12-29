@@ -45,6 +45,7 @@ function sendPromise(options = null) {
 		xhr.onloadend = terminate;
 
         function success() {
+            // TODO: Is this a good check? Investigate.
             if (xhr.status >= 200 && xhr.status < 300) {
             	resolve(xhr);
 			} else {
@@ -57,12 +58,7 @@ function sendPromise(options = null) {
         }
 
         function terminate() {
-            xhr.onerror = null;
-			xhr.onabort = null;
-			xhr.ontimeout = null;
-			xhr.onload = null;
-			xhr.onloadEnd = null;
-			com.destroy();
+            com.destroy();
         }
 
         com.send();

@@ -304,7 +304,7 @@ function imageLoaderCommon(src, tar, promiseFunc, par) {
         });
     }
     if (r.hasClaim(src)) 
-        return r.addClaim(src);        
+        return r.addClaim(src, tar);        
     return r.newClaim(src, tar, promiseFunc(src, tar, par)) ;  
 }
 
@@ -434,6 +434,7 @@ function imageLoaderXhrPromise(src, tar, par) {
             cleanUp(e);           
         }
 
+        // note: Xhr Client clears its events during destroy.
         function cleanUp(e) {
             res.trigger(src, 'doLoadEnd', e);   // this is the last event.
             res.delClaims(src);                 // Clear claims.

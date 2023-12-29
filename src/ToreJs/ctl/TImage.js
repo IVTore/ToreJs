@@ -12,9 +12,7 @@ import {
         exc, 
         sys, 
         log, 
-        resources, 
-        TObject,
-        TXhrClient
+        resources
 }                   from "../lib/index.js";                         
 import { TCtl }     from "./TCtlSys.js";
 import { TControl } from "./TControl.js";
@@ -35,7 +33,6 @@ class TImage extends TControl {
 		src:			{value: null},
         loader:         {value: null}, // = imageLoader()
         strategy:       {value: 'auto'},
-		aspectRatio:	{value: 1},
         onLoadStart:    {event: true},
         onLoad:         {event: true},
         onLoadEnd:      {event: true},
@@ -51,7 +48,6 @@ class TImage extends TControl {
     _loader = null;         // loader method, null binds imageLoader().
     _alt    = null;         // Image alternate text.
     _title  = null;         // Image title text.
-	_aspect = 1;		    // image aspect ratio.
     _strategy = 'auto';     // loading strategy,
                             // 'auto' = auto manage.
                             // 'manual' = programmer manages by commands.
@@ -60,7 +56,7 @@ class TImage extends TControl {
     	
 	/*——————————————————————————————————————————————————————————————————————————
       CTOR: constructor.
-      TASK: Constructs an TImage component, attaches it to its owner if any.
+      TASK: Constructs a TImage control, attaches it to its owner if any.
       ARGS: 
         name  : string    	: Name of new image :DEF: null.
                               if sys.LOAD, construction is by deserialization.
@@ -111,8 +107,7 @@ class TImage extends TControl {
                     t.doLoad(s, null);
                 return;
             }    
-            if (!resources.hasClaim(s))  
-                setTimeout(t.loader, null, s, assign ? t : null);
+            setTimeout(t.loader, null, s, assign ? t : null);
         }
 	}
 	
@@ -274,7 +269,6 @@ class TImage extends TControl {
         *   This is TImage override version. 
         *   When autoH is "fit" or "max", tries to find maximum control
             height required for contents ignoring any boundaries.
-        *   maxW is aspectRatioH * naturalHeight.
     ——————————————————————————————————————————————————————————————————————————*/
     _maxH() {
     	return (this._w / this.naturalWidth) * this.naturalHeight;         
@@ -381,17 +375,6 @@ class TImage extends TControl {
 	}
 	
 	/*————————————————————————————————————————————————————————————————————————————
-	  PROP:	aspectRatio : null, int > 0.
-	  GET : Gets the current aspect ratio of image.
-	  SET : Sets the current aspect ratio of image.
-	  INFO: 
-		image height is calculated as height * aspectRatio.
-	————————————————————————————————————————————————————————————————————————————*/
-    get aspectRatio() {
-        return 1; 
-    }
-
-	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	naturalWidth : int.
 	  GET : Gets the natural width of image.
 	  INFO: If image is not loaded returns 0. 
@@ -412,7 +395,6 @@ class TImage extends TControl {
 	}
 
 }
-
 
 sys.registerClass(TImage);
 

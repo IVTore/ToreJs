@@ -344,7 +344,7 @@ function setupStyleSheet(t) {
     t.addRule("*",{ 
 		boxSizing: 'border-box',
 		position: 'absolute',
-		overflow: 'hidden',
+		overflow: 'clip',
 		border: '0px',
 		margin: '0px',
 		padding: '0px',

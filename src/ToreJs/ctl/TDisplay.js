@@ -191,15 +191,15 @@ class TDisplay extends TPanel {
 	  PROC: reFocus
 	  TASK: refreshes the focus.
 	————————————————————————————————————————————————————————————————————————————*/
-	reFocus (){
+	/* reFocus (){
 		var t = this;
 
 		if (!t._curCtl || !t._curCtl._interact)
 			return;
-		if (t._curCtl.focusTarget)	
-			t._curCtl.focusTarget.focus();
+		if (t._curCtl._focusTarget)	
+			t._curCtl._focusTarget.focus();
 		t._curCtl.invalidate();
-	}
+	} */
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: hitChk
 	  TASK:	
@@ -349,11 +349,11 @@ class TDisplay extends TPanel {
 	————————————————————————————————————————————————————————————————————————————*/
 	handleKeyUp(e) {
 		e = e || window.event;				// access event object
-		if (e.keyCode === 9) {              // tab ?
+		if (e.key === 'Tab') {              // tab ?
 			e.stopImmediatePropagation();
 			e.preventDefault();
-			this.reFocus();
 		}
+
 	}
 
 	/*————————————————————————————————————————————————————————————————————————————
@@ -363,14 +363,13 @@ class TDisplay extends TPanel {
 	handleKeyDown(e){
 		var t	= this,
 			nctl,
-			ncon;
+			ncon = t._curCon;
 		
 		e = e || window.event;				// access event object
-		if(e.keyCode === 9){
+		if(e.key === 'Tab'){
 			e.stopImmediatePropagation();
 			e.preventDefault();
-			ncon = t._curCon;
-			nctl = t._curCon.nextTab(e.shiftKey);
+			nctl = ncon.nextTab(e.shiftKey);
 			while(nctl === null){
 				ncon = ncon.container;
 				if(ncon === null)
@@ -378,18 +377,19 @@ class TDisplay extends TPanel {
 				nctl = ncon.nextTab(e.shiftKey);
 			}
 			t.currentControl = nctl; 
+            return;
 		}
-		if(e.charCode === 13){
+		if(e.key === 'Enter'){
 			e.stopImmediatePropagation();
 			e.preventDefault();
 			if(t._curCon.defaultControl !== null){
-				t._curCon.defaultControl.doClick();
+				t._curCon.defaultControl.doHit();
 				return;
 			}
 			if(t._curCtl !== null)
-				t._curCtl.doClick();
-		}
-	}
+				t._curCtl.doHit();
+        }	
+    }
 
 	/*————————————————————————————————————————————————————————————————————————————
 	  Drag-Drop subsystem 
@@ -455,7 +455,7 @@ class TDisplay extends TPanel {
 			i;
 
 		if (!(c instanceof TControl) || !c._interact || c === t._curCtl){
-			t.reFocus(); 
+			t.doFocusIn(); 
 			return;
 		}
 		if (t._curCtl)
@@ -463,7 +463,6 @@ class TDisplay extends TPanel {
 		t._curCtl = c;
 		t._curCon = c.container;
 		t._curCtl.doFocusIn();	
-		t.reFocus();
 		i = t._curCon;
 		while(i){
 			i.focus = c;
@@ -598,7 +597,7 @@ function localMouseEvent(control, event){
 ——————————————————————————————————————————————————————————————————————————*/
 function handleMouseEvent(event) {
 	event.stopImmediatePropagation();		// do not let it go anywhere.
-	event.preventDefault();
+	//event.preventDefault();
 	return findOpaque(event);
 }
 

@@ -23,7 +23,7 @@ import { display } from "./TDisplay.js";
 
   USAGE:	
 	
-	VIEWPORT:
+	Viewport dependent values :
 
 	Browser body element is represented by display singleton.
 	When the display control is initialized and whenever it is resized
@@ -32,7 +32,7 @@ import { display } from "./TDisplay.js";
 	to calculate the viewport name. If name changes, the viewport
 	dependant values in the css are changed by styler.
 
-	The viewport sizes are defined in TCtlSys.js as :
+	The default viewport sizes are defined in TCtlSys.js as :
 	TCtl.vpInfo: = {xs: 576, sm: 768, md: 992, lg: 1200, xl: 1400, xxl:null};
 	    	
 	To define a viewport dependant rule, a simple object is sufficient,
@@ -58,18 +58,25 @@ import { display } from "./TDisplay.js";
 	The rules are always class level, unless stated otherwise 
 	(internally prepended with a '.').
 	
-    Various rules may be set directly on element style by the control: 
+    These values are used by TControl and not to be used in rules.
 	top, left, right, bottom, width, height, zIndex, visibility, opacity.
+    
+    margin: is banned. 
 	
 	Controls assume boxSizing as borderBox and margins as 0.
 
-	For convenience of use there are predefined sub-rule names:
+	For convenience of use there are conventions for rule namings:
 
-	control.styleSize rule prefixes : 
+    control.styleRoot rule name is by default set to control class name,
+    but if class name starts with a 'T', it is removed.
+        TControl -> 'Control';
+        TButton -> 'Button';    
+
+	control.styleSize rule name and postfixes : 
 		Tiny, Small, Medium, Big, Large, Huge
 
-	control.styleColor rule prefixes : 
-		First, Second, Done, Fail, Warn, Info, Light, Dark, Link.
+	control.styleColor rule name and postfixes : 
+		First, Second, Done, Fail, Warn, Info, Link.
 
 	control state postfixes (Defined in TCtlSys as Control state names):
 		Alive: Normal		state
@@ -77,7 +84,7 @@ import { display } from "./TDisplay.js";
 		Focus: Focused		state
 		Sleep: Disabled		state
 
-	Controls modify their style className (element className) according to
+	Controls modify their style classNames according to
 	their controlState.
 
 	Example: 
@@ -85,39 +92,39 @@ import { display } from "./TDisplay.js";
 
     The defaults will be:
 
-        btn.styleRoot = null;
+        btn.styleRoot = null; // defaults to "Button".
 	    btn.styleSize = "Medium";
 	    btn.styleColor = "First";
 	    btn.styleExtra = null;
 
         The btn element class names will be:
 
-    TButton TButtonAlive
-    Medium MediumAlive TButtonMedium TButtonMediumAlive
-    First FirstAlive TButtonFirst TButtonFirstAlive
+    Button ButtonAlive
+    Medium MediumAlive ButtonMedium ButtonMediumAlive
+    First FirstAlive ButtonFirst ButtonFirstAlive
     
 	- Let btn be a TButton control with a quirk of an image and some extra 
       styling.
 
     if :
-        btn.styleRoot = "Img";
+        btn.styleRoot = "ImgButton";
 	    btn.styleSize = "Medium";
 	    btn.styleColor = "Second";
 	    btn.styleExtra = "Stunning";
 	
     The btn element class names will be:
 
-    TButtonImg TButtonImgAlive
-    Tiny TinyAlive TButtonImgTiny TButtonImgTinyAlive
-    Second SecondAlive TButtonImgSecond TButtonImgSecondAlive
-    Stunning StunningAlive TButtonImgStunning TButtonImgStunningAlive
+    ImgButton ImgButtonAlive 
+    Tiny TinyAlive ImgButtonTiny ImgButtonTinyAlive
+    Second SecondAlive ImgButtonSecond ImgButtonSecondAlive
+    Stunning StunningAlive ImgButtonStunning ImgButtonStunningAlive
     
     If it is hovered then btn element class names will be:
 
-    TButtonImg TButtonImgHover
-    Tiny TinyHover TButtonImgTiny TButtonImgTinyHover
-    Second SecondHover TButtonImgSecond TButtonImgSecondHover
-    Stunning StunningHover TButtonImgStunning TButtonImgStunningHover
+    ImgButton ImgButtonHover 
+    Tiny TinyHover ImgButtonTiny ImgButtonTinyHover
+    Second SecondHover ImgButtonSecond ImgButtonSecondHover
+    Stunning StunningHover ImgButtonStunning ImgButtonStunningHover
 	
 ——————————————————————————————————————————————————————————————————————————*/
 
@@ -139,8 +146,6 @@ var colors = {
     Fail: 1, 
     Warn: 1, 
     Info: 1, 
-    Light: 1,
-    Dark: 1, 
     Link: 1
 };
 
@@ -154,7 +159,6 @@ class TStyler extends TComponent {
     _thr = null;            // Current theme rules name list.
 	_css = null;			// document.styleSheets[0].
 	_rls = null;			// Rules list.
-	_pxr = 0;				// Pixels in 1rem.
 	_dyn = {};				// Dynamic values bank.
 	
 	/*——————————————————————————————————————————————————————————————————————————
@@ -168,7 +172,6 @@ class TStyler extends TComponent {
 			exc("E_SINGLETON", "core.styler");
 		super("styler", core);
 		s = window.getComputedStyle(document.documentElement);
-		this._pxr = parseInt(s.fontSize, 10);
 		setupStyleSheet(this);
 	}
 	
@@ -351,7 +354,8 @@ function setupStyleSheet(t) {
         left:"0px",                 
         top:'0px',
         width:'32px',
-        height:'32px'
+        height:'32px',
+        resize: 'none'
 	}, false);
 	
 	t.addRule("html",{

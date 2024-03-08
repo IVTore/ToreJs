@@ -105,7 +105,8 @@ class TRenderer extends TComponent {
 
 /*————————————————————————————————————————————————————————————————————————————
   CLASS:    TPostRenderQueue
-  TASKS:    This runs inside renderer right after renderQueue.
+  TASKS:    A Singleton Queue for post rendering (Class not exported).
+            This runs inside renderer right after renderQueue.
             Renderer owns and executes this.
 ————————————————————————————————————————————————————————————————————————————*/
 class TPostRenderQueue extends TFuncJobQueue {
@@ -121,7 +122,8 @@ class TPostRenderQueue extends TFuncJobQueue {
 
 /*————————————————————————————————————————————————————————————————————————————
   CLASS:    TRenderQueue
-  TASKS:    When controls invalidate, they are added to render queue.
+  TASKS:    A Singleton Queue for rendering (Class not exported).
+            When controls invalidate, they are added to render queue.
             Renderer owns and executes this.
             This renders then recalculates the controls.
 ————————————————————————————————————————————————————————————————————————————*/

@@ -18,7 +18,8 @@ import { TPanel } from "./TPanel.js";
 ————————————————————————————————————————————————————————————————————————————*/
 export class TButton extends TPanel {
 
-    static defaultCanEmptyFocus = true;
+    // It is a container so this is required for focus when empty.
+    static defaultCanEmptyFocus = true; 
     static defaultCanFocus = true;
 
     static cdta = {

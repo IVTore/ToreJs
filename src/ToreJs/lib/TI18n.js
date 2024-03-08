@@ -14,6 +14,18 @@ import { TComponent } from "./TComponent.js";
   TASKS: 
 	Stores text and other specific data for a language.
 	Designed as member of core.i18n component.
+  USAGE:
+    Any variable added to TLanguage instance is a language dependent data.
+    Variable names are selectors.
+    Selector ***convention*** :
+        1]  Selectors are keys to access language spesific data.
+        2]  Selectors must be in CAPITAL LETTERS.
+        3]  Second character must be an underscore "_".
+        4]  Reserved selector prefixes:
+            "E_": Exception selector string.  
+            "T_": Text string or if multi line, an array of strings.
+            "I_": Image url (string).
+    Use the convention.
   NOTES:
 	Does not accept members.
 	To take effect it must be attached to core.i18n singleton.
@@ -93,36 +105,81 @@ class TI18n extends TComponent {
 	  FUNC: find. 
 	  TASK: Tries to find a specific data by data selector and language.
 	  ARGS:
-		selector	: String : The data identifier name.
-		language	: String : The language name 		:DEF:null.
-	  RETV:			: * 	 : data or selector if not found.
+		selector	: String : Data identifier name.    :DEF:null.
+        language	: String : The language name 		:DEF:null.
+	  RETV:			: * 	 : data or null if not found.
 	  INFO:
-		* If language is specified :
+        * selector parameter :
+          If selector is not a string, returns null.
+          If second character of selector is not '_', null is returned.
+
+        * language parameter :
+          If language is specified :
 			If language is invalid it is set to default.
 			If data not found in language, behaves as if language is null.
-		* If language is null (default):
+		  If language is null (default):
 			All languages are scanned for selector with respect to sequence 
 			until data is found. 
-			If data is not found selector is returned.
+			If data is not found null is returned.
 	———————————————————————————————————————————————————————————————————————————*/
 	find(selector = null, language = null) {
 		var	r,
-			i,
-			s = (typeof language === string) ? language : this._seq[0];
-		
-		if (typeof selector !== 'string')
-			exc("E_INV_ARG", "selector");
-		r = this._mem[s][selector];
-		if (r)
-			return(r);
-		for(i in this._seq){
-			r = this._mem[this._seq[i]][selector];
-			if (r)
-				return(r);
-		}
-		return(selector);
+			s; 
+		        
+        if (typeof selector !== 'string' || selector[1] !== '_')
+            return null;
+        if (typeof language === "string" && this._mem[language]) {
+            r = this._mem[language][selector];
+            if (r !== undefined) 
+                return r;
+        }
+        for(s of this._seq){
+            r = this._mem[s][selector];
+            if (r !== undefined)
+                return r;
+        }
+        return null;
+        
 	}
 
+
+    /*———————————————————————————————————————————————————————————————————————————
+	  FUNC: findSet. 
+	  TASK: Tries to find a specific data by data selector and language.
+            Sets the selector on target and returns the data.
+	  ARGS:
+		selector	: String : Data identifier name.    :DEF:null.
+        target      : Object : Target object if any.    :DEF:null.
+        reference   : String : Target selector ref.     :DEF:null.
+		language	: String : The language name 		:DEF:null.
+	  RETV:			: * 	 : data or null if not found.
+	  INFO:         
+
+        * selector parameter :
+          If selector is not a string, returns null.
+          If second character of selector is not '_', null is returned.
+
+        * target and reference parameters :
+          If non null there is a selector reference in the target to set.
+          If data is found target[reference] will be set to selector.
+          Otherwise target[reference] will be set to null.
+
+		* language parameter :
+          If language is specified :
+			If language is invalid it is set to default.
+			If data not found in language, behaves as if language is null.
+		  If language is null (default):
+			All languages are scanned for selector with respect to sequence 
+			until data is found. 
+			If data is not found null is returned.
+	———————————————————————————————————————————————————————————————————————————*/
+	findSet(selector = null, target = null, reference = null, language = null) {
+		var r = this.find(selector, language);
+        
+        if (target instanceof Object && typeof reference === 'string') 
+            target[reference] = (r) ? selector : null;
+        return r;
+	}
 	/*————————————————————————————————————————————————————————————————————————————
 	  PROP:	language : string.
 	  GET : Gets the name of active language.

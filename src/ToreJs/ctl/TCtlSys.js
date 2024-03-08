@@ -12,14 +12,14 @@ import {
         core, 
         TObject,
         TComponent, 
-        resources 
+        resources,
     }               from "../lib/index.js";
-import { display }  from "./index.js";
+import { TControl, display }  from "./index.js";
 
 /*————————————————————————————————————————————————————————————————————————————
   CLASS:    TCtlSys [static singleton]
   TASKS:    Control system framework with 
-            Visual control constants settings and helpers. 
+            Visual control constant settings and helper routines. 
 ————————————————————————————————————————————————————————————————————————————*/
 
 // private viewport sizes array.
@@ -239,6 +239,31 @@ const TCtl = {
         return v;
     },
 
+    /*——————————————————————————————————————————————————————————————————————————
+      FUNC: measureText [public].
+      TASK: Calculates the TextMetrics of the given text based on the 
+            computed style of the given control.
+      ARGS: control : TControl    : The control.
+            text    : string      : The text to measure.
+      RETV          : TextMetrics : The calculated TextMetrics or null.
+      INFO: The font is derived from the computed style.
+      WARN: If the control is not a TControl raises 'E_INV_ARG'.
+    ——————————————————————————————————————————————————————————————————————————*/
+    measureText(control, text) {
+        var ctx = textCtxt,
+            sty; 
+    
+        if (!(control instanceof TControl))
+            exc('E_INV_ARG', 'control');
+        if (typeof text !== 'string')
+            text = '';
+        sty = control._computed;
+        ctx.font =  (sty.fontWeight || '400') + ' ' + 
+                    (sty.fontSize || '16px') + ' ' +
+                    (sty.fontFamily || 'system-ui'); 
+        return ctx.measureText(text);
+    },
+    
     /*———————————————————————————————————————————————————————————————————————————— 
         Default Image Loader and Image XHR loader.
         These are here instead of TImage since various controls can use images.
@@ -260,7 +285,7 @@ const TCtl = {
             triggers doLoadStart, doProgress, doLoad and doLoadEnd on target.
     ——————————————————————————————————————————————————————————————————————————*/
     imageLoader(src = '', tar = null, par = null) {
-        return imageLoaderCommon(src, tar, imageLoaderPromise, src, tar);
+        return TCtl._imageLoaderCommon(src, tar, imageLoaderPromise, src, tar);
     },
 
     /*————————————————————————————————————————————————————————————————————————————
@@ -272,7 +297,6 @@ const TCtl = {
       RETV      : Promise : promise resolve(src) reject(errorMessage) 
       INFO: 
         *   Can be used standalone, target (tar) can be null.
-        *   Non-blocking.
         *   Theoretically non-blocking :).
         *   When image is loaded, it can be obtained from resources.
         *   If the image is previously loaded and target is non null
@@ -284,28 +308,47 @@ const TCtl = {
             This may change when browsers support srcObject property.
     ————————————————————————————————————————————————————————————————————————————*/
     imageLoaderXhr(src = '', tar = null, par = null) {
-    	return imageLoaderCommon(src, tar, imageLoaderXhrPromise, src, par);
-    }    
+    	return TCtl._imageLoaderCommon(src, tar, imageLoaderXhrPromise, src, par);
+    },    
 
-}
+    /*————————————————————————————————————————————————————————————————————————————
+      FUNC: _imageLoaderCommon [protected][export].
+      TASK: This DRY routine contains common prelude for loading an image.
+      ARGS: src         : string    : image url.
+            tar         : TObject   : Target TObject for events (resource claimer).
+            promiseFunc : Function  : A function returning a started promise
+                                      resolve(src), reject(errorMessage)
+            par         : Object    : Extra parameters if any.
+      RETV              : Promise   : promise resolve(src) reject(errorMessage) 
+      INFO: 
+        *   This routine must be normally internal and protected.
+            It exists here if anyone needs to write an image loader promise
+            the way they like.
+        *   Target (tar) can be null.
+        *   Theoretically non-blocking :).
+        *   When image is loaded, it can be obtained from resources.
+        *   If the image is previously loaded and target is non null
+            triggers doLoadStart, doProgress, doLoad and doLoadEnd on target.
+    ————————————————————————————————————————————————————————————————————————————*/
+    _imageLoaderCommon(src = null, tar = null, promiseFunc = null, par = null) {
+        const r = resources;
 
-// Internal:
-// This DRY routine contains common prelude for loading an image.
-function imageLoaderCommon(src, tar, promiseFunc, par) {
-    const r = resources;
-
-    sys.str(src, 'src');
-    tar = (tar instanceof TObject) ? tar : null;
-    if (r.hasAsset(src)) {
-        return new Promise((resolve) => {
-            if (tar && tar._sta)
-                ImageLoaderMethodTrigger(src, tar, ['LoadStart', 'Progress', 'Load', 'LoadEnd']);
-            resolve(src);
-        });
+        sys.str(src, 'src');
+        tar = (tar instanceof TObject) ? tar : null;
+        if (r.hasAsset(src)) {
+            return new Promise((resolve) => {
+                if (tar && tar._sta)
+                    ImageLoaderMethodTrigger(src, tar, ['LoadStart', 'Progress', 'Load', 'LoadEnd']);
+                resolve(src);
+            });
+        }
+        if (r.hasClaim(src)) 
+            return r.addClaim(src, tar); 
+        if (!(promiseFunc instanceof Function))
+            exc('E_INV_ARG', 'promiseFunc');       
+        return r.newClaim(src, tar, promiseFunc(src, tar, par)) ;  
     }
-    if (r.hasClaim(src)) 
-        return r.addClaim(src, tar);        
-    return r.newClaim(src, tar, promiseFunc(src, tar, par)) ;  
+
 }
 
 // Internal:
@@ -326,6 +369,7 @@ function ImageLoaderMethodTrigger(src, tar, def) {
 
 // internal.
 // Used in TCtl.imageLoader.
+// Uses standard browser image loading.
 function imageLoaderPromise(src, tar, par) {
     var img = new Image(),
         res = resources;
@@ -335,9 +379,10 @@ function imageLoaderPromise(src, tar, par) {
         img.onerror = hndProblem;
         img.onload = hndLoad;
         img.onloadend = hndLoadEnd;
-        if (tar && tar._sta) 
+        // Browsers do not support this events so we fire them if there is a target.
+        if (tar && tar._sta)                   
             ImageLoaderMethodTrigger(src, tar, ['LoadStart', 'Progress']);   
-        img.src = src;
+        img.src = src;                          // start loading.
 
         function hndProblem(e) { 
             var nm = e.type[0].toUpperCase() + e.type.substring(1);
@@ -365,6 +410,7 @@ function imageLoaderPromise(src, tar, par) {
 
 // internal.
 // Used in TCtl.imageLoaderXhr.
+// Uses xhr client to load an image.
 function imageLoaderXhrPromise(src, tar, par) {
     var client = null,
         reader = null,
@@ -434,7 +480,7 @@ function imageLoaderXhrPromise(src, tar, par) {
             cleanUp(e);           
         }
 
-        // note: Xhr Client clears its events during destroy.
+        // Note: Xhr Client clears its events during destroy.
         function cleanUp(e) {
             res.trigger(src, 'doLoadEnd', e);   // this is the last event.
             res.delClaims(src);                 // Clear claims.
@@ -451,6 +497,11 @@ function imageLoaderXhrPromise(src, tar, par) {
         }
     });    
 }
+
+// internal.Used in TCtl.measureText.
+
+var textCalc = document.createElement("canvas"),
+	textCtxt = textCalc.getContext("2d");
 
 Object.freeze(TCtl);
 

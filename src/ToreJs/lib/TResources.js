@@ -238,6 +238,23 @@ class TResources extends TComponent {
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
+	  FUNC: peekAsset.
+	  TASK: Returns asset with the given name if exists or null.
+            The returned asset will not be linked to anything.
+            Use addLink for asset management with links. 
+            So be careful.   
+	  ARGS: 
+	  	name	: string	: Resource name such as an url. :DEF: null.
+	  RETV:     : object    : Asset with the given name if exists or null.
+	——————————————————————————————————————————————————————————————————————————*/
+    peekAsset(name = null) {
+        var asset = this._fetch(name);
+        if (!asset)
+            return null;
+        return asset._data;
+    }
+
+    /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: hasAsset.
 	  TASK: Returns true if resources contain an asset with the given name.
 	  ARGS: 

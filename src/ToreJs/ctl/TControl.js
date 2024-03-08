@@ -30,7 +30,7 @@ export class TControl extends TComponent {
     // TControl dom tags.
     static elementTag = 'div';
     static wrapperTag = null;
-
+    
     static get defaultRoot() {
         var n = this.name;
         if (n[0] === 'T')
@@ -40,7 +40,7 @@ export class TControl extends TComponent {
 		
 
     // TControl initial style.
-    static initialStyle = {left: "0px", top: "0px", width:"32px", height:"32px"};
+    static initialStyle = {left: "0px", top: "0px", width:"64px", height:"64px"};
     
     /*————————————————————————————————————————————————————————————————————————————
         TControl Class Data Publishing Map. 
@@ -48,8 +48,8 @@ export class TControl extends TComponent {
     static cdta = {				                // property publishing map
         x               : {value: 0},
         y               : {value: 0},
-        w               : {value: 32},
-        h               : {value: 32},
+        w               : {value: 64},
+        h               : {value: 64},
         autoX			: {value: null},
 		autoY			: {value: null},
 		autoW	    	: {value: null},
@@ -99,8 +99,8 @@ export class TControl extends TComponent {
     // Position and dimension variables.
     _x = 0;						// X coordinate.
 	_y = 0;						// Y coordinate.
-	_w = 32;				    // Width.
-	_h = 32;				    // Height.
+	_w = 64;				    // Width.
+	_h = 64;				    // Height.
 	_autoX = null;				// Automatic X.
 	_autoY = null;				// Automatic Y.
 	_autoW = null;			    // Automatic Width.
@@ -122,7 +122,7 @@ export class TControl extends TComponent {
     // These are for direct CSS values, used during render.
     // if one of these are set _cCssWait flag must be set too.
     // Look _calcAuto, _calcCss and render.    
-    _cvW = null; 
+    _cvW = null;                // css render value for width.
     _cvH = null;                // css render value for height.
     _cvX = null;                // css render value for x (left).
     _cvY = null;                // css render value for y (top).
@@ -137,6 +137,7 @@ export class TControl extends TComponent {
     _opacity = 1;               // Opacity (alpha) value.
 
     // Behavioral.
+    _focusTarget = null;        // Native DOM Focus target if any.
     _canFocus = false;      
     _yieldFocus = false;   
     _hitOpaque = false;
@@ -149,12 +150,12 @@ export class TControl extends TComponent {
     _interact = false;          // True if control is interactive.
     _cContent = false;          // Content has changed flag.
     _cClasses = false;          // Css Classes has changed flag.
-    _cCssWait = false;          // css direct change pending flag.     
+    _cCssWait = false;          // Css direct change pending flag.     
 
     // Dom
     _element = null;            // Dom element (outer).
     _wrapper = null;            // Dom wrapper element (inner) if exists.
-   
+    
     // Css
     _computed = null;           // Current element computed style.
     _shadowed = {};             // Future shadowed style.
@@ -218,7 +219,6 @@ export class TControl extends TComponent {
 
         if (name === sys.LOAD)
             return;
-       
         this._noValidate = true;
         if (oic) 
             owner._noValidate = true; 
@@ -250,8 +250,8 @@ export class TControl extends TComponent {
 		if (!super.attach(component))
 			return false;
 		if (component instanceof TControl) {
-			this._subCtls.push(component);
-			this._wrapper.appendChild(component._element);
+            this._wrapper.appendChild(component._element);
+            this._subCtls.push(component);
 			component.checkEvents();
 			this.contentChanged();
 		}
@@ -358,8 +358,7 @@ export class TControl extends TComponent {
             t._cvW = t._cwH = t._cwX = t._cvY = null;
             t._cpW = t._cpH = t._cpX = t._cpY = false; 
         }
-		
-        if (wrp !== sty) {
+		if (wrp !== sty) {
             wrp.width  = '' + (t._w - t._shellW) + 'px'; 
             wrp.height = '' + (t._h - t._shellH) + 'px';
             if (sha.visibility)
@@ -448,7 +447,7 @@ export class TControl extends TComponent {
             return '';
         }
         
-        t._sClass = ' '+ c + ' ' + c + s +
+        t._sClass = c + ' ' + c + s +
                     calcSub(t._sSize) +
                     calcSub(t._sColor) +
                     calcSub(t._sExtra);
@@ -719,6 +718,8 @@ export class TControl extends TComponent {
 	——————————————————————————————————————————————————————————————————————————*/
 	doFocusIn() {
 		this.controlState = TCtl.FOCUS;
+        if (this._interact && this._focusTarget)	
+			this._focusTarget.focus();
 		return this.dispatch(this._eve.onFocusIn);	    
 	}
 
@@ -729,8 +730,11 @@ export class TControl extends TComponent {
 	doFocusOut() {
 		if (this._ctlState == TCtl.SLEEP)
 			return null;
-		if (this._ctlState == TCtl.FOCUS)
+		if (this._ctlState == TCtl.FOCUS) {
 			this.controlState = (this._ptrOver ? TCtl.HOVER : TCtl.ALIVE);
+            if (this._focusTarget)
+                this._focusTarget.blur();
+        }
 		return this.dispatch(this._eve.onFocusOut);	
 	}
 
@@ -740,8 +744,8 @@ export class TControl extends TComponent {
     ——————————————————————————————————————————————————————————————————————————*/
 
     /*——————————————————————————————————————————————————————————————————————————
-      FUNC: _makeElements [private].
-      TASK: Builds and binds a document object model elements to control.
+      FUNC: _makeElements [protected].
+      TASK: Builds and binds document object model elements to control.
       INFO: Containers have inner wrappers.
     ——————————————————————————————————————————————————————————————————————————*/
     _makeElements() {
@@ -749,30 +753,31 @@ export class TControl extends TComponent {
             e = t.class.elementTag,
             w = t.class.wrapperTag;
 
-        function elementMaker(tag = null) {
+        function elementMaker(tag = null, position, dbg) {
             var dom;
         
             if (tag === null)
                 return null;
             dom = (tag !== 'body') ? document.createElement(tag) : document.body;
             dom.ToreJS_Control = t;
+            dom.style.position = position;
+            dom.id = dbg + '_' + t.class.name;
             return dom;
         }
 
         sys.str(e, t.constructor.name + ": static elementTag = ?","E_CTL_NO_DOM");
-        t._wrapper = elementMaker(w);
-        t._element = elementMaker(e);
-        t._computed = window.getComputedStyle(t._element);    
+        t._element = elementMaker(e, 'absolute', 'e');
+        t._computed = window.getComputedStyle(t._element);
+        t._wrapper = elementMaker(w, 'relative', 'w');
         if (t._wrapper === null) {
             t._wrapper = t._element;
             return;
         }         
-        t._element.appendChild(t._wrapper);
-        t._wrapper.style.position = 'relative';       
+        t._element.appendChild(t._wrapper);       
     }
 
     /*——————————————————————————————————————————————————————————————————————————
-      FUNC: _killElements [private].
+      FUNC: _killElements [protected].
       TASK: Frees control from its document object model elements.
     ——————————————————————————————————————————————————————————————————————————*/
     _killElements(t) {

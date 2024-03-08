@@ -12,7 +12,8 @@ import {
         exc, 
         sys, 
         log, 
-        resources
+        resources,
+        i18n
 }                   from "../lib/index.js";                         
 import { TCtl }     from "./TCtlSys.js";
 import { TControl } from "./TControl.js";
@@ -33,6 +34,8 @@ class TImage extends TControl {
 		src:			{value: null},
         loader:         {value: null}, // = imageLoader()
         strategy:       {value: 'auto'},
+        title:          {value: null},
+        alt:            {value: null},
         onLoadStart:    {event: true},
         onLoad:         {event: true},
         onLoadEnd:      {event: true},
@@ -46,14 +49,13 @@ class TImage extends TControl {
     _curImg = null;			// current image.
     _nxtImg = null;         // next image (avoids race conditions).
     _loader = null;         // loader method, null binds imageLoader().
-    _alt    = null;         // Image alternate text.
-    _title  = null;         // Image title text.
-    _strategy = 'auto';     // loading strategy,
+    _altSel = null;         // alt i18n selector.
+    _titleSel = null;       // title i18n selector.
+    strategy = 'auto';     // loading strategy,
                             // 'auto' = auto manage.
                             // 'manual' = programmer manages by commands.
                             // 'agressive' = load all viewport images a.s.a.p.
-    _loading = [];          // images that are currently loading. 
-    	
+       	
 	/*——————————————————————————————————————————————————————————————————————————
       CTOR: constructor.
       TASK: Constructs a TImage control, attaches it to its owner if any.
@@ -114,30 +116,30 @@ class TImage extends TControl {
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doLoadStart
       TASK: Flags the image control that image loading is started.
-      ARGS: src : string : source url.
-            e   : event  : progress event.
-      INFO: Invokes onLoadStart(sender, src, e) if defined.
+      ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+      INFO: Invokes onLoadStart(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doLoadStart(src, e) {
+    doLoadStart(srcUrl, pEvent) {
         log(this.namePath, 'loadStart');
-		return this.dispatch(this._eve.onLoadStart, src, e);
+		return this.dispatch(this._eve.onLoadStart, srcUrl, pEvent);
     }
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doLoad
       TASK: Flags the image control that image is loaded.
-      ARGS: src : string : source url.
-            e   : event  : progress event.
+      ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
       INFO: This is sent after image is loaded and in resources.
-            Invokes onLoad(sender, src, e) if defined.
+            Invokes onLoad(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doLoad(src, e) {
+    doLoad(srcUrl, pEvent) {
         var t = this, // really helpful in closure.
             img;
 
-		if (src === t._curImg || src !== t._nxtImg)
+		if (srcUrl === t._curImg || srcUrl !== t._nxtImg)
             return false;
-		img = resources.addLink(src, t);
+		img = resources.addLink(srcUrl, t);
 		if (img) {
             t._element.onload = innerOnLoad;
 			t._element.src = img.src;
@@ -145,71 +147,72 @@ class TImage extends TControl {
         return (img !== null);
 
         function innerOnLoad() {
-            t._curImg = src;
+            t._curImg = srcUrl;
             t._element.onload = null;
             log(t.namePath, 'load');
             t.contentChanged();
-            t.dispatch(t._eve.onLoad, src, e);
+            t.dispatch(t._eve.onLoad, srcUrl, pEvent);
         }		 
     }
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doLoadEnd
       TASK: Flags the image control that image loading is finalized.
-      ARGS: src : string : source url.
-            e   : event  : progress event.
-      INFO: Invokes onLoadEnd(sender, src, e) if defined.
+      ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+      INFO: Invokes onLoadEnd(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doLoadEnd(src, e) {
+    doLoadEnd(srcUrl, pEvent) {
         log(this.namePath, 'loadEnd');
-		return this.dispatch(this._eve.onLoadEnd, src, e);
+		return this.dispatch(this._eve.onLoadEnd, srcUrl, pEvent);
     }
 
 	/*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doProgress
 	  TASK: Flags the image control that image load is progressing.
-	  ARGS: src : string : source url.
-            e   : event  : progress event.
-	  INFO: Invokes onProgress(sender, src, e) if defined.
+	  ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+	  INFO: Invokes onProgress(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doProgress(src, e = null) {
+    doProgress(srcUrl, pEvent = null) {
 		log(this.namePath, 'progress');
-		return this.dispatch(this._eve.onProgress, src, e);
+		return this.dispatch(this._eve.onProgress, srcUrl, pEvent);
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doTimeout
 	  TASK: Flags the image control that image load is timed out.
-	  ARGS: src : string : source url.
-            e   : event  : timeout event.
-	  INFO: Invokes onTimeout(sender, src, e) if defined.
+	  ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+	  INFO: Invokes onTimeout(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doTimeout(src, e = null) {
+    doTimeout(srcUrl, pEvent = null) {
 		log(this.namePath, 'timeout');
-		return this.dispatch(this._eve.onTimeout, src, e);
+		return this.dispatch(this._eve.onTimeout, srcUrl, pEvent);
 	}
 
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doAbort
 	  TASK: Flags the image control that image load is aborted.
-	  ARGS: src : string : src (url).
-            e   : event  : progress event.
-	  INFO: Invokes onAbort(sender, e) if defined.
+	  ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+	  INFO: Invokes onAbort(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doAbort(src, e = null) {
+    doAbort(srcUrl, pEvent = null) {
 		log(this.namePath, 'abort');
-		return this.dispatch(this._eve.onAbort, src, e);
+		return this.dispatch(this._eve.onAbort, srcUrl, pEvent);
 	}
     
     /*——————————————————————————————————————————————————————————————————————————
 	  FUNC: doError
 	  TASK: Flags the image control that image load has an error.
-	  ARGS: src : string : src (url).
-            e   : event  : progress event.ARGS: e   : error event.
+	  ARGS: srcUrl : string : source url.
+            pEvent : Event  : progress event.
+      INFO: Invokes onError(sender, srcUrl, pEvent) if defined.
 	——————————————————————————————————————————————————————————————————————————*/
-    doError(src, e = null) {
+    doError(srcUrl, pEvent = null) {
 		log(this.namePath, 'error');
-		return this.dispatch(this._eve.onError, src, e);
+		return this.dispatch(this._eve.onError, srcUrl, pEvent);
     }
 
 	/*——————————————————————————————————————————————————————————————————————————
@@ -303,18 +306,20 @@ class TImage extends TControl {
 	  PROP:	alt : string.
 	  GET : Gets the image alt string.
 	  SET : Sets the image alt string.
+      INFO: Supports i18n selectors.
 	————————————————————————————————————————————————————————————————————————————*/
 	get alt() {
-		return this._alt;
+        if (this._sta === sys.SAVE && this._altSel)
+            return this._altSel;        
+		return this._element.alt;
 	}
 
-	set alt(val = null) {
+	set alt(val = '') {
         if (typeof val !== 'string' &&  val !== null)
             return;
-        if (this._alt === val)
+        if (val === this._element.alt || (this._altSel && val === this._altSel))
             return;
-        this._alt = val;
-        this._element.alt = val;
+        this._element.alt = i18n.findSet(val, this, '_altSel') || val;
 	}
 	
     /*————————————————————————————————————————————————————————————————————————————
@@ -323,16 +328,17 @@ class TImage extends TControl {
 	  SET : Sets the image title string.
 	————————————————————————————————————————————————————————————————————————————*/
 	get title() {
-		return this._title;
+        if (this._sta === sys.SAVE && this._titleSel)
+            return this._titleSel
+		return this._element.title;
 	}
 
 	set title(val = null) {
         if (typeof val !== 'string' &&  val !== null)
             return;
-        if (this._title === val)
+        if (this._element.title === val || (this._titleSel && val === this._titleSel))
             return;
-        this._title = val;
-        this._element.title = val;
+        this._element.title = i18n.findSet(val, this, '_titleSel') || val;
 	}
 
     /*————————————————————————————————————————————————————————————————————————————

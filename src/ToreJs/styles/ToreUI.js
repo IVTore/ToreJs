@@ -17,12 +17,25 @@ import { styler } from "../ctl/index.js";
         xl < 1400 
         xxl >= 1400
         df is the default value. Viewport values precede default value.
-    2]  Tiny, Small, Medium, Big, Large, Huge words refer to control sizes.
+
+    2]  Control sizes: 
+            Tiny, Small, Medium, Big, Large, Huge.
+        Control colors:
+            First, Second, Done, Fail, Warn, Info, Link.
+        Control states:
+            Alive, Hover, Focus, Sleep.
         When standalone, they refer to all control classes.
-    3]  To give default sizes to specific controls, write rules with:
-        <ControlClass><SizeName>
-        Example: Let class name be Car;
-        CarTiny, CarSmall, CarMedium, CarBig, CarLarge, CarHuge.
+
+    3]  Usage:
+        There is no such thing as ButtonTinyFirstHover...
+        When a button has styleSize as Tiny and styleColor as First:
+        If state is hovered:
+            That button will use ButtonTiny and ButtonFirst primarily.
+            then it will use ButtonTinyHover and ButtonFirstHover
+            if they are defined.
+    
+        The writing order is important because of css handling of browsers.
+        So go from general to specific.
 ————————————————————————————————————————————————————————————————————————————*/
 
 export function ToreUI(){
@@ -113,4 +126,27 @@ export function ToreUI(){
         backgroundColor: 'rgb(70,70,70)',
         borderColor: 'rgb(90,90,90)',
     });
+
+    styler.addRule("Input", {
+        outline: 'none',
+        padding:'8px',
+        borderRadius: '4px'
+    });
+    
+    styler.addRule("InputFirst", {
+        backgroundColor: 'rgb(30, 30, 30)',
+        color: 'lightgray',
+        boxShadow: 'inset 0 0 2px rgb(128, 128, 128)'
+    });
+
+    styler.addRule("InputFirstHover", {
+        boxShadow: 'inset 0 0 4px rgb(168, 168, 168)'
+    });
+
+    styler.addRule("InputFirstFocus", {
+        color: 'white',
+        boxShadow: 'inset 0 0 4px rgb(255, 255, 255)'
+    })
+
+    
 }

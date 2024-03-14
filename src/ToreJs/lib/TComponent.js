@@ -288,7 +288,34 @@ export class TComponent extends TObject {
 		return(r);
 	}
 
-	/*——————————————————————————————————————————————————————————————————————————
+    /*———————————————————————————————————————————————————————————————————————————
+	  FUNC:	hasMember.
+	  TASK:	Returns true if component is a member, 
+            or there is a component with given name.
+	  ARGS:
+	  	member	: TComponent : member component to check. :DEF: null.
+                : string     : name of member component to check. :DEF: null.
+	  RETV:		: boolean    : true if component is a member.
+	———————————————————————————————————————————————————————————————————————————*/
+	hasMember(member = null) {
+		if (typeof member === "string")
+			return(!!this._mem[member]);
+		return (member instanceof TComponent && member._own == this);
+	}
+
+    /*———————————————————————————————————————————————————————————————————————————
+	  FUNC:	member.
+	  TASK:	Returns the member component with given name or null.
+	  ARGS:
+	  	name	: string     : name of member component to return. :DEF: null.
+	  RETV:		: TComponent : Component, or null.
+	———————————————————————————————————————————————————————————————————————————*/
+	member(name = null) {
+		var m = this._mem[name];
+		return (m ? m : null);
+	}
+    
+    /*——————————————————————————————————————————————————————————————————————————
 		Event subsystem
 		
 		WARNING: System automatically defines getters and setters for events.
@@ -506,6 +533,7 @@ export class TComponent extends TObject {
         if (val instanceof TComponent)
             val.attach(this);
     }
+
 }
 
 // register class at sys.

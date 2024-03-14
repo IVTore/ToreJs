@@ -74,7 +74,8 @@ import { TContainer }   from "./TContainer.js";
 				anchorRight and anchorBottom will be set to false.
 ——————————————————————————————————————————————————————————————————————————*/
 
-const PANEL_LAYOUTS= ['none','vertical','horizontal'];//,'grid'];
+const PANEL_LAYOUTS = ['none','vertical','horizontal'];//,'grid'];
+const PANEL_C_ALIGN = ['top','bottom','left','right','center'];
 
 export class TPanel extends TContainer {
 
@@ -330,7 +331,7 @@ export class TPanel extends TContainer {
 	}
 
 	set contentAlign(val = null) {
-		if (PNL_CALIGN.indexOf(val) === -1)
+		if (PANEL_C_ALIGN.indexOf(val) === -1)
 			return;		
 		if (val === this._contentAlign)
 			return;
@@ -440,7 +441,7 @@ export class TPanel extends TContainer {
 }
 
 // Private methods and values.
-const PNL_CALIGN = ['top','bottom','left','right','center'];
+
 
 /*——————————————————————————————————————————————————————————————————————————
   FUNC: calcHorWrapped

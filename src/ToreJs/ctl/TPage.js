@@ -24,20 +24,31 @@ import { application }  from "./TApplication.js";
     In contrast to the other components, the page data at the constructor
     is passed to the page when page.build() is called.
 ————————————————————————————————————————————————————————————————————————————*/
-class TPage extends TPanel {
+export class TPage extends TPanel {
     
     static serializable = true;
 
-    static cdta = {
-        onLoad: {event: true},
-        onShow: {event: true},
-        onHide: {event: true}
-    }
-
     
+    static cdta = {
+        autoW       : {value: 'fit'},   // override.
+        autoH       : {value: 'fit'},   // override.
+		layout		: {value: 'none'},  // override.
+		wrap		: {value: false},   // override.
+        onLoad: {event: true},
+        onBeforeShow: {event: true},
+        onAfterShow: {event: true},
+        onBeforeHide: {event: true},
+        onAfterHide: {event: true}       
+	};
+
+	_layout = 'none';
+	_wrap = false;
+    _autoW = 1;
+    _autoH = 1;
+	
     constructor(name = null, data = null) {
         super(name);
-        this.initControl(name, application);9
+        this.initControl(name, application, data);
     }
 
     /*——————————————————————————————————————————————————————————————————————————

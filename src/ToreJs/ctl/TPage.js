@@ -32,8 +32,8 @@ export class TPage extends TPanel {
     static cdta = {
         autoW       : {value: 'fit'},   // override.
         autoH       : {value: 'fit'},   // override.
-		layout		: {value: 'none'},  // override.
-		wrap		: {value: false},   // override.
+		    layout		: {value: 'none'},  // override.
+		    wrap		: {value: false},   // override.
         onLoad: {event: true},
         onBeforeShow: {event: true},
         onAfterShow: {event: true},
@@ -41,8 +41,8 @@ export class TPage extends TPanel {
         onAfterHide: {event: true}       
 	};
 
-	_layout = 'none';
-	_wrap = false;
+	  _layout = 'none';
+	  _wrap = false;
     _autoW = 1;
     _autoH = 1;
 	
@@ -61,7 +61,11 @@ export class TPage extends TPanel {
 		super.destroy();
 	}
 
-
+  show() {
+    super.show(); // Standard show behavior (visibility toggle etc.)
+    this.autoAdjust(); // Recalculate my own width/height
+    this.calcLayout(); // Reflow my children
+  }
 
 }
 

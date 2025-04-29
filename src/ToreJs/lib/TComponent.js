@@ -143,7 +143,8 @@ export class TComponent extends TObject {
 			This should be done via attach and detach methods.
 		3)	They should be TComponent or descendant class instances.
 		4)	Member chain is strictly hierarchical. 
-			An owner be a member in one of the components in its member chain.
+			An owner can not be a member in one of the components in its 
+			member chain.
 		5)	Members are accessed by their names. 
 			Member names should be identifiers.
 			A getter for this.memberName is defined.

@@ -88,15 +88,15 @@ class TApplication extends TComponent {
             return;
         if (!nxt)
             exc('E_INV_ARG', page + ' is not a member of application.'); 
-        nxt.dispatch(nxt._eve.onBeforeShow);  
-        display.attach(nxt);
-        nxt.dispatch(nxt._eve.onAfterShow);
         if (cur) {
             cur.dispatch(cur._eve.onBeforeHide);
             this.attach(cur);
             cur.dispatch(cur._eve.onAfterHide);
         }
         this._currPage = nxt;
+        nxt.dispatch(nxt._eve.onBeforeShow); 
+        display.attach(nxt);
+        nxt.dispatch(nxt._eve.onAfterShow); 
         display.refresh();
     }
 

@@ -9,7 +9,6 @@
 
 import { sys, exc, core, TComponent } from "../lib/index.js";
 import { TCtl } from "./TCtlSys.js";
-import { TControl } from "./TControl.js";
 import { display } from "./TDisplay.js";
 
 /*——————————————————————————————————————————————————————————————————————————

@@ -123,7 +123,8 @@ export class TEventHandler extends TObject {
         }
         if (t._que) 
             return t._que.add(t._tar, t._tar[t._met], [t._src, ...args], t._par);
-        return t._tar[t._met].apply(t._tar, [t._src, ...args]);
+		else
+        	return t._tar[t._met].apply(t._tar, [t._src, ...args]);
 	}
 
 	/*——————————————————————————————————————————————————————————————————————————
